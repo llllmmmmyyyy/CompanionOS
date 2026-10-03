@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Offline parent and child animal activities"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Enjoy animal adventures together"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CompanionOS"
+    }
+  ]
+}
