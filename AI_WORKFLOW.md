@@ -1,5 +1,11 @@
 # AI development workflow
 
+## Homepage UI/accessibility polish - 2026-10-03
+
+Prompt: improve homepage hierarchy, readable contrast, warm primary action, compact category/activity cards, progress and bottom navigation while preserving all session/provider/history/Tablet behavior. Codex edited only Phone presentation builders and shared page spacing/navigation styling, reused existing original SVG assets, and added semantic grouped labels. No additional agent, cloud credential, dependency, generated asset or architecture change.
+
+The progress card reuses actual today/total counts and the existing ten-completion Family Explorer threshold. It does not invent active minutes or imply reduced adult supervision. Eighteen sampled foreground/background color pairs were computed with relative luminance (minimum 5.66:1); this is bounded color evidence, not a formal WCAG or screen-reader pass. Actual initial/one-scroll screenshots, navigation and existing regression checks are recorded separately in TESTING.md. Large-font and small physical-screen checks require additional testing.
+
 ## API 21 Tablet companion adaptation - 2026-10-03
 
 User prompt: replace the API 19 TV-focused secondary target with a MatePad Pro 11 API 21 Large-Screen companion, preserve Phone API 21 and existing media/session/relay architecture, validate actual devices and document limits. Codex inspected actual product/module declarations and HDC properties, reused tventry/TvAbility/TvReceiver, renamed only the secondary build product to tablet and changed minimum/device declarations. Internal protocol names/routes remain compatible. No extra coding agents, assets, dependencies or cloud credentials.

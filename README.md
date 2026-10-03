@@ -179,3 +179,9 @@ Primary: HarmonyOS Phone API 21 (`entry`, product `default`). Optional: HarmonyO
 Phone remains the authoritative controller of START / PAUSE / RESUME / NEXT / CANCEL, activity time and history. Tablet is a child-facing video/instruction display. Both guests use the existing http://10.0.2.2:18080 relay and family-demo room. This development/demo HTTP channel is not production distributed-device deployment. Failure always allows continuing on Phone.
 
 In DevEco choose product tablet, module tventry and the MatePad Pro 11 / HarmonyOS 6.0.1 / API 21 emulator. Phone uses default / entry. Build with scripts/build.ps1 -Module tventry; output tventry/build/tablet/outputs/default/tventry-default-unsigned.hap. The helper accepts -Tablet <HDC target> (legacy -Tv is an alias). Refer to [Large-Screen mode](docs/TV_MODE.md) and the latest [actual tests](docs/TESTING.md).
+
+## Homepage readability refinement
+
+The Phone home now uses a compact illustrated work card, a warm-green primary action, high-contrast category labels, horizontal activity cards and a 60vp navigation surface with 52vp item targets. Labels, icons, tints and selected borders convey state together. Today's progress uses actual confirmation counts and the existing Family Explorer badge threshold; it does not estimate movement or learning minutes. Grouped accessibility descriptions retain review/adult-support wording.
+
+Eighteen sampled homepage text/background pairs were calculated above 4.5:1; this is not a complete WCAG/accessibility certification. Actual screenshot/device coverage and pending larger-font/smaller-screen/screen-reader checks are in the latest TESTING.md section. Session logic, providers, history and Phone/Tablet transport were preserved.

@@ -630,31 +630,52 @@ struct Index {
 
   @Builder
   heroCard() {
-    Column({ space: 12 }) {
-      Image($rawfile('work-hero.svg')).width('100%').height(170).objectFit(ImageFit.Contain)
-      Row() {
-        Text('PARENT WORK SESSION').fontSize(12).fontWeight(FontWeight.Bold).fontColor('#446654').layoutWeight(1)
-        Text(`${this.data.settings.sessionDuration} min`).fontSize(13).fontColor('#355B49').padding(8).backgroundColor('#FFFFFF').borderRadius(16)
+    Column({ space: 10 }) {
+      Row({ space: 12 }) {
+        Image($rawfile('work-hero.svg')).width(110).height(98).objectFit(ImageFit.Contain)
+        Column({ space: 6 }) {
+          Text('PARENT WORK SESSION').fontSize(11).fontWeight(FontWeight.Bold).fontColor('#314D40').width('100%')
+          Text('A little adventure for them. A little room for you to focus.').fontSize(17).fontWeight(FontWeight.Medium)
+            .fontColor('#203C31').width('100%')
+          Text(`${this.data.settings.sessionDuration} min suggested`).fontSize(12).fontWeight(FontWeight.Medium)
+            .fontColor('#314D40').padding({ left: 8, right: 8, top: 4, bottom: 4 }).backgroundColor('#FFFFFF').borderRadius(12)
+        }.layoutWeight(1)
       }.width('100%')
-      Text('A little adventure.\nA little room to focus.').fontSize(29).fontWeight(FontWeight.Bold).fontColor('#223D32').width('100%')
-      Text("Don't just limit screen time. Transform it.").fontSize(16).fontColor('#466454').width('100%')
       Button(this.work.phase === 'active' ? 'Return to work session' : 'Start Parent Work Session')
-        .width('100%').height(52).backgroundColor('#294E3D').fontColor('#FFFFFF')
+        .width('100%').height(50).fontSize(16).fontWeight(FontWeight.Bold).backgroundColor('#287452').fontColor('#FFFFFF')
+        .borderRadius(18).stateEffect(true).shadow({ radius: 5, color: '#14287452', offsetY: 2 })
         .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
-    }.width('100%').padding(20).backgroundColor('#E1EEE8').borderRadius(28)
+      Text('Plan 15-60 minutes of guided activities').fontSize(13).fontColor('#314D40').width('100%')
+    }.width('100%').padding(14).backgroundColor('#E6F0E9').borderRadius(22)
+      .border({ width: 1, color: '#C5D8CD' }).shadow({ radius: 6, color: '#0A203C31', offsetY: 2 })
+      .scale({ x: this.pressedCard === 'hero' ? 0.99 : 1, y: this.pressedCard === 'hero' ? 0.99 : 1 })
+      .animation({ duration: 120, curve: Curve.EaseOut })
+      .onTouch((event: TouchEvent) => { this.pressedCard = event.type === TouchType.Down ? 'hero' : ''; })
+      .accessibilityGroup(true).accessibilityText('Parent Work Session. Plan fifteen to sixty minutes. Tap to prepare or return to your session.')
       .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
+  }
+
+  private categoryInk(type: string): string {
+    return type === 'MOVE' ? '#773D19' : type === 'LEARN' ? '#24526B' : type === 'CREATE' ? '#60387D' : '#2B5942';
   }
 
   @Builder
   typeTiles(types: string[]) {
-    Row({ space: 12 }) {
+    Row({ space: 10 }) {
       ForEach(types, (type: string) => {
-        Column({ space: 4 }) {
-          Image($rawfile(`${type}.svg`)).height(85).width('100%').objectFit(ImageFit.Contain)
-          Text(type).fontSize(16).fontWeight(FontWeight.Bold).fontColor('#283F36').width('100%')
+        Column({ space: 5 }) {
+          Row({ space: 6 }) {
+            Image($rawfile(`${type}.svg`)).height(38).width(38).objectFit(ImageFit.Contain)
+            Text(type).fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.categoryInk(type)).layoutWeight(1)
+          }.width('100%')
           Text(type === 'MOVE' ? 'Gentle energy' : type === 'LEARN' ? 'Discover something' : type === 'CREATE' ? 'Make and imagine' : 'Slow down & reset')
-            .fontSize(13).fontColor('#4C6258').width('100%')
-        }.layoutWeight(1).padding(14).borderRadius(22).backgroundColor(this.typeColor(type))
+            .fontSize(12).fontColor('#374B40').width('100%')
+        }.layoutWeight(1).padding(12).constraintSize({ minHeight: 90 }).borderRadius(18).backgroundColor(this.typeColor(type))
+          .border({ width: 1, color: '#CAD3CA' })
+          .scale({ x: this.pressedCard === type ? 0.98 : 1, y: this.pressedCard === type ? 0.98 : 1 })
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => { this.pressedCard = event.type === TouchType.Down ? type : ''; })
+          .accessibilityGroup(true).accessibilityText(`${type} activities. Tap to browse.`)
           .onClick(() => { this.filter = type; this.navigate('activities'); })
       })
     }.width('100%')
@@ -662,56 +683,61 @@ struct Index {
 
   @Builder
   activityCard(activity: Activity) {
-    Column({ space: 10 }) {
-      Image($rawfile(`${this.activityArt(activity)}.svg`)).height(140).width('100%').objectFit(ImageFit.Contain)
-        .backgroundColor(this.typeColor(activity.category)).borderRadius(20)
-      Row() {
-        Text(activity.category).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#426352').padding(7).backgroundColor(this.typeColor(activity.category)).borderRadius(12)
-        Blank()
-        Text(`${this.data.settings.minutes} min`).fontSize(13).fontColor('#59695F')
-      }.width('100%')
-      Text(activity.title).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
-      Text('Indoor-friendly | Adult nearby').fontSize(13).fontColor('#466454').width('100%')
-      Text(this.data.settings.interests.includes(activity.interest) ? `Matches an interest: ${activity.interest.toLowerCase()}` : 'A gentle way to try something new')
-        .fontSize(14).fontColor('#59695F').width('100%')
-      Row() {
-        Text('Offline activity').fontSize(12).fontColor('#59695F').layoutWeight(1)
-        Text('Discover >').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#294E3D')
-      }.width('100%')
-    }.width('100%').padding(16).backgroundColor('#FFFFFF').borderRadius(24)
+    Row({ space: 12 }) {
+      Image($rawfile(`${this.activityArt(activity)}.svg`)).height(92).width(78).objectFit(ImageFit.Contain)
+        .backgroundColor(this.typeColor(activity.category)).borderRadius(16)
+      Column({ space: 5 }) {
+        Text(activity.title).fontSize(18).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+        Row({ space: 6 }) {
+          Text(activity.category).fontSize(11).fontWeight(FontWeight.Bold).fontColor(this.categoryInk(activity.category))
+            .padding({ left: 7, right: 7, top: 3, bottom: 3 }).backgroundColor(this.typeColor(activity.category)).borderRadius(8)
+          Text(`${this.data.settings.minutes} min`).fontSize(12).fontColor('#3D5145')
+        }.width('100%')
+        Text('Indoor-friendly | Adult nearby').fontSize(12).fontColor('#3D5145').width('100%')
+        Row() {
+          Text('Offline activity').fontSize(12).fontColor('#3D5145').layoutWeight(1)
+          Text('Start >').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#236144')
+        }.width('100%')
+      }.layoutWeight(1)
+    }.width('100%').padding(12).backgroundColor('#FFFFFF').borderRadius(18)
+      .border({ width: 1, color: '#D3DDD4' }).shadow({ radius: 4, color: '#08203C31', offsetY: 2 })
       .scale({ x: this.pressedCard === activity.id ? 0.985 : 1, y: this.pressedCard === activity.id ? 0.985 : 1 })
-      .animation({ duration: 140, curve: Curve.EaseOut })
+      .animation({ duration: 120, curve: Curve.EaseOut })
       .onTouch((event: TouchEvent) => { this.pressedCard = event.type === TouchType.Down ? activity.id : ''; })
+      .accessibilityGroup(true).accessibilityText(`${activity.title}. ${activity.category}. ${this.data.settings.minutes} minutes. Indoor activity, adult nearby. Tap to review before starting.`)
       .onClick(() => this.openActivity(activity))
   }
 
   @Builder
   homeContent() {
-    Column({ space: 18 }) {
-      Row({ space: 12 }) {
-        Column({ space: 6 }) {
-          Text('Ready for a safe adventure?').fontSize(24).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
-          Text('Keep today active and fun.').fontSize(15).fontColor('#657269').width('100%')
-        }.layoutWeight(1)
-        Image($rawfile('CALM.svg')).height(66).width(66).borderRadius(33)
-      }.width('100%')
-      Text(`${this.catalog().length} indoor activities ready for your child`).fontSize(13).fontColor('#587563').width('100%')
+    Column({ space: 12 }) {
+      Text('Ready for a little adventure?').fontSize(25).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+      Text("Don't just limit screen time. Transform it.").fontSize(14).fontWeight(FontWeight.Medium).fontColor('#3D5145').width('100%')
       if (this.work.phase !== 'active' && ['running', 'paused', 'ready'].includes(this.phase)) {
-        Button('Return to activity').width('100%').backgroundColor('#294E3D').onClick(() => this.navigate('activity'))
+        Button('Return to activity').width('100%').backgroundColor('#287452').onClick(() => this.navigate('activity'))
       }
       this.heroCard()
-      this.heading('Quick Activities')
+      Text('Quick Activities').fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       this.typeTiles(WORK_TYPES.slice(0, 2))
       this.typeTiles(WORK_TYPES.slice(2))
-      this.heading('Recommended for your child')
+      Text('Recommended for your child').fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       ForEach(this.catalog().filter((activity: Activity) => this.data.settings.interests.includes(activity.interest)).slice(0, 2),
         (activity: Activity) => { this.activityCard(activity) }, (activity: Activity) => activity.id)
-      Column({ space: 8 }) {
-        Text("Today's progress").fontSize(20).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
-        Text(`${this.today} activities confirmed`).fontSize(25).fontWeight(FontWeight.Bold).fontColor('#426352').width('100%')
-        Text('Small moments add up. View your activity journal >').fontSize(14).fontColor('#59695F').width('100%')
-      }.padding(20).width('100%').backgroundColor('#EEE9DE').borderRadius(24).onClick(() => this.navigate('progress'))
-      Text('CompanionOS supports independent activity but does not replace appropriate adult supervision.').fontSize(13).fontColor('#59695F').width('100%')
+      Column({ space: 7 }) {
+        Row() {
+          Text("Today's progress").fontSize(19).fontWeight(FontWeight.Bold).fontColor('#203C31').layoutWeight(1)
+          Text('Journal >').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#236144')
+        }.width('100%')
+        Text(`${this.today} activities confirmed today`).fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+        Text(`${this.data.total} moments saved | Includes labelled Demo completions`).fontSize(12).fontColor('#3D5145').width('100%')
+        Progress({ value: Math.min(this.data.total, 10), total: 10, type: ProgressType.Linear }).width('100%').color('#287452')
+          .animation({ duration: 160, curve: Curve.EaseOut })
+        Text(this.data.total >= 10 ? 'Family Explorer badge earned' : `${Math.min(this.data.total, 10)} / 10 moments toward Family Explorer`)
+          .fontSize(12).fontColor('#3D5145').width('100%')
+      }.padding(14).width('100%').backgroundColor('#EEE9DE').borderRadius(18).border({ width: 1, color: '#D8D2C4' })
+        .accessibilityGroup(true).accessibilityText(`Today's progress. ${this.today} activities confirmed today; ${this.data.total} saved in total, including Demo completions. Tap for journal.`)
+        .onClick(() => this.navigate('progress'))
+      Text('An adult stays available. CompanionOS does not replace appropriate supervision.').fontSize(12).fontColor('#3D5145').width('100%')
     }.width('100%')
   }
 
@@ -1123,7 +1149,7 @@ struct Index {
         }
         Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31')
         Blank()
-      }.width('100%').padding(16)
+      }.width('100%').padding({ left: 16, right: 16, top: 10, bottom: 10 })
       Scroll(this.scroller) {
         Column({ space: 16 }) {
           if (this.notice !== '') {
@@ -1139,20 +1165,24 @@ struct Index {
           else if (this.screen === 'connect') { this.connectionContent() }
           else { this.activityContent() }
           Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
-        }.width('100%').padding({ left: 20, right: 20, top: 8 })
+        }.width('100%').padding({ left: 16, right: 16, top: 4 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
       if (['home', 'activities', 'progress', 'settings'].includes(this.screen)) {
         Row() {
           ForEach(['home', 'activities', 'progress', 'settings'], (tab: string) => {
             Column({ space: 2 }) {
               Image($rawfile(`${tab === 'home' ? 'CALM' : tab === 'activities' ? 'MOVE' : tab === 'progress' ? 'LEARN' : 'CREATE'}.svg`))
-                .width(36).height(30).objectFit(ImageFit.Contain)
+                .width(26).height(24).objectFit(ImageFit.Contain)
               Text(tab === 'settings' ? 'Parent' : tab.charAt(0).toUpperCase() + tab.slice(1)).fontSize(12)
-                .fontWeight(this.screen === tab ? FontWeight.Bold : FontWeight.Normal).fontColor('#294E3D')
-            }.layoutWeight(1).height(62).justifyContent(FlexAlign.Center).borderRadius(16)
-              .backgroundColor(this.screen === tab ? '#E1EEE8' : '#FFFFFF').onClick(() => this.selectTab(tab))
+                .fontWeight(this.screen === tab ? FontWeight.Bold : FontWeight.Medium).fontColor(this.screen === tab ? '#1E583C' : '#415248')
+            }.layoutWeight(1).height(52).justifyContent(FlexAlign.Center).borderRadius(14)
+              .border({ width: this.screen === tab ? 1 : 0, color: '#9FC3AC' })
+              .backgroundColor(this.screen === tab ? '#D6EBDC' : '#FFFFFF')
+              .animation({ duration: 120, curve: Curve.EaseOut })
+              .accessibilityGroup(true).accessibilityText(`${tab === 'settings' ? 'Parent' : tab}. ${this.screen === tab ? 'Selected' : 'Tap to open'}`)
+              .onClick(() => this.selectTab(tab))
           })
-        }.width('100%').padding({ left: 12, right: 12, top: 6, bottom: 8 }).backgroundColor('#FFFFFF')
+        }.width('100%').padding({ left: 10, right: 10, top: 4, bottom: 4 }).backgroundColor('#FFFFFF')
       }
     }.height('100%').width('100%').backgroundColor('#F4F7F0')
     }
