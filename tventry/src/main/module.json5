@@ -1,0 +1,15 @@
+{
+  "module": {
+    "name": "tventry", "type": "entry", "mainElement": "TvAbility",
+    "deviceTypes": ["tv"], "deliveryWithInstall": true, "installationFree": false,
+    "pages": "$profile:main_pages",
+    "requestPermissions": [{ "name": "ohos.permission.INTERNET" }],
+    "abilities": [{
+      "name": "TvAbility", "srcEntry": "./ets/entryability/TvAbility.ets",
+      "label": "$string:tv_name", "icon": "$media:layered_image",
+      "startWindowIcon": "$media:layered_image", "startWindowBackground": "$color:tv_background",
+      "exported": true,
+      "skills": [{ "entities": ["entity.system.home"], "actions": ["ohos.want.action.home"] }]
+    }]
+  }
+}

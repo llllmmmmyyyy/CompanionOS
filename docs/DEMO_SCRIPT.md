@@ -1,5 +1,19 @@
 # Two-minute demo
 
+## Four-source TV variation
+
+0:00–0:20: "CompanionOS turns a few minutes into shared family moments. These original activities work without an AI key." Show Home/settings/history.
+
+0:20–0:45: Show Choose Activity Content. "Parents can choose Gemini, Huawei Cloud MaaS, original content, or their own video. Keys stay on the backend. Today’s cloud paths are unconfigured, so the app tells us and offers a safe fallback." Select Built-in or a reviewed imported MP4; do not describe fallback as AI output.
+
+0:45–1:20: Connect to Emulator TV, enable ten-second Demo Mode, start and briefly pause/resume. "The phone controls the session. The TV plays the selected content and never writes history. We can put the screen down and play together."
+
+1:20–1:45: After expiry confirm as parent, Mark as completed, show one source-labelled record and TV celebration. "Only an adult confirms the shared moment. Repeated taps cannot count it twice."
+
+1:45–2:00: "Settings, imported video and records survive restarting. Normal mode uses three, five or ten minutes. This demo is on emulators; signed hardware and live cloud generation still need verification."
+
+Record manually with Windows Snipping Tool (Win+Shift+R), selecting both emulator windows, then Start. Perform this sequence, stop, review the MP4 and save it outside tracked source, such as ignored artifacts. No recording has been produced automatically.
+
 Use a phone/emulator on API 21+, a signed debug build, and clearly labelled Demo Mode. This script describes a planned walkthrough; no video has been recorded automatically.
 
 | Time | Action | English narration |

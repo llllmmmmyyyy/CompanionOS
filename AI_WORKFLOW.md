@@ -1,5 +1,21 @@
 # AI development workflow
 
+## Multi-provider content extension — 2026-10-03
+
+The user asked the same coding assistant to preserve Gemini/videos and add Huawei MaaS, original Built-in and system-imported My Video within the existing session/history/TV architecture. No additional agents or image generation were used. The assistant directly edited the repository, consulted installed API 21 declarations and official Huawei MaaS/OpenHarmony media-tool documents, built unsigned Phone/TV HAPs and executed host/device checks. Work from the preceding integrated TV/backend stage was preserved.
+
+Actual changes: shared content enum/VideoSource, legacy record defaults, backend provider interfaces/adapters, normalized public plan, both blank backend environment keys, safe provider selection/fallback, PhotoViewPicker/private copy/duration persistence, bounded MP4 cache import, and provider-independent TV playback. A device-observed stale heading was fixed by binding Text directly; an SDK lifecycle spelling error was corrected from onDisappear to onDisAppear. Windows npm.cmd and native resolved HDC paths were used after execution-policy/path errors. Media-test import used API 21 media FUSE with the project’s own clip; mediatool temporary-path access was denied.
+
+Neither live Gemini/Veo nor Huawei generation has been verified. HTTP provider tests use injected mocks; fallback uses the actual local backend. Human review remains necessary for actual generated/imported child-facing footage, physical devices/signing, launcher widget and competition rules. Exact device evidence and remaining checks are in docs/TESTING.md.
+
+## Integrated Phone + TV + backend extension — 2026-10-03
+
+OpenAI Codex was the coding assistant/agent used. The user requested one repository preserving Phone functionality, API 19 independent TV HAP, video-first UI, emulator transport, secure real Gemini/Veo code paths, build/test evidence and Git upload. No additional coding agents or live Gemini/Veo content generation were used.
+
+Decisions: keep Phone API 21, add TV minimum API 19 using installed SDK 21, share a protocol HAR, use HTTP + HDC reverse forwarding rather than emulator distributed APIs, and retain Phone-authoritative history. Node built-in HTTP/fetch avoids runtime packages. Official provider documentation informed REST implementation; mock HTTP tests are clearly distinguished from real backend/emulator checks. An original bundled cloud clip was created with ignored local FFmpeg tooling and is explicitly not AI output.
+
+Corrected failures: ArkTS constructor parameter properties were replaced with explicit fields; TV output path uses product tv; Windows test-loader paths were normalized; an incorrect test-tool package name returned 404 before the correct package was installed; bundled video resume was fixed and actual player callbacks verified. Human review remains needed for child suitability, real generated video, physical transport/signing and provider access. No credentials were present or requested. TESTING.md records actual results and limitations.
+
 ## Companion TV extension — 2026-10-03
 
 The user supplied a detailed Companion TV Mode prompt requesting minimal API 21 changes, local and distributed transport boundaries, four activity categories, mock AI plans, future Gemini/Veo design, build checks and a Git upload. OpenAI Codex implemented the changes directly, inspected installed SDK declarations, built with DevEco tools, executed actual-model host checks and operated the existing emulator via HDC. No Gemini/Veo request or provider credential was used. Documentation separates working Local Demo from the unimplemented real TV channel/receiver. Human review remains necessary for child suitability, real TV hardware and future generated media.

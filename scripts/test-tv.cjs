@@ -9,7 +9,7 @@ function load(relative) {
   const file = path.resolve(__dirname, '../entry/src/main/ets', relative + '.ets');
   if (cache.has(file)) return cache.get(file);
   const box = { exports: {}, Date, Math, Number, JSON, Array, Promise, Error,
-    require: name => load(path.relative(path.resolve(__dirname, '../entry/src/main/ets'), path.resolve(path.dirname(file), name))) };
+    require: name => name === '@companion/protocol' ? require('./load-protocol.cjs')(ts) : load(path.relative(path.resolve(__dirname, '../entry/src/main/ets'), path.resolve(path.dirname(file), name))) };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 }
   }).outputText, box);

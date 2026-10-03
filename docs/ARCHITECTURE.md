@@ -1,5 +1,11 @@
 # Architecture
 
+Content origin is shared enum ActivityContentSource. VideoSource carries source/URI/title/activity/provider from Phone to TV; private paths stay on Phone. Provider-independent ActivityJobs retains common validation, retry, review/cache and fallbacks for Gemini and Huawei adapters. System-imported My Video stores one MP4 privately plus Preferences metadata, optionally publishes it to the loopback cache for separate-TV playback, and uses the same session/confirmation/history flow. Old records without source default to Built-in. See AI_ARCHITECTURE.md for exact cloud contracts and verification limits.
+
+## Integrated system
+
+`entry` remains Phone controller/storage owner. `tventry` is an independent TV entry HAP with minimum API 19. `shared` is a local protocol/HTTP HAR. `backend` handles activity jobs, provider calls, local media cache and transient relay rooms. Phone snapshots control playback; only parent-confirmed Phone storage updates counts. See [TV](TV_MODE.md), [protocol](TV_PROTOCOL.md), [backend/AI](AI_ARCHITECTURE.md). Earlier core details below describe preserved Phone behavior.
+
 ## Native structure
 
 CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. Home, Settings, Activity, Progress, TV Connection and the landscape local TV Player are clear states in one entry page; there is no Flutter or web runtime. The phone owns the session; a transport projects frames into the local TV view. The real distributed channel remains an extension point. See [TV architecture](TV_MODE.md) and [AI architecture](AI_ARCHITECTURE.md).

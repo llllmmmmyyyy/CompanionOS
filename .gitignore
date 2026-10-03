@@ -47,3 +47,7 @@ artifacts/
 **/.preview/
 **/__pycache__/
 *.hprof
+backend/dist/
+backend/data/
+# Hvigor-generated HAR build constants
+**/BuildProfile.ets

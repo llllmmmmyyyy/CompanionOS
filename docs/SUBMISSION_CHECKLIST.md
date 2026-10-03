@@ -4,6 +4,9 @@ This checklist reports implementation and observed evidence. It is not a competi
 
 | Deliverable / requirement | Status | Evidence or next action |
 |---|---|---|
+| Independent TV + relay backend | Built and emulator tested | TV minimum API 19, Phone API 21; real video playback, controls, reconnect and notification observed |
+| Four content sources | Implemented | Gemini preserved, Huawei adapters, unchanged Built-in, real system MP4 import/title/duration/restart; see latest TESTING evidence |
+| Live Gemini/Veo and Huawei generation | Unverified | Backend-only credentials/model access required; cloud HTTP tests are mocks |
 | Native HarmonyOS Phone project, API 20+ | Implemented and built | Existing Stage-mode template; compatible/target API 21 |
 | Four clear page states | Implemented and built | Home, Parent Settings, Activity, Progress in `Index.ets` |
 | Offline curated activities | Implemented and built | Penguin Walk, Animal Sounds, Butterfly Stretch |

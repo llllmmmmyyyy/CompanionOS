@@ -1,4 +1,4 @@
-param([switch]$RunChecks, [string]$ProjectDirectory = '')
+param([switch]$RunChecks, [string]$ProjectDirectory = '', [ValidateSet('entry', 'tventry')][string]$Module = 'entry')
 $ErrorActionPreference = 'Stop'
 if ($ProjectDirectory) { $projectRoot = (Resolve-Path -LiteralPath $ProjectDirectory).Path }
 elseif ($PSScriptRoot) { $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
@@ -43,8 +43,9 @@ try {
   $env:Path = "$(Join-Path $studioRoot 'jbr\bin');$(Join-Path $studioRoot 'tools\node');$(Join-Path $studioRoot 'tools\ohpm\bin');$originalPath"
   # Windows PowerShell represents native stderr warnings as ErrorRecords; use the actual exit code.
   $ErrorActionPreference = 'Continue'
-  & $node $hvigor --mode module -p product=default -p module=entry@default -p buildMode=debug assembleHap --no-daemon 2>&1 |
-    Tee-Object -FilePath (Join-Path $artifactRoot 'build.txt')
+  $product = if ($Module -eq 'tventry') { 'tv' } else { 'default' }
+  & $node $hvigor --mode module -p "product=$product" -p "module=$Module@default" -p buildMode=debug assembleHap --no-daemon 2>&1 |
+    Tee-Object -FilePath (Join-Path $artifactRoot "build-$Module.txt")
   $ErrorActionPreference = 'Stop'
   if ($LASTEXITCODE -ne 0) { throw "HAP build failed with exit code $LASTEXITCODE" }
   if ($RunChecks) {
@@ -57,8 +58,11 @@ try {
     & $node (Join-Path $scriptRoot 'test-tv.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'TV/AI host checks failed' }
+    & $node (Join-Path $scriptRoot 'test-emulator.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Emulator protocol/client checks failed' }
   }
-  $hap = Join-Path $projectRoot 'entry\build\default\outputs\default\entry-default-unsigned.hap'
+  $hap = Join-Path $projectRoot "$Module\build\$product\outputs\default\$Module-default-unsigned.hap"
   if (-not (Test-Path -LiteralPath $hap)) { throw 'Expected unsigned HAP was not produced.' }
   Write-Output "Unsigned HAP: $hap"
   Get-FileHash -LiteralPath $hap -Algorithm SHA256

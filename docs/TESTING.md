@@ -1,5 +1,42 @@
 # Testing evidence
 
+## Integrated backend, TV and content sources — 2026-10-03
+
+This is the current version. Sections below retain evidence from earlier versions and do not describe the latest implementation.
+
+**Build:** Phone API 21 and TV minimum API 19 / compiler API 21 unsigned HAPs built with installed DevEco 6.0.1.251 / SDK 6.0.1.112. Phone SHA-256 `0EEF8A476859D17A3195232031B75F892023FF6FD03F59C5A63755E72E5FBC51`; TV SHA-256 `55B348D3F56CE0BC24C8CAAE8E0CC29F5D38E90E1BDBFB35759FC889FF661F87`. Actual paths: `entry/build/default/outputs/default/entry-default-unsigned.hap` and `tventry/build/tv/outputs/default/tventry-default-unsigned.hap`. Signing remains unconfigured; both development emulators accepted installation and launched the respective abilities. This does not verify physical installation or a signed release.
+
+**Host tests:** 39 actual-ArkTS logic checks (14 domain, 13 mocked services, 7 TV/mock-plan, 5 emulator protocol/client) and 18 backend tests passed. `scripts/build.ps1 -RunChecks` and `npm.cmd test` in backend were actually executed. Backend tests include actual ephemeral local HTTP endpoints but mocked cloud responses/media bytes: Gemini reuse, Huawei REST/task shapes, missing models/keys, provider failure, strict safety/duration validation, retries, review-gated cache/ranges, progressive generation, redirects without secret forwarding, imports and all four source types with every transport command. These tests are not live provider or device claims.
+
+| Actual device / integration check | Result and scope |
+|---|---|
+| HDC detection / compatibility | Passed: Phone 5555 API 21; independent TV 5557 reports tv/API 19. Both are running emulators, not physical devices. |
+| Phone-to-TV connection | Passed using real loopback backend/HDC reverse routes: Phone Connected; TV receiver heartbeat and full state observed. Startup helper installed/launched both. |
+| Video-first TV / native bundled MP4 | Passed: 3840×2160 16:9 TV screenshot inspected; actual Video PLAYING/PAUSED callbacks and VIDEO_READY feedback. Original non-AI cloud clip preserved. |
+| Normal timer and controls | Passed in integrated stage: real 5-minute start/pause/resume/next/previous; full wall-clock 3-minute Dino fallback expiry reached parent confirmation, TV Step 3/3. |
+| Disconnect/reconnect | Passed: TV force-stop for seven seconds produced Phone Disconnected while countdown continued; receiver restart restored full state. |
+| Completion / double-click | Passed integrated stage: required parent checkbox; doubleClick produced one 3-minute record, total 4→5; TV completion celebration. |
+| Real system notification | Passed integrated stage: actual Dino foreground-end notification inspected in notification center. Reliable background notification is not claimed. |
+| Video failure | Passed on actual TV with explicit HTTP 404 fixture: VIDEO_FAILED / safe static FALLBACK; no record created. This was injected test media, not a provider result. |
+| Same-phone Demo / original activities | Passed integrated stage: IMAGINE ten-second expiry, original Penguin 3-minute start/cancel with total unchanged. |
+| Four content cards / both provider failure UI | Passed on latest Phone: real GEMINI and HUAWEI requests to no-key backend returned Built-in/offline labels and offered the other provider/Built-in. No cloud call succeeded or was attempted. |
+| Missing saved video | Passed latest Phone: My Video with no private copy offered import or Built-in; app remained usable. |
+| System picker / real import | Passed latest Phone: selected the project's original eight-second MP4 in PhotoViewPicker, copied private file, extracted duration and displayed saved title/8 seconds. No broad gallery permission requested. |
+| Imported-video restart | Passed latest Phone: force-stop/relaunch retained saved clip/title/duration and My Video selection succeeded; existing settings age 6–8 / 3 minutes and five old records retained. |
+| Imported Phone/TV controls and cancellation | Passed latest devices: USER_VIDEO cached URI arrived through real relay; TV showed My Video / Video: PAUSED; normal 02:59 paused, next/previous/resume worked; explicit dialog cancellation returned Home with count five. |
+| Imported Demo completion / duplicate click | Passed latest Phone: actual ten-second expiry, parent checkbox and doubleClick produced one My family video / My Video Demo record; total five→six. Older Dino record defaulted to CompanionOS Built-in. |
+| Latest record restart / fallback heading | Passed: final Phone restart displayed count six and saved age/time; repeated Gemini failure displayed the refreshed Dino Movement Adventure heading. |
+| Four-source actual TV control fixtures | Passed on TV for GEMINI_AI, HUAWEI_AI, BUILT_IN and USER_VIDEO: START actual PLAYING callback, PAUSE actual PAUSED, NEXT/PREVIOUS displayed step, RESUME PLAYING, CANCEL and COMPLETE states. Fixtures explicitly said Playback fixture - NOT AI output and used the original clip/cached import. This proves shared player/transport behavior, not live AI generation. No Phone completion was written by fixtures. |
+| Heading update | Fixed after device observation: direct Text binding refreshes changed activity title; My family video title observed after import. |
+| Live Gemini/Veo / Huawei MaaS | Unverified: no provider credentials configured. Existing Gemini client and second Huawei client compile and pass injected HTTP tests; no claim of generated cloud footage. |
+| Latest runtime log review / final state | No app JS exception/fatal signature found in captured Phone and TV process hilog. Final backend rebuilt/restarted; Phone returned Home with six completions and Connected to Emulator TV, receiver waiting. Expected AV decoder errors from the deliberate earlier 404 fixture are not treated as app crashes. |
+| Widget / physical devices / signing | Unverified: widget hosting/tap/update, physical Phone/TV pairing and signed distribution still pending. |
+| Full 5/10-minute expiry variants | Unverified on device; selected time arithmetic covered by host checks. |
+
+Initial failed build checks were fixed (SDK lifecycle spelling), then successfully rebuilt. npm.ps1 was blocked by existing PowerShell policy, so npm.cmd was used without changing system policy. HDC media import initially failed for temporary path access and relative/forward-slash Windows paths; the API 21 media-FUSE route and Windows-native resolved source path successfully imported only the project's clip. These intermediate failures are not counted as passes.
+
+Remaining manual checks: configure backend credentials only if live AI is desired; review real generated clips before child playback, test actual provider billing/model access and result-storage allowlist. Run complete 5/10-minute sessions and add/tap the widget. Sign and test physical devices. Recording remains manual; follow DEMO_SCRIPT.md. No RULES/CRITERIA file was found, so full contest compliance remains unassessed.
+
 ## Companion TV extension — 2026-10-03
 
 Final API 21 build succeeded with `scripts/build.ps1 -RunChecks`; **33 host checks passed** (13 domain, 13 mocked services, 7 TV/AI checks). The exact unsigned HAP SHA-256 is `918BF1F0A7AC741F3BC192917EDE9FE16317BA49DB97E024675413C4C3A36810`, at `entry/build/default/outputs/default/entry-default-unsigned.hap`. Signing remains unconfigured. HDC installed this HAP successfully on the existing `127.0.0.1:5555` emulator; its API property returned 21. Another emulator was visible at 5557 but was not used.

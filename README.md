@@ -6,14 +6,17 @@ CompanionOS is a native HarmonyOS phone MVP for short, adult-accompanied family 
 
 ## Implemented experience
 
-- **Companion TV Mode:** phone-owned countdown and pause/resume/step controls, local landscape Demo TV player, four mock adventures, disconnect fallback. Demo TV runs on the phone; real TV channel/receiver and Gemini/Veo are future integration work. See [TV mode](docs/TV_MODE.md) and [AI architecture](docs/AI_ARCHITECTURE.md).
+- **Choose Activity Content:** Gemini AI, Huawei AI, Built-in Video and My Video share the existing Phone session/history and TV player. Gemini is preserved; Huawei MaaS is a second backend adapter. Both need backend-only credentials and remain unverified against live APIs. Built-in requires no AI call. My Video uses the system picker, a private persistent MP4 copy and optional backend caching for TV; offline Phone playback is supported.
+
+- **Companion TV Mode:** same-phone Demo TV plus independent `tventry` on API 19 TV. Phone-owned timer/pause/resume/next/previous/cancel/completion, HTTP relay and reconnect synchronization. See [TV mode](docs/TV_MODE.md).
+- **Generation backend:** Node/TypeScript, real Gemini structured-plan and Veo 3.1 REST paths, validation/retry, asynchronous segments, reviewed disk cache and safe no-key fallback. No live provider call was attempted this run. TV plays a labelled original bundled fallback MP4 when generated clips are unavailable. See [AI architecture](docs/AI_ARCHITECTURE.md).
 
 - **Home:** Penguin Walk, Animal Sounds, Butterfly Stretch, today's completion count, interest matches, settings and progress.
 - **Parent Settings:** ages 4–5 or 6–8, Movement / Sounds / Nature interests, 3 / 5 / 10 minutes, persistent local settings.
 - **Activity:** age guidance, curated steps, adult accompaniment, start, countdown, cancellation and parent confirmation. Normal mode uses the selected duration; clearly labelled Demo Mode uses ten seconds.
 - **Progress:** recent completions, local date/time, total count and badges at 1, 3 and 10 completions. Demo completions are labelled and included in totals.
 - **HarmonyOS capabilities:** Preferences persistence, real foreground-end notification calls with permission/error handling, and a 2×2 desktop widget with an app launch link.
-- **Optional AI:** configurable HTTPS recommendation endpoint, validation, loading state, ten-second timeout and offline fallback. No backend exists in this workspace and no live AI connection has been verified. A service may recommend only a supported activity matching parent settings; steps remain curated offline content.
+- **Optional recommendation service:** configurable HTTPS endpoint, validation, ten-second timeout and offline fallback. This older catalog recommendation adapter is separate from the new generation backend. No live provider connection has been verified.
 
 ## Environment verified during development
 
@@ -26,7 +29,38 @@ CompanionOS is a native HarmonyOS phone MVP for short, adult-accompanied family 
 | Build tools | DevEco bundled Hvigor, Node 18.20.1, Java 21.0.8 |
 | Git remote | https://github.com/llllmmmmyyyy/CompanionOS.git |
 
-The existing SDK and build configuration are preserved. The separate competition CLI setup is not required for this project's native build.
+Phone product `default` remains minimum/target API 21. Separate product `tv` is minimum API 19, target/compiler SDK 21. Its independent HAP was installed and launched on the actual API 19 TV. `shared` is a local protocol HAR, not another project.
+
+## Phone + TV hackathon demo
+
+Backend requires Node.js 22+ (24.21.0 was available here). In Windows PowerShell inside `backend`, run `npm.cmd ci`, `npm.cmd run build`, then `npm.cmd start`. No key is needed for fallback. To enable providers, copy `.env.example` to ignored `.env`. Set `GEMINI_API_KEY` for Gemini/Veo, or `HUAWEI_MAAS_API_KEY` plus the exact enabled `HUAWEI_MAAS_MODEL` from your MaaS console. Huawei video uses the documented Wan text-to-video adapter; configure the enabled video model and explicit trusted storage hosts in `HUAWEI_VIDEO_DOWNLOAD_HOSTS`. No key goes into either app. Account/model access remains unverified. Generated footage is review-gated: inspect MP4 under backend/data/videos, then `npm.cmd run review -- <videoId>` to approve.
+
+The helper automates builds, backend start, port forwarding, installation and launch: run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1 -Build` from this repository. Policy changes apply only to that process. Emulators must already be running; override -Phone / -Tv if target IDs differ. No need to recreate running emulators.
+
+Exact demo sequence (the helper performs setup steps):
+
+1. Start backend as above.
+2. Ensure API 21 Phone emulator is running.
+3. Ensure API 19 Huawei TV emulator is running.
+4. Install TV HAP: `tventry/build/tv/outputs/default/tventry-default-unsigned.hap`.
+5. Launch `com.example.companionos` / `TvAbility`; Waiting for phone appears.
+6. Install Phone HAP: `entry/build/default/outputs/default/entry-default-unsigned.hap`.
+7. Launch `com.example.companionos` / `EntryAbility`.
+8. For each device forward `rport tcp:18080 tcp:8787` through HDC.
+9. Phone: Play on TV → Connect to Emulator TV.
+10. Both apps use `http://127.0.0.1:18080`, room `family-demo`; host listens on `127.0.0.1:8787`.
+11. Use Edit age, interests and duration to save the desired age/interests/3–10 minutes.
+12. Return to Play on TV, choose category and enter an educational goal.
+13. Tap Create Adventure and observe Planning / Generating video progress.
+14. Missing keys show Backend fallback plan. Real AI plans are labelled only after a valid provider response.
+15. Start when plan/first approved clip or safe fallback is playable; Play on TV keeps Phone as controller.
+16. For a short demo check Demo Mode; normal mode uses the chosen minutes.
+17. Phone Pause / Resume controls actual TV video playback.
+18. Next / Previous switches step and clip; scheduled steps also advance.
+19. After time ends, check the parent box and Mark as completed on Phone.
+20. TV celebrates; Phone saves one record. Cancel records no completion.
+
+No-key videos are explicitly bundled fallback, not Veo output. Same-phone Demo TV remains separate and needs no backend. Both development emulators accepted unsigned HAPs; physical-device signing remains unverified. In DevEco choose product `default`, module `entry`, Phone then Run; for TV choose product `tv`, module `tventry`, TV then Run.
 
 ## Build
 

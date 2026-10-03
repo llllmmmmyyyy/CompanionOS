@@ -1,0 +1,6 @@
+{
+  "name": "companionos-backend", "version": "1.0.0", "private": true,
+  "type": "module", "engines": { "node": ">=22" },
+  "scripts": { "build": "tsc", "start": "node --env-file-if-exists=.env dist/server.js", "test": "npm run build && node --test test/*.test.mjs", "review": "node dist/review.js" },
+  "devDependencies": { "typescript": "^5.9.3", "@types/node": "^24.0.0" }
+}

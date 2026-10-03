@@ -1,25 +1,33 @@
-# Companion TV Mode
+# CompanionOS Phone + TV
 
-The API 21 Phone application remains the authority for time, steps, parent confirmation and Preferences history. The existing three offline activities remain available. Four additional deterministic mock adventures cover MOVE, LEARN, IMAGINE and CALM.
+## Content selection
 
-## Working local demonstration
+Phone offers Gemini AI, Huawei AI, Built-in Video and My Video before start. Shared VideoSource carries URI/title/source through the existing protocol; the player uses only its URI regardless of origin. Older messages are converted to Built-in metadata. The original bundled MP4 is unchanged. My Video uses backend caching for separate TV, private offline playback on Phone, and explicit TV fallback when the cache is unavailable. Choosing a provider does not imply successful AI generation.
 
-Home → Play on TV → Demo TV Mode → choose an adventure. Start on the phone; use Pause activity, Resume activity and Next step. Play on TV opens a landscape child player on the **same phone**. Phone controller returns to the controls and restores the previous orientation. This demonstrates a receiver projection without requiring a television or network. Demo TV connection does not shorten the activity: the separate Demo Mode checkbox selects the ten-second timer; normal mode uses 3, 5 or 10 minutes.
+HDC sometimes omits the TV same-port reverse forward from `fport ls` although its listener works. The helper reports this case and requires actual app connection verification; an exit code alone is not considered success.
 
-The player displays large instructions, a media placeholder, countdown, step progress, pause state and a celebration. All media is currently local placeholder content; no generated videos are downloaded or played. Step changes are parent controlled. A timer expiring shows a celebration but only parent confirmation writes history. Disconnecting the transport leaves the phone timer and completed records intact. Pausing freezes remaining milliseconds; background reconciliation never resumes a paused activity. Active sessions are not persisted across process termination; saved settings and completed records are.
+One repository contains `entry` (Phone), `tventry` (independent TV entry HAP), `shared` (local protocol HAR) and `backend` (Node/TypeScript relay and generation service). The existing Phone module was extended, not moved or replaced. Phone `default` minimum/target API remains 21; TV product `tv` minimum is API 19 and target/compiler SDK is 21. The TV HAP actually installed and launched on the API 19 TV. API 19 SDK is not claimed to be installed.
 
-## Modules and transport contract
+## Two experiences
 
-- `Companion.ets`: existing settings/history schema, extended activity metadata and pause-aware session.
-- `AiActivityService.ets`: request/result contract, deterministic mock and validation/conversion.
-- `TvSessionTransport.ets`: `TvSessionTransport`, phone-owned `TvFrame`, local receiver, and `HarmonyDistributedTvTransport` adapter.
-- `NearbyTv.ets`: actual API 21 authorized-device lookup, on-demand distributed permission and honest unavailable/denied messages.
-- `Index.ets`: connection page, phone controls and landscape receiver presentation.
+**Demo TV Mode** is the existing landscape simulated receiver inside the Phone, using LocalDemoTvTransport without a backend. **Emulator TV Mode** launches TvAbility in tventry independently and uses EmulatorTvTransport through HTTP. It plays real video with ArkUI Video, or the small original bundled cloud clip when generated URLs are unavailable. That clip is labelled Not AI generated.
 
-Transport commands are connect, disconnect, start, pause, resume, cancel, nextStep and synchronize. Events include connection, disconnection, start, pause, resume, cancellation, step change and parent-confirmed completion. The local receiver has no independent timer or storage. The real adapter delegates these commands to an injected `DistributedTvChannel`; the app does **not** instantiate a working remote channel or claim a real TV connection.
+Phone owns timer, automatic steps, manual next/previous, pause, cancellation, parent-confirmed completion and Preferences history. TV has no history writes or independent completion timer. Expiry is ready, not completed; COMPLETE follows successful Phone storage. Phone process restart restores settings/history, but does not resurrect an unfinished session. TV restart restores the surviving Phone session from STATE_SYNC.
 
-## Real TV integration still required
+## Communication
 
-Nearby devices lists only already-authorized devices visible to HarmonyOS DeviceManager, not an active unpaired-device discovery/pairing flow. Finding a device does not prove that it runs a compatible TV receiver. This project remains a Phone module; it does not deploy a TV application. A real TV integration needs compatible hardware/SDK, pairing, a TV receiver, an authenticated ordered channel, session/sequence validation, acknowledgements, disconnect events and reconnect resynchronization. Keep those APIs in the channel/service layer. Test permissions, supported device types and transport interruption on actual hardware before enabling a real connection button.
+HTTP was chosen because both emulator NetworkKit clients and HDC reverse forwarding were available and actually tested. Phone POSTs bounded full snapshots/commands; TV polls every 500 ms. Requests do not overlap, pending snapshots are coalesced and queues bounded. Relay revisions prevent reapplying unchanged state; the latest snapshot repairs missed intermediate commands. Polling is not frame-accurate video synchronization.
 
-The real channel is an extension interface, not a completed end-to-end distributed implementation. A network outage currently cannot break Local Demo because it makes no network requests. Reliable background TV delivery and background notifications are not promised.
+Host backend: `127.0.0.1:8787`. Each emulator uses `127.0.0.1:18080`, forwarded with `hdc -t <target> rport tcp:18080 tcp:8787`. Room `family-demo` is a local demo identifier, not authentication. Observed targets: Phone 5555 / API 21, TV 5557 / API 19 / type tv. Server binds loopback by default; public deployment needs authentication, TLS and authorization.
+
+Six-second heartbeat expiry marks disconnection. TV loss leaves Phone running/history intact. Phone loss pauses video, overlays Connection lost and retains last safe state without completing it. Reconnection restores title, phase, step and media from full state. Foreground polling restarts on foreground; reliable background delivery is not promised.
+
+## TV playback
+
+The 16:9 screen has safe margins, a dominant video surface, large instruction, step progress and small timer. Sources are approved cached HTTPS/backend URLs or the bundled rawfile. Session/step/source changes recreate the surface. PAUSE/RESUME call VideoController; NEXT/PREVIOUS switch clips; CANCEL/COMPLETE stop activity playback. Short clips loop for the step duration. Video failure switches to a static safe visual and reports VIDEO_FAILED; history remains on Phone. Video: PLAYING/PAUSED reflects actual player callbacks.
+
+Connection states: OFFLINE, WAITING, CONNECTING, CONNECTED, DISCONNECTED, ERROR. Presentation covers waiting, buffering, playing, paused, parent-confirmation ready, completed, cancelled and disconnected. No camera, microphone or emotion monitoring.
+
+HarmonyDistributedTvTransport remains a future physical-channel boundary. NearbyTv performs authorized DeviceManager lookup/permission handling; physical pairing and distributed TV communication remain unimplemented/unverified. Working emulator transport does not use distributed APIs.
+
+See [protocol](TV_PROTOCOL.md), [AI architecture](AI_ARCHITECTURE.md) and [test evidence](TESTING.md).

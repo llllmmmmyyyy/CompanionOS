@@ -1,3 +1,6 @@
+import { ActivityContentSource } from '@companion/protocol';
+export { ActivityContentSource } from '@companion/protocol';
+
 export class ParentSettings {
   age: string = '4–5';
   interests: string[] = ['Movement'];
@@ -6,6 +9,11 @@ export class ParentSettings {
 }
 
 export class Activity {
+  contentSource: ActivityContentSource = ActivityContentSource.BUILT_IN;
+  videoUrl: string = '';
+  localVideoPath: string = '';
+  aiGenerationId: string = '';
+  aiProvider: string = '';
   category: string = 'MOVE';
   duration: number = 3;
   theme: string = 'Family animals';
@@ -54,6 +62,7 @@ export const ACTIVITIES: Activity[] = [
 ];
 
 export class Completion {
+  contentSource: ActivityContentSource = ActivityContentSource.BUILT_IN;
   id: string = '';
   activityId: string = '';
   title: string = '';
@@ -108,6 +117,10 @@ export function parseSnapshot(raw: string): Snapshot | undefined {
         [3, 5, 10].includes(record.minutes) && typeof record.demo === 'boolean')) {
       return undefined;
     }
+    for (const record of data.records) {
+      if (record.contentSource === undefined) { record.contentSource = ActivityContentSource.BUILT_IN; }
+      if (!['GEMINI_AI', 'HUAWEI_AI', 'BUILT_IN', 'USER_VIDEO'].includes(record.contentSource)) { return undefined; }
+    }
     return data;
   } catch {
     return undefined;
@@ -133,6 +146,11 @@ export function addCompletion(data: Snapshot, record: Completion): Snapshot {
 }
 
 export class ActivitySession {
+  contentSource: ActivityContentSource = ActivityContentSource.BUILT_IN;
+  videoUrl: string = '';
+  localVideoPath: string = '';
+  aiGenerationId: string = '';
+  aiProvider: string = '';
   private pausedMilliseconds: number = 0;
   id: string = '';
   deadline: number = 0;

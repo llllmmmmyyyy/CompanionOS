@@ -1,0 +1,1 @@
+{ "name": "tventry", "version": "1.0.0", "dependencies": { "@companion/protocol": "file:../shared" } }

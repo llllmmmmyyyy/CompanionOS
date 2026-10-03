@@ -9,10 +9,20 @@ if (!compilerPath) throw new Error('Usage: node scripts/test-domain.cjs <SDK typ
 const ts = require(path.resolve(compilerPath));
 const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/Companion.ets'), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 } }).outputText;
-const box = { exports: {}, Date, Math, Number, JSON, Array };
+const box = { exports: {}, Date, Math, Number, JSON, Array, require: () => require('./load-protocol.cjs')(ts) };
 vm.runInNewContext(js, box);
 const { Snapshot, ParentSettings, Completion, ActivitySession, restoreSnapshot, addCompletion, countToday, validSettings, validEndpoint } = box.exports;
 let passed = 0;
+test('old records default to Built-in while all four new sources survive restart', () => {
+  const record = new Completion(); record.id = 'old'; record.title = 'Penguin Walk'; record.completedAt = Date.now();
+  const data = addCompletion(new Snapshot(), record);
+  delete data.records[0].contentSource;
+  assert.equal(restoreSnapshot(JSON.stringify(data)).records[0].contentSource, 'BUILT_IN');
+  for (const source of ['GEMINI_AI', 'HUAWEI_AI', 'BUILT_IN', 'USER_VIDEO']) {
+    data.records[0].contentSource = source;
+    assert.equal(restoreSnapshot(JSON.stringify(data)).records[0].contentSource, source);
+  }
+});
 function test(name, run) { run(); passed++; console.log(`PASS ${name}`); }
 const now = new Date(2026, 9, 3, 12).getTime();
 function completion(id, time = now) { const r = new Completion(); r.id = id; r.title = 'Penguin Walk'; r.activityId = 'penguin'; r.completedAt = time; return r; }

@@ -9,10 +9,35 @@ import { window } from '@kit.ArkUI';
 import { ActivityPlanRequest, MockAiActivityService, TV_CATEGORIES, TV_TITLES, activityFromPlan } from '../services/AiActivityService';
 import { LocalDemoTvTransport, TvSessionTransport, TvFrame } from '../services/TvSessionTransport';
 import { NearbyTv } from '../services/NearbyTv';
+import { EmulatorTvTransport } from '../services/EmulatorTvTransport';
+import { BackendActivityService, backendActivity } from '../services/BackendActivityService';
+import { ActivityContentSource, VideoSource, contentLabel } from '@companion/protocol';
+import { UserVideo, UserVideoStore } from '../services/UserVideoStore';
 
 @Entry
 @Component
 struct Index {
+  @State selectedProvider: string = 'GEMINI';
+  @State userVideo: UserVideo | undefined = undefined;
+  @State videoTitle: string = 'My family video';
+  @State importingVideo: boolean = false;
+  private videos: UserVideoStore | undefined = undefined;
+  private phoneVideoController: VideoController = new VideoController();
+  @State backendUrl: string = 'http://127.0.0.1:18080';
+  @State roomCode: string = 'family-demo';
+  @State transportMode: string = 'demo';
+  @State generationCategory: string = 'MOVE';
+  @State learningGoal: string = 'Count five gentle movements together';
+  @State generationProgress: string = '';
+  @State activitySource: string = 'Offline activity';
+  @State backendLoading: boolean = false;
+  private generationToken: number = 0;
+  private videoPollPending: boolean = false;
+  private videoPollAt: number = 0;
+  private activeJobId: string = '';
+  private activeJobEndpoint: string = '';
+  private activeRequest: ActivityPlanRequest = new ActivityPlanRequest();
+  private stepBoundary: number = 0;
   @State tvConnection: string = 'Not connected';
   @State nearby: string = 'Search for authorized HarmonyOS devices.';
   @State tvFrame: TvFrame = new TvFrame();
@@ -46,6 +71,7 @@ struct Index {
     try {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
       this.store = new LocalStore(context);
+      this.videos = new UserVideoStore(context); this.userVideo = this.videos.load();
       this.data = this.store.load();
       this.storageReady = true;
       Widgets.update(context, this.data);
@@ -57,7 +83,7 @@ struct Index {
     this.startTimer();
   }
 
-  aboutToDisappear(): void { clearInterval(this.timer); this.transport?.disconnect(); }
+  aboutToDisappear(): void { clearInterval(this.timer); this.generationToken++; this.transport?.disconnect(); }
   onPageShow(): void { this.foregroundChanged(); }
   onPageHide(): void { clearInterval(this.timer); }
 
@@ -73,23 +99,30 @@ struct Index {
       this.phase = this.session.phase;
       this.updateClock();
       this.startTimer();
-    }
+      if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} }
+    } else { try { this.phoneVideoController.pause(); } catch {} }
   }
 
   private updateClock(): void {
     this.today = countToday(this.data, Date.now());
     if (this.session.tick(Date.now(), this.foreground)) {
+      try { this.phoneVideoController.pause(); } catch {}
       this.notice = 'Time is up. Parent / caregiver: confirm when you have finished together.';
       this.publishEndNotification();
     }
     this.phase = this.session.phase;
     this.remaining = this.session.remaining(Date.now());
+    if (this.phase === 'running' && this.remaining <= this.stepBoundary && this.stepIndex < this.selected.activitySteps.length - 1) {
+      this.stepIndex++; this.stepBoundary -= this.stepSeconds(); this.transport?.nextStep(this.frame());
+    }
+    if (this.activeJobId !== '' && Date.now() >= this.videoPollAt) { this.refreshVideos(); }
     this.syncTv();
   }
 
   private frame(): TvFrame {
     const frame = new TvFrame();
     frame.sessionId = this.session.id;
+    frame.activityId = this.selected.id;
     frame.title = this.selected.title;
     frame.phase = this.session.phase;
     frame.remaining = this.session.remaining(Date.now());
@@ -98,6 +131,11 @@ struct Index {
     const step = this.selected.activitySteps[this.stepIndex];
     frame.instruction = step ? step.instruction : 'Play gently together.';
     frame.visual = step ? step.fallbackVisual : this.selected.theme;
+    frame.videoUrl = step ? step.videoUrl : '';
+    frame.videoSource = frame.videoUrl === '' ? 'FALLBACK' : 'REMOTE_CACHED';
+    const content = new VideoSource(); content.sourceType = this.selected.contentSource;
+    content.uri = frame.videoUrl; content.title = this.selected.title; content.activityId = this.selected.id;
+    content.provider = this.selected.aiProvider; frame.content = content;
     return frame;
   }
 
@@ -107,6 +145,7 @@ struct Index {
     if (this.tvConnection === 'Connecting') { return; }
     this.tvConnection = 'Connecting';
     this.transport?.disconnect();
+    this.transportMode = 'demo';
     this.transport = new LocalDemoTvTransport((event: string, frame: TvFrame) => {
       if (event === 'connected') { this.tvConnection = 'Connected'; }
       else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
@@ -116,6 +155,67 @@ struct Index {
     await this.transport.connect();
     this.syncTv();
     this.notice = 'Demo TV connected locally. No real TV connection.';
+  }
+
+  private async connectEmulatorTv(): Promise<void> {
+    if (this.tvConnection === 'Connecting') { return; }
+    this.transport?.disconnect(); this.transport = undefined;
+    this.tvConnection = 'Connecting'; this.transportMode = 'emulator';
+    const transport = new EmulatorTvTransport(this.backendUrl.trim(), this.roomCode.trim(), (event: string) => {
+      if (event === 'connected') { this.tvConnection = 'Connected'; }
+      else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
+      else if (event === 'videoFallback') { this.notice = 'TV video unavailable. Safe fallback visual is playing.'; }
+    });
+    try {
+      await transport.connect(); this.transport = transport; this.syncTv();
+      this.notice = 'Connected to Emulator TV. Your phone controls the separate TV application.';
+    } catch {
+      this.tvConnection = 'Connection failed';
+      this.notice = 'Backend or TV receiver unavailable. Check endpoint, room and HDC port forwarding. Demo TV and phone activities remain available.';
+    }
+  }
+
+  private async createAdventure(provider: string = 'GEMINI'): Promise<void> {
+    if (this.backendLoading || ['running', 'paused', 'ready'].includes(this.phase)) {
+      this.notice = 'Finish or cancel your current activity before creating another.'; return;
+    }
+    this.backendLoading = true; this.generationProgress = 'Creating your adventure... Planning activity...';
+    const token = ++this.generationToken;
+    const request = new ActivityPlanRequest(); request.childAge = this.data.settings.age;
+    request.interest = this.data.settings.interests[0]; request.category = this.generationCategory;
+    request.durationMinutes = this.data.settings.minutes; request.educationalGoal = this.learningGoal.trim();
+    const endpoint = this.backendUrl.trim();
+    try {
+      const job = await BackendActivityService.create(endpoint, request, this.data.settings.interests,
+        (message: string) => { if (token === this.generationToken) { this.generationProgress = message; } },
+        () => token === this.generationToken, provider);
+      if (token !== this.generationToken) { return; }
+      const activity = backendActivity(job, request, endpoint); this.openActivity(activity);
+      this.activitySource = job.source === 'ai' ? `${contentLabel(activity.contentSource)} • Video availability shown separately` : 'CompanionOS Built-in • Offline activity';
+      this.notice = job.source === 'ai' ? job.message : `${provider} unavailable. Use Built-in Video or try ${provider === 'GEMINI' ? 'Huawei AI' : 'Gemini AI'}.`;
+      this.activeJobId = job.source === 'ai' ? job.id : '';
+      this.activeRequest = request; this.activeJobEndpoint = endpoint;
+    } catch {
+      if (token === this.generationToken) {
+        await this.generatePlan(request.category);
+        this.notice = `${provider} unavailable, timed out or invalid. Built-in content is ready. Try ${provider === 'GEMINI' ? 'Huawei AI' : 'Gemini AI'} or Built-in Video.`;
+      }
+    } finally { if (token === this.generationToken) { this.backendLoading = false; } }
+  }
+
+  private async refreshVideos(): Promise<void> {
+    if (this.videoPollPending) { return; }
+    this.videoPollPending = true; this.videoPollAt = Date.now() + 3000;
+    const id = this.activeJobId;
+    try {
+      const job = await BackendActivityService.status(this.activeJobEndpoint, id);
+      const updated = backendActivity(job, this.activeRequest, this.activeJobEndpoint);
+      if (this.activeJobId === id && this.selected.id === id) {
+        this.selected = updated; this.syncTv();
+        if (job.state === 'FAILED') { this.activeJobId = ''; }
+      }
+    } catch { /* Keep the validated plan and local fallback while network is unavailable. */ }
+    finally { this.videoPollPending = false; }
   }
 
   private disconnectTv(): void {
@@ -150,21 +250,39 @@ struct Index {
   }
 
   private pauseActivity(): void {
+    try { this.phoneVideoController.pause(); } catch { /* No attached video. */ }
     this.session.pause(Date.now()); this.updateClock(); this.transport?.pauseActivity(this.frame());
   }
 
   private resumeActivity(): void {
+    try { this.phoneVideoController.start(); } catch { /* No attached video. */ }
     this.session.continueActivity(Date.now()); this.updateClock(); this.transport?.resumeActivity(this.frame());
   }
 
   private nextStep(): void {
+    if (!['running', 'paused'].includes(this.phase)) { return; }
     this.stepIndex = Math.min(this.stepIndex + 1, this.selected.activitySteps.length - 1);
+    this.stepBoundary = this.remaining - this.stepSeconds();
     this.transport?.nextStep(this.frame());
+  }
+
+  private previousStep(): void {
+    if (!['running', 'paused'].includes(this.phase)) { return; }
+    this.stepIndex = Math.max(0, this.stepIndex - 1); this.stepBoundary = this.remaining - this.stepSeconds();
+    this.transport?.previousStep(this.frame());
+  }
+
+  private stepSeconds(): number {
+    const sum = this.selected.activitySteps.reduce((total: number, step) => total + step.durationSeconds, 0);
+    return (this.session.demo ? 10 : this.session.minutes * 60) * this.selected.activitySteps[this.stepIndex].durationSeconds / sum;
   }
 
   private async showTv(): Promise<void> {
     if (this.tvConnection !== 'Connected') { this.navigate('connect'); return; }
     this.syncTv();
+    if (this.transportMode === 'emulator') {
+      this.notice = 'Play on the separate TV. Start, pause and change steps on this phone.'; return;
+    }
     try {
       const appWindow = await window.getLastWindow(this.getUIContext().getHostContext() as common.UIAbilityContext);
       this.previousOrientation = appWindow.getPreferredOrientation();
@@ -215,7 +333,10 @@ struct Index {
   }
 
   private openActivity(activity: Activity): void {
+    if (['running', 'paused', 'ready'].includes(this.phase)) { this.notice = 'Finish or cancel the current activity first.'; return; }
     this.selected = activity;
+    this.activeJobId = '';
+    this.activitySource = activity.id.startsWith('tv-') ? 'Mock plan • Not real AI output' : 'Offline activity';
     this.session = new ActivitySession();
     this.phase = 'idle';
     this.confirmed = false;
@@ -225,9 +346,53 @@ struct Index {
     this.navigate('activity');
   }
 
+  private chooseBuiltIn(): void {
+    if (this.backendLoading || this.importingVideo || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
+    const original = ACTIVITIES.find((item: Activity) => item.id === this.selected.id) || ACTIVITIES[0];
+    this.openActivity(original); this.activitySource = 'CompanionOS Built-in • Offline activity';
+    this.notice = 'Original content is ready. No AI request was made.';
+  }
+
+  private async importVideo(): Promise<void> {
+    if (!this.videos || this.importingVideo || this.backendLoading) { return; }
+    this.importingVideo = true;
+    try {
+      const value = await this.videos.pick(this.videoTitle);
+      if (value) { this.userVideo = value; this.notice = 'Video saved on this phone. Review it before playing with your child.'; }
+      else { this.notice = 'No video selected. Built-in Video remains ready.'; }
+    } catch { this.notice = 'Import failed. Choose a readable MP4 up to 40 MiB, or use Built-in Video.'; }
+    finally { this.importingVideo = false; }
+  }
+
+  private async useMyVideo(): Promise<void> {
+    if (!this.videos || this.importingVideo || this.backendLoading || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
+    const value = this.videos.load();
+    if (!value) { this.userVideo = undefined; this.notice = 'Saved video is missing. Import a video or choose Built-in Video.'; return; }
+    this.importingVideo = true;
+    try {
+      // The TV cannot read a phone-private file. Cache this explicitly selected video through the same relay.
+      let url: string = '';
+      try { url = await this.videos.publish(value, this.backendUrl.trim()); }
+      catch { /* Private phone copy remains available offline; TV uses its labelled fallback. */ }
+      const activity = new Activity('user-video', value.title, this.data.settings.interests[0], ACTIVITIES[0].steps);
+      activity.contentSource = ActivityContentSource.USER_VIDEO; activity.localVideoPath = value.path; activity.videoUrl = url;
+      activity.activitySteps.forEach((step) => { step.videoUrl = url; });
+      this.openActivity(activity); this.activitySource = 'My Video';
+      this.notice = `My Video • ${Math.ceil(value.durationSeconds)} seconds • Not AI generated. Plays muted and loops during the activity.${url === '' ? ' Offline phone video; TV uses Built-in fallback until the backend is available.' : ''}`;
+    } catch { this.notice = 'Saved video could not be sent to the player. Start the local backend, retry, or choose Built-in Video.'; }
+    finally { this.importingVideo = false; }
+  }
+
   private startActivity(): void {
-    if (this.busy || this.phase === 'running' || this.phase === 'paused' || this.phase === 'ready') { return; }
+    if (this.busy || this.backendLoading || this.importingVideo || this.phase === 'running' || this.phase === 'paused' || this.phase === 'ready') { return; }
+    if (this.selected.contentSource === ActivityContentSource.USER_VIDEO && !this.videos?.load()) {
+      this.notice = 'Saved video is missing. Import a video or choose Built-in Video.'; return;
+    }
+    this.session.contentSource = this.selected.contentSource; this.session.videoUrl = this.selected.videoUrl;
+    this.session.localVideoPath = this.selected.localVideoPath; this.session.aiProvider = this.selected.aiProvider;
+    this.session.aiGenerationId = this.selected.aiGenerationId;
     this.session.start(Date.now(), this.data.settings.minutes, this.demo);
+    this.stepIndex = 0; this.stepBoundary = (this.demo ? 10 : this.session.minutes * 60) - this.stepSeconds();
     this.confirmed = false;
     this.notice = '';
     this.updateClock();
@@ -243,6 +408,7 @@ struct Index {
         primaryButton: { value: 'Keep playing', action: () => {} },
         secondaryButton: { value: 'Cancel activity', action: () => {
           this.session.cancel(); this.phase = 'cancelled'; this.confirmed = false;
+          this.activeJobId = '';
           this.transport?.cancelActivity(this.frame());
           this.notice = 'Activity cancelled. No completion was recorded.';
           this.navigate('home');
@@ -253,6 +419,7 @@ struct Index {
 
   onBackPress(): boolean {
     if (this.screen === 'home') { return false; }
+    if (this.backendLoading) { this.generationToken++; this.backendLoading = false; this.generationProgress = 'Generation view cancelled. Backend jobs may continue.'; }
     if (this.screen === 'tv') { this.leaveTv(); }
     else if (this.screen === 'activity') { this.cancelActivity(); }
     else if (!this.busy) { this.navigate('home'); }
@@ -269,11 +436,13 @@ struct Index {
     record.completedAt = Date.now();
     record.minutes = this.session.minutes;
     record.demo = this.session.demo;
+    record.contentSource = this.session.contentSource;
     const updated = addCompletion(this.data, record);
     try {
       await this.store.save(updated);
       this.data = updated;
       this.session.phase = 'completed';
+      this.activeJobId = '';
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.phase = 'completed';
       this.syncTv();
@@ -417,13 +586,13 @@ struct Index {
   @Builder
   activityContent() {
     Column({ space: 16 }) {
-      this.heading(this.selected.title)
+      Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       if (this.selected.id.startsWith('tv-')) {
         Text(`${this.selected.category} • Mock plan • ${this.selected.theme}`).fontSize(16).fontColor('#28745E')
       }
       Text(`TV: ${this.tvConnection}`).fontSize(16).fontColor('#52645C')
       Button('Play on TV').width('100%').onClick(() => { this.showTv(); })
-      Text('Offline activity').fontSize(14).fontColor('#28745E').width('100%')
+      Text(this.activitySource).fontSize(14).fontColor('#28745E').width('100%')
       Text(`Suitable for ages 4–5 and 6–8 • Your age group: ${this.data.settings.age}`)
         .fontSize(16).fontColor('#52645C').width('100%')
       Text(`${this.data.settings.minutes} minutes • Parent / caregiver must stay with the child.`)
@@ -435,6 +604,7 @@ struct Index {
           .width('100%').backgroundColor(Color.White).borderRadius(14)
       }, (step: string) => step)
       if (this.phase === 'idle' || this.phase === 'cancelled' || this.phase === 'completed') {
+        this.contentChoices()
         Row({ space: 8 }) {
           Checkbox({ name: 'demoMode' }).select(this.demo).selectedColor('#28745E')
             .onChange((value: boolean) => { this.demo = value; })
@@ -443,8 +613,17 @@ struct Index {
         Text('Normal mode uses your selected duration. Demo completions are labelled in Progress.')
           .fontSize(14).fontColor('#52645C').width('100%')
         Button('Start activity').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+          .enabled(!this.backendLoading && !this.importingVideo)
           .onClick(() => this.startActivity())
       } else {
+        if (this.selected.contentSource === ActivityContentSource.USER_VIDEO) {
+          Video({ src: `file://${this.selected.localVideoPath}`, controller: this.phoneVideoController })
+            .width('100%').height(180).controls(false).autoPlay(false).loop(true).muted(true)
+            .onPrepared(() => {
+              if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} }
+            }).onDisAppear(() => { try { this.phoneVideoController.pause(); } catch {} })
+            .onError(() => { this.notice = 'My Video cannot play. Cancel and choose Built-in Video.'; })
+        }
         Text('Put the screen down and play together.').fontSize(25).fontWeight(FontWeight.Bold)
           .fontColor('#28745E').width('100%')
         Text(this.session.demo ? 'DEMO MODE • 10 seconds' : `NORMAL MODE • ${this.session.minutes} minutes`)
@@ -459,6 +638,7 @@ struct Index {
         Text(this.selected.steps[this.stepIndex]).fontSize(18)
         Button('Next step').enabled(this.phase !== 'ready' && this.stepIndex < this.selected.activitySteps.length - 1)
           .onClick(() => this.nextStep())
+        Button('Previous step').enabled(this.phase !== 'ready' && this.stepIndex > 0).onClick(() => this.previousStep())
         if (this.tvConnection === 'Connected') { Button('Disconnect TV').onClick(() => this.disconnectTv()) }
         Text('If you leave the app, the deadline is checked when you return. Background reminders are not guaranteed.')
           .fontSize(14).fontColor('#52645C').width('100%')
@@ -478,6 +658,32 @@ struct Index {
   }
 
   @Builder
+  contentChoices() {
+    Column({ space: 10 }) {
+      Text('Choose Activity Content').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
+      Button('Gemini AI').width('100%').enabled(!this.backendLoading && !this.importingVideo)
+        .onClick(() => { this.createAdventure('GEMINI'); })
+      Text('Create a personalized activity with Gemini').fontSize(14).width('100%')
+      Button('Huawei AI').width('100%').enabled(!this.backendLoading && !this.importingVideo)
+        .onClick(() => { this.createAdventure('HUAWEI'); })
+      Text('Create a personalized activity with Huawei Cloud AI').fontSize(14).width('100%')
+      Button('Built-in Video').width('100%').enabled(!this.backendLoading && !this.importingVideo)
+        .onClick(() => this.chooseBuiltIn())
+      Text('Use original CompanionOS content').fontSize(14).width('100%')
+      Button('My Video').width('100%').enabled(!this.backendLoading && !this.importingVideo)
+        .onClick(() => { this.useMyVideo(); })
+      Text('Use my own saved/imported video').fontSize(14).width('100%')
+      TextInput({ text: this.videoTitle, placeholder: 'Video title' }).maxLength(80)
+        .onChange((value: string) => { this.videoTitle = value; })
+      Button(this.importingVideo ? 'Working with video...' : 'Import video').enabled(!this.backendLoading && !this.importingVideo)
+        .onClick(() => { this.importVideo(); })
+      if (this.userVideo) { Text(`Saved: ${this.userVideo.title} • ${Math.ceil(this.userVideo.durationSeconds)} seconds`).fontSize(15) }
+      Text('Choose a family-friendly MP4 up to 40 MiB. An adult reviews imported and generated videos.').fontSize(14)
+      if (this.backendLoading) { Text(this.generationProgress).fontSize(17) }
+    }.width('100%').padding(16).backgroundColor('#E0EEE5').borderRadius(16)
+  }
+
+  @Builder
   connectionContent() {
     Column({ space: 16 }) {
       this.heading('Connect to TV')
@@ -487,9 +693,15 @@ struct Index {
       Button('Search nearby devices').enabled(this.tvConnection !== 'Searching').onClick(() => { this.searchTv(); })
       Text('Real TV requires a compatible distributed receiver. Local Demo works without TV hardware or network.').fontSize(16)
       Button('Demo TV Mode').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectDemoTv(); })
+      Text('Emulator TV + AI backend').fontSize(22).fontWeight(FontWeight.Bold)
+      TextInput({ text: this.backendUrl, placeholder: 'Backend base URL' }).onChange((value: string) => { this.backendUrl = value; })
+      TextInput({ text: this.roomCode, placeholder: 'Room code' }).maxLength(32).onChange((value: string) => { this.roomCode = value; })
+      Button('Connect to Emulator TV').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectEmulatorTv(); })
       if (this.tvConnection === 'Connected') {
-        Text('Connected • Local Demo TV').fontSize(20)
-        Button('View Demo TV').onClick(() => { this.showTv(); })
+        Text(this.transportMode === 'demo' ? 'Connected • Local Demo TV' : 'Connected • Separate Emulator TV').fontSize(20)
+        Button(this.transportMode === 'demo' ? 'View Demo TV' : 'Phone controller').onClick(() => {
+          if (this.transportMode === 'demo') { this.showTv(); } else { this.navigate('activity'); }
+        })
         Button('Disconnect TV').onClick(() => this.disconnectTv())
       }
       Text('Choose a mock adventure').fontSize(22).fontWeight(FontWeight.Bold)
@@ -498,6 +710,26 @@ struct Index {
           .onClick(() => { this.generatePlan(category); })
       })
       Text('Mock plans are preset local content. No Gemini or Veo connection.').fontSize(14)
+      Text('Create AI Activity').fontSize(24).fontWeight(FontWeight.Bold)
+      Row({ space: 10 }) {
+        Button('Gemini AI').onClick(() => { this.selectedProvider = 'GEMINI'; })
+        Button('Huawei AI').onClick(() => { this.selectedProvider = 'HUAWEI'; })
+        Text(`Provider: ${this.selectedProvider}`).fontSize(14)
+      }
+      Text(`Age ${this.data.settings.age} • Interests: ${this.data.settings.interests.join(', ')} • ${this.data.settings.minutes} min`).fontSize(16)
+      Button('Edit age, interests and duration').onClick(() => this.openSettings())
+      Row({ space: 6 }) {
+        ForEach(TV_CATEGORIES, (category: string) => {
+          Button(category).layoutWeight(1).backgroundColor(category === this.generationCategory ? '#28745E' : '#52645C')
+            .onClick(() => { this.generationCategory = category; })
+        })
+      }.width('100%')
+      TextInput({ text: this.learningGoal, placeholder: 'Educational goal' }).maxLength(100)
+        .onChange((value: string) => { this.learningGoal = value; })
+      Button(this.backendLoading ? 'Creating your adventure...' : 'Create Adventure').width('100%').enabled(!this.backendLoading)
+        .onClick(() => { this.createAdventure(this.selectedProvider); })
+      if (this.generationProgress !== '') { Text(this.generationProgress).fontSize(17) }
+      Text('Provider keys stay on the backend. Missing keys or failed generation produce clearly labelled fallback content.').fontSize(14)
     }.width('100%')
   }
 
@@ -545,6 +777,7 @@ struct Index {
       ForEach(this.data.records, (record: Completion) => {
         Column({ space: 8 }) {
           Text(record.title).fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+          Text(contentLabel(record.contentSource)).fontSize(14).fontColor('#28745E').width('100%')
           Text(this.dateLabel(record.completedAt)).fontSize(15).fontColor('#52645C').width('100%')
           Text(record.demo ? 'Demo Mode • 10 seconds • Parent confirmed' : `${record.minutes} min • Parent confirmed`)
             .fontSize(14).fontColor('#28745E').width('100%')

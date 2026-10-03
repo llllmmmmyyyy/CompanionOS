@@ -10,7 +10,9 @@
 | Starter PNGs / layered icon resources | Existing launcher/start-window artwork in AppScope and entry | Inherited from the user's DevEco-created project. A separate asset license was not found in this workspace; confirm rights before public distribution. |
 | Activity copy and ArkUI/card UI code | Written/updated in this AI-assisted development run | Project ownership/license has not been declared; no project-wide license is invented here. |
 
-No extra runtime package, stock-photo download, external font, AI-generated image, or cloud SDK was added. Widgets are built with native ArkUI text/layout. The optional AI adapter uses HarmonyOS HTTP APIs and does not include a provider SDK.
+Backend development adds TypeScript 5.9.3 (Apache-2.0), @types/node 24.19.1 (MIT), and transitive undici-types (MIT), verified in installed metadata/lockfile. Runtime uses Node built-ins; no Express/Google SDK is included. HarmonyOS uses a local shared HAR and native HTTP/Video.
+
+The bundled `tventry/src/main/resources/rawfile/fallback.mp4` is an original eight-second 1280×720 cloud illustration made from programmatic shapes in this run, not Veo or stock content. This small clip is intentionally committed. It was encoded with local @ffmpeg-installer/win32-x64 4.1.0 tooling (metadata declares GPLv3); the binary and temporary inputs are ignored and not redistributed. No project-wide asset/code license is invented. Live generated media/cache remains ignored under backend/data.
 
 The existing Hypium/hamock template test files were retained; their original sample tests are not represented as full MVP coverage. Current checks use Node built-in modules and the locally installed SDK compiler. Public dependency artifacts remain excluded from Git; `oh-package-lock.json5` preserves package versions and integrity metadata.
 

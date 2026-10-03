@@ -1,6 +1,11 @@
 import { Activity } from '../model/Companion';
+import { VideoSource } from '@companion/protocol';
 
 export class TvFrame {
+  content: VideoSource = new VideoSource();
+  activityId: string = '';
+  videoUrl: string = '';
+  videoSource: string = 'FALLBACK';
   sessionId: string = '';
   title: string = '';
   instruction: string = 'Choose an activity on your phone.';
@@ -19,6 +24,7 @@ export interface TvSessionTransport {
   resumeActivity(frame: TvFrame): void;
   cancelActivity(frame: TvFrame): void;
   nextStep(frame: TvFrame): void;
+  previousStep(frame: TvFrame): void;
   synchronize(frame: TvFrame): void;
 }
 
@@ -36,6 +42,7 @@ export class LocalDemoTvTransport implements TvSessionTransport {
   resumeActivity(frame: TvFrame): void { this.emit('activityResumed', frame); }
   cancelActivity(frame: TvFrame): void { this.emit('activityCancelled', frame); }
   nextStep(frame: TvFrame): void { this.emit('stepChanged', frame); }
+  previousStep(frame: TvFrame): void { this.emit('stepChanged', frame); }
   synchronize(frame: TvFrame): void {
     this.emit(frame.phase === 'completed' ? 'activityCompleted' : 'stateChanged', frame);
   }
@@ -61,5 +68,6 @@ export class HarmonyDistributedTvTransport implements TvSessionTransport {
   resumeActivity(frame: TvFrame): void { this.channel.send('activityResumed', frame); }
   cancelActivity(frame: TvFrame): void { this.channel.send('activityCancelled', frame); }
   nextStep(frame: TvFrame): void { this.channel.send('stepChanged', frame); }
+  previousStep(frame: TvFrame): void { this.channel.send('stepChanged', frame); }
   synchronize(frame: TvFrame): void { this.channel.send(frame.phase === 'completed' ? 'activityCompleted' : 'stateChanged', frame); }
 }

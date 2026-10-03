@@ -13,7 +13,7 @@ function load(file, mocks = {}, extra = {}) {
     Date, JSON, Number, Math, Array, setTimeout, clearTimeout, ...extra };
   vm.runInNewContext(js, box); return box.exports;
 }
-const model = load('model/Companion.ets');
+const model = load('model/Companion.ets', { '@companion/protocol': require('./load-protocol.cjs')(ts) });
 let passed = 0;
 async function test(name, run) { await run(); passed++; console.log(`PASS ${name}`); }
 async function main() {
