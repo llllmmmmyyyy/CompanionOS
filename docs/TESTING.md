@@ -1,6 +1,49 @@
 # Testing evidence
 
-## Observed results — 2026-10-03
+## Actual emulator follow-up — 2026-10-03
+
+HDC connected to `127.0.0.1:5555` using DevEco's installed SDK toolchain. `param get const.ohos.apiversion` returned **21**, matching both the project's target and compatible API. The device software property reported `emulator 6.0.0.112(SP3DEVC00E112R4P11)`; this is the actual returned value, rather than an assumed marketing version. UI layout bounds were 1316×2832.
+
+The current source was rebuilt with `scripts/build.ps1 -RunChecks`: HAP build succeeded and all 26 host checks passed again. Project signing configuration remains empty, but this development emulator accepted the exact unsigned HAP below: HDC reported `install bundle successfully` and `aa start` reported `start ability successfully`. This does not prove unsigned installation works on physical devices or validate a signed release.
+
+| Actual device test | Result | Observed evidence |
+|---|---|---|
+| Home and all three activity details | Passed | Exact product/subtitle, Penguin Walk, Animal Sounds, Butterfly Stretch and their steps present in device UI dumps |
+| Save parent settings | Passed | Selected age 6–8, Movement + Nature and 5 minutes; successful save message |
+| Settings survive process restart | Passed | `aa force-stop` / relaunch restored age 6–8, 5 minutes and selected Movement/Nature controls |
+| Demo countdown | Passed | Actual UI showed Demo Mode, `00:10`, put-down prompt, then `Time is up!` |
+| Normal mode start and cancel | Passed (partial timing coverage) | Actual UI showed `NORMAL MODE • 5 minutes` and `05:00`; cancellation returned Home without changing count |
+| Full three-minute normal activity | Passed | Actual countdown `03:00` → `02:07` → `00:25` → `Time is up!`; confirmation saved a `3 min` normal record, total/today 3 and Together Team badge |
+| Cancellation after expiry | Passed | Confirmed cancellation dialog; Home showed no completion recorded and count remained 0 |
+| Parent confirmation required | Passed | `Mark as completed` was disabled before checking the parent box |
+| Repeated confirmation click | Passed for injected double-click | System UI `doubleClick` produced one record and count 1, not two; broader rapid-tap stress not performed |
+| Completed records and badges | Passed | Progress displayed dated Demo record(s), parent-confirmed label, First Adventure badge and matching total |
+| Records/counts survive restart | Passed | After two Demo sessions, restart restored two records; after the normal session, another restart restored total/today 3 and three records |
+| Real notification permission denial | Passed | Actual OS permission dialog was denied; app showed failure message and completion still worked |
+| Real foreground-end notification | Passed | After enabling the app's OS notification toggle, a foreground Demo expiry submitted a notification; actual notification center contained `CompanionOS: time is up` and the Penguin Walk text |
+| Background expiry/resume | Passed for Demo case | Backgrounded by opening Settings for 12 seconds, returned to `Time is up!` and parent confirmation; no retroactive submission message; count unchanged until confirmation |
+| Unconfigured AI fallback | Passed | Actual recommendation UI explicitly said no AI service was configured and labelled the offline recommendation |
+| Runtime exception review | No app crash observed | Reviewed app-PID hilog; final capture had zero JSCRASH/TypeError/ReferenceError/Unhandled/Fatal-exception matches and normal Ability startup |
+| Full 5/10-minute expiry variants | Not verified | Complete three-minute expiry and five-minute start/cancel tested; full five/ten-minute runs pending |
+| Desktop widget host/update/tap | Not verified | Remains a launcher test; compiled widget alone is not a runtime pass |
+| Real AI backend, corrupted device storage, alternate layouts | Not verified | Host mocks/logic only; no live backend or destructive device fault injection |
+
+No application-code failure was reproduced, so no source change was made just to create a fix. Platform-tag errors from CONCUR/QoS and PARAM_WATCHER appeared in an earlier PID log; they did not terminate the app and are not described as resolved application defects. Log-buffer keyword checks cannot prove absence of every possible issue.
+
+Local evidence is retained under ignored `artifacts/`: UI layout snapshots (`settings-saved.json`, `restart-settings.json`, `completion-disabled.json`, `completed-once.json`, `two-records-restored.json`, `notification-center.json`, `normal-countdown.json`, `background-expired-resume.json`, the `normal-three-minute-*` snapshots, `three-records-restored.json`, activity detail dumps), a reviewed emulator screenshot, and app-PID logs. Raw dumps/logs are not uploaded. No private data or existing records were deleted. The emulator was left with two labelled Demo records, one normal record, and restored age 6–8 / Movement + Nature / 5-minute settings. System notifications remain enabled after the delivery test.
+
+### Short remaining manual checklist
+
+| Check | Action |
+|---|---|
+| Additional normal durations | Disable Demo Mode and exercise complete 5/10-minute expiry when convenient; three-minute end-to-end timing already passed |
+| Widget | Add Today together from the launcher's widget picker; tap to open app; complete a session and inspect count update |
+| Layout | Try larger system text and a smaller phone; check scrolling and controls |
+| Recording | Record the actual two-minute walkthrough from `DEMO_SCRIPT.md` |
+
+Live AI validation requires a real backend and remains future work. Storage fault injection should use a disposable debug installation, not the retained test/family data. No reliable background alarm is claimed.
+
+## Initial host-only build results — 2026-10-03
 
 | Check | Actual result | Evidence boundary |
 |---|---|---|
@@ -32,9 +75,9 @@ Service checks cover unconfigured offline recommendation without a request, acce
 
 The timeout test simulates firing the configured 10,000 ms callback immediately; it is not a ten-second live network measurement. Preferences mocks test application behavior, not OS file durability. Duplicate protection is checked at the domain level and reviewed in the synchronous UI busy/phase guard; real repeated-tap behavior remains pending.
 
-## Device verification checklist (pending)
+## Full device checklist (follow-up results above take precedence)
 
-Run the signed app on an API 21+ phone/emulator. Record pass/fail and device/OS details only after each test actually executes.
+Use this checklist for broader regression coverage on an API 21+ phone/emulator. The follow-up table above identifies the cases actually executed; unlisted variants remain pending. Physical-device signing and runtime are not verified.
 
 1. **Home:** verify exact product/subtitle, three activities and today's count. Open all three steps pages. Confirm no camera/location prompts.
 2. **Settings restore:** choose age 6–8, Nature and 5 minutes; save, stop and relaunch without uninstalling/clearing data; confirm restoration. Repeat with age 4–5 and 3/10 minutes. Empty interests must not save.
@@ -54,7 +97,7 @@ Run the signed app on an API 21+ phone/emulator. Record pass/fail and device/OS 
 
 ## Known limits
 
-- No signed HAP, target-device execution or screen recording was available in this run.
+- No signed HAP, physical-phone run or screen recording is available. The development emulator accepted and ran the unsigned HAP.
 - Notification and widget delivery are controlled by the OS. No reliable background reminder is implemented.
 - Unfinished sessions are in-memory; process kill cancels them implicitly. Wall-clock adjustment can change countdown behavior.
 - Demo completions count towards totals; imported legacy totals include only reconstructible known history/counts.

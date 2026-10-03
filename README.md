@@ -50,7 +50,7 @@ Output: `entry/build/default/outputs/default/entry-default-unsigned.hap`. Local 
 4. Select the `entry` run configuration and target device, then click **Run**.
 5. In Parent Settings, enable notifications explicitly. Open an activity, select Demo Mode, start it, wait ten seconds, check the parent confirmation box and mark it completed.
 
-The current project has no signing configuration. The verified output is **unsigned**, not an installation-ready signed release. No device or emulator was connected during this development run; UI, notification delivery and widget hosting remain device verification tasks.
+The current project has no signing configuration. The verified output is **unsigned**, not a signed release. In the follow-up test, the API 21 development emulator accepted this unsigned HAP and ran it successfully. Home/details, settings and record persistence, Demo and full three-minute normal completion, cancellation, confirmation/double-click protection, background expiry/resume and an actual notification in the system notification center were verified. Widget hosting, physical-phone installation and full 5/10-minute expiry variants remain pending. See `docs/TESTING.md` for exact results.
 
 To try the widget after installation, open the launcher's service-widget picker for CompanionOS and add **Today together**. Launcher support varies. Tap it to open the app. Counts are pushed after saves and refreshed on system widget callbacks; the widget shows its data date and does not promise instant background refresh.
 
