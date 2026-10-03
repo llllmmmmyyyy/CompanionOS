@@ -88,6 +88,14 @@ export class WorldEngine {
     s.message = game === 'bridge' ? 'Dino needs three stones to cross the river. Drag each stone onto the bridge.' : game === 'memory' ? 'Robot needs your help. Watch the lights!' : game === 'rescue' ? 'The animals are lost. Tap an animal, then its home.' : game === 'stars' ? 'Five blue stars will open the gate. Leave the amber star.' : game === 'number' ? 'Pico needs four blue energy crystals. Find them, then march together.' : game === 'copy' ? 'Copy Pico: tiny penguin steps or seated arm moves. Adult nearby.' : game === 'rocket' ? 'Fit the three shapes into the rocket.' : game === 'garden' ? 'Choose colors and plant your own garden. Every garden is welcome.' : game === 'calm' ? 'Breathe comfortably with the cloud. Tap gently, with no score.' : 'A storybook opens. Watch, then return to our world.';
     WorldEngine.log(s, 'MISSION_STARTED', worldStyle(game), now); return s;
   }
+  static backToWorld(state: WorldState): WorldState {
+    const s = copy(state);
+    if (!s.ended || s.phase !== 'ending') { return s; }
+    // Returning home is navigation, not a new session or another completion.
+    s.phase = 'hub'; s.game = ''; s.pico = 'RESTING';
+    s.message = 'Home Base. Your adventure is complete. Take a break together.';
+    return s;
+  }
   static tick(state: WorldState, now: number): WorldState {
     const s = copy(state); if (!s.active || s.paused || s.ended) { s.lastTick = now; return s; }
     const delta = Math.min(3600, Math.max(0, Math.floor((now - s.lastTick) / 1000))); if (delta > 0) { s.lastTick = now; s.elapsed += delta; s.sessionRemaining = Math.max(0, s.sessionRemaining - delta); }

@@ -1,3 +1,24 @@
+# Tablet Daily Adventure return verification - 2026-10-04
+
+The bounded ending now includes an immediately available **Back to World** button. Returning changes the scene to Home Base and saves/syncs it; it retains ended/session identity, slots, results, daily completion and decorations. Completed-session portal taps cannot restart the zero-budget adventure. A parent can explicitly start a separate session through the existing controls.
+
+Build commands: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module tventry` and `-Module entry`. Both finished BUILD SUCCESSFUL with exit 0 using API 21. Existing exception-handling warnings and absent-signing warnings remain. Tablet unsigned HAP: `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`, SHA256 `C4F959843F0FE4C5BD79C4CA11F36646113B55FA7A64A4B14EB44154F9D97255`. Phone regression HAP SHA256: `F623106A47A113E5B12A07D5F0C63997D0930A378BA7AA66163BCFC241AED104`. Unsigned development packages are not signed releases.
+
+| Check | Actual verification | Status |
+|---|---|---|
+| Complete final activity | Existing Tablet API 21: Phone started 15-minute Balanced session; actual bridge placements, two memory signals, foreground movement + Done, garden planting + Done and final story completed; Continue adventure produced healthy completion screen | PASS |
+| Clear completion action | Real ending screenshot/layout shows visible Back to World under family-break text | PASS |
+| Return to World | Real HDC tap opened Home Base, with no activity automatically started | PASS |
+| Progress preservation | Discoveries remained 29 and existing garden gifts remained 1 before/after return and Tablet process restart. This date already had a daily gift; a second same-day gift was not expected | PASS |
+| No duplicate completion | Relay had 45 records before and after return, portal tap, polling and restart; session identity stayed the same and completion remained 5/5 | PASS |
+| Phone completed state | Phone API 21 displayed Session complete / 5 of 5 before and after return; actual View Summary tap opened Activity Insights | PASS |
+| Persisted return | Force-stop/relaunch Tablet preserved Home Base, ended state, 5/5 and reward | PASS |
+| Rule regression | 16 world checks passed using installed SDK TypeScript compiler, including repeated return, ticking, serialization/reload, unchanged results/events/days/reward and incomplete ending without reward | PASS |
+| Runtime log | Post-restart Tablet app-PID log contained no Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches; scope is that captured process only | PASS within scope |
+| Physical Tablet / screen reader / other sizes | Not exercised in this change | NOT RUN |
+
+Evidence is ignored under artifacts/back-world-*: ending/hub screenshots, native layouts, before/after relay snapshots and runtime log. Phone duration was restored to its original 30 min / Balanced after the test. Historical results below retain their original scope; backend broad suites were not rerun for this native navigation change.
+
 # Compact Parent Home verification - 2026-10-04
 
 Phone-only presentation changes: sessionOptions is rendered only in Parent, actual saved duration/preset summary lives in the status card, insights and Today follow directly, spacing is reduced, and the Home-only decorative footer is omitted. No balance/insight/transport/storage/Tablet game logic changed.

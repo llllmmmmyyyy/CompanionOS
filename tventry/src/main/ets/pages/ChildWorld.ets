@@ -57,7 +57,8 @@ export struct ChildWorld {
     finally { this.polling = false; }
   }
   private act(action: string, value: number = 0): void { const before = this.state.phase; this.state = WorldEngine.act(this.state, action, value, Date.now()); this.onSound(this.state.phase === 'success' && before !== 'success' ? 'celebration' : ['place', 'habitat', 'collect', 'flower'].includes(action) ? 'object-placement' : 'tap'); this.save(); this.sync(); }
-  private open(game: string): void { if (this.state.sessionId && this.state.slots.length && !this.state.ended) { return; } this.state.ended = false; this.state = WorldEngine.open(this.state, game, Date.now()); this.save(); }
+  private open(game: string): void { if (this.state.ended || (this.state.sessionId && this.state.slots.length)) { return; } this.state = WorldEngine.open(this.state, game, Date.now()); this.save(); }
+  private backToWorld(): void { this.stopVideo(); this.state = WorldEngine.backToWorld(this.state); this.save(); this.sync(); }
   private choosePath(game: string): void {
     const slot = this.state.slots[this.state.slotIndex];
     if (!slot || slot.category !== 'LEARN' || slot.mode !== 'INTERACTIVE' || this.state.paused || this.state.ended || this.state.attempts > 0 || this.state.progress > 0) { return; }
@@ -215,6 +216,7 @@ export struct ChildWorld {
       if (this.state.paused) { Text('Adventure paused').fontSize(38).fontColor('#FFFFFF').padding(28).backgroundColor('#C0345160').borderRadius(20).position({ x: '30%', y: '40%' }) }
       if (this.state.phase === 'ending') { Column({ space: 16 }) { Text(this.state.message).fontSize(30).fontWeight(FontWeight.Bold).textAlign(TextAlign.Center)
         Text('Your world will be here next time. Missed days never remove progress.').fontSize(20).textAlign(TextAlign.Center)
+        Button('Back to World').fontSize(22).fontWeight(FontWeight.Bold).height(56).padding({ left: 32, right: 32 }).backgroundColor('#386946').fontColor('#FFFFFF').onClick(() => this.backToWorld())
       }.width('65%').padding(24).backgroundColor('#F8F5D9').borderRadius(30).position({ x: '27%', y: '23%' }) }
     }.width('100%').layoutWeight(1).clip(true).borderRadius(28)
       .onAreaChange((oldArea: Area, area: Area) => { this.worldWidth = Number(area.width); this.worldHeight = Number(area.height); })

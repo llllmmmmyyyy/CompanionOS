@@ -1,3 +1,9 @@
+# Safe Daily Adventure return - 2026-10-04
+
+Codex directly implemented the user's request for Back to World at the bounded Tablet ending. The guarded navigation transition preserves completion/session metadata and rewards, persists and synchronizes the hub scene, and prevents completed-session portals from clearing the ended flag. No new activity, replay CTA, dependency, asset or continuation pressure was added. Existing parent controls remain available.
+
+Actual work: two targeted world-state regression checks (16 total passed), Tablet and Phone API 21 builds, real HDC completion of five activities, ending/hub screenshot review, Phone completed count and View Summary verification, relay record-count comparison and Tablet restart persistence check. Physical-device accessibility/usability remains a human review task. See docs/TESTING.md for exact scope and unsigned HAP hashes.
+
 # Compact Parent Home refinement - 2026-10-04
 
 Codex applied the user instruction to remove duplicate duration/preset grids from Home without deleting settings. Home now displays the actual saved duration/preset and a Parent navigation link; insights follow the primary status/action card, then Today. Parent's existing profile route is relabelled Child & Safety Settings. No new models, transport, persistence, Tablet gameplay, balance rules, dependency or asset was introduced.
