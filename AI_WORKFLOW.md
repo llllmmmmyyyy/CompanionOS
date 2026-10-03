@@ -1,0 +1,32 @@
+# AI development workflow
+
+## Scope of this development run
+
+The user asked the OpenAI Codex assistant to operate directly on the existing HarmonyOS project, complete an offline parent-child activity MVP, keep the Phone/API 20+ template, validate available builds, document actual evidence in English, and commit/push meaningful stages. The user authorized repository uploads and supplied a Git identity in an earlier turn. No API key was requested.
+
+This document records the work performed in this conversation. It does not invent an earlier team history, external model evaluation or competition approval.
+
+## Actual use of AI
+
+Codex inspected the project, local SDK declarations, installed DevEco templates, Git state and remote; implemented ArkTS models, page states, Preferences migration and validation, deadline-based sessions, notification handling, widget code and an optional HTTPS recommendation client; wrote and ran host checks; built the actual HAP; and prepared these documents. No image generator, cloud AI backend or autonomous sub-agent was used for this development run.
+
+Main user instructions were to preserve existing work and SDK configuration, keep activities available offline, distinguish real service output from presets, handle background transitions honestly, avoid secrets in the app/repository, and report actual verification rather than equating compilation with device execution.
+
+## Review and iteration performed
+
+- Confirmed Stage-mode ArkTS/ArkUI, Phone, API 21 and a clean starting Git state.
+- Found no applicable project/ancestor `AGENTS.md`, no installed native HarmonyOS development skill and no workspace RULES/CRITERIA. Available skills were assessed; website, image and pet workflows do not apply.
+- Preserved the three named activities and replaced the immediate-completion shortcut with timed sessions and parent confirmation.
+- Added host checks for session transitions, duplicate IDs, settings/records serialization, malformed data, daily rollover and bounded history.
+- Exercised the actual service modules with mocked HTTP, Preferences and notification APIs, including rejection, timeout and failure paths.
+- Fixed a notification slot enum mismatch exposed by the API 21 compiler, supplied the widget LocalStorage entry parameter, and handled Preferences calls explicitly to eliminate ArkTS warnings.
+- Added a Windows build helper; corrected native-stderr handling without changing user/machine execution policy.
+- Built native HAPs and pushed the core and platform stages to the authorized repository. Build artifacts and local logs stay outside Git.
+
+## In-app AI status
+
+There is no reusable backend in this workspace. The app defaults to curated **Offline activity** content. A parent can configure a trusted HTTPS recommendation service. Only a validated response labelled `source: "ai"` is displayed as an AI service recommendation. The client cannot independently prove which model a server used. No real endpoint, provider call, model quality or real recommendation has been verified. Mock responses used in tests are not production AI output.
+
+## Human verification still required
+
+Run the signed app on an API 21+ phone/emulator and execute the checklist in `docs/TESTING.md`, including notification allow/deny, app background/foreground, process restart, cancellation, repeated taps, settings/record recovery, and desktop widget launch/update. Record the two-minute walkthrough using `docs/DEMO_SCRIPT.md`. Obtain actual competition rules, review asset rights and sign the final distribution artifact before submission.

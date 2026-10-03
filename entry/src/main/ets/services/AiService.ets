@@ -34,9 +34,10 @@ export class AiService {
     const preferred = ACTIVITIES.find((activity) => settings.interests.includes(activity.interest));
     result.activityId = preferred ? preferred.id : ACTIVITIES[0].id;
     if (!validEndpoint(settings.aiEndpoint)) { return result; }
-    const request = http.createHttp();
+    let request: http.HttpRequest | undefined = undefined;
     let timeout: number = -1;
     try {
+      request = http.createHttp();
       const response = await Promise.race([
         request.request(settings.aiEndpoint, {
           method: http.RequestMethod.POST,
@@ -65,7 +66,7 @@ export class AiService {
       result.message = 'AI service unavailable or response invalid. Offline activity is ready instead.';
     } finally {
       clearTimeout(timeout);
-      request.destroy();
+      if (request) { request.destroy(); }
     }
     return result;
   }

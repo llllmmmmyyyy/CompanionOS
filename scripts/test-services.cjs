@@ -54,6 +54,11 @@ async function main() {
     const result = await ai.AiService.recommend(settings);
     assert.equal(timeoutMs, 10000); assert.equal(result.source, 'offline'); assert.equal(destroyed, before + 1);
   });
+  await test('HTTP initialization failure still returns offline fallback', async () => {
+    const broken = load('services/AiService.ets', { '../model/Companion': model,
+      '@kit.NetworkKit': { http: { createHttp: () => { throw new Error('not supported'); } } } });
+    assert.equal((await broken.AiService.recommend(settings)).source, 'offline');
+  });
   let enabled = false, denied = false, publishFailure = false, published = 0;
   const notifications = load('services/Notifications.ets', { '@kit.NotificationKit': { notificationManager: {
     ContentType: { NOTIFICATION_CONTENT_BASIC_TEXT: 0 },
@@ -88,6 +93,13 @@ async function main() {
   });
   await test('corrupt Preferences data recovers safely', async () => {
     values.set('mvp', '{broken'); const store = new LocalStore({}); assert.equal(store.load().total, 0); assert.equal(store.recovered, true);
+  });
+  await test('previous homepage records and larger daily count migrate without loss', async () => {
+    values.set('mvp', '');
+    values.set('records', JSON.stringify([{ id: 'legacy-1', title: 'Penguin Walk', animal: 'Penguin', completedAt: Date.now() }]));
+    values.set('countDay', model.dayKey(Date.now())); values.set('todayCount', 5);
+    const data = new LocalStore({}).load();
+    assert.equal(data.records[0].id, 'legacy-1'); assert.equal(data.todayCount, 5); assert.equal(data.total, 5);
   });
   await test('failed Preferences flush is reported to caller for retry', async () => {
     failFlush = true; await assert.rejects(new LocalStore({}).save(new model.Snapshot()));

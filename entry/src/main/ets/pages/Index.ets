@@ -93,13 +93,16 @@ struct Index {
     if (this.aiLoading) { return; }
     this.aiLoading = true;
     const settings = this.data.settings;
-    const result = await AiService.recommend(settings);
-    if (this.data.settings === settings) {
-      const activity = ACTIVITIES.find((item: Activity) => item.id === result.activityId);
-      this.recommendation = `${result.message}\n${activity ? activity.title : 'Penguin Walk'}`;
-      this.recommendationId = result.activityId;
-    }
-    this.aiLoading = false;
+    try {
+      const result = await AiService.recommend(settings);
+      if (this.data.settings === settings) {
+        const activity = ACTIVITIES.find((item: Activity) => item.id === result.activityId);
+        this.recommendation = `${result.message}\n${activity ? activity.title : 'Penguin Walk'}`;
+        this.recommendationId = result.activityId;
+      }
+    } catch {
+      this.recommendation = 'AI service unavailable. All offline activities remain ready.';
+    } finally { this.aiLoading = false; }
   }
 
   private navigate(screen: string): void {

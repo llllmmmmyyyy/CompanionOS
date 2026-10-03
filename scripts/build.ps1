@@ -1,0 +1,67 @@
+param([switch]$RunChecks, [string]$ProjectDirectory = '')
+$ErrorActionPreference = 'Stop'
+if ($ProjectDirectory) { $projectRoot = (Resolve-Path -LiteralPath $ProjectDirectory).Path }
+elseif ($PSScriptRoot) { $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
+else { $projectRoot = (Get-Location).Path }
+$scriptRoot = Join-Path $projectRoot 'scripts'
+$registryRoots = @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
+$studioRoot = $null
+foreach ($registryRoot in $registryRoots) {
+  $entries = Get-ItemProperty "$registryRoot\*" -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -like '*DevEco*' -and $_.InstallLocation }
+  foreach ($entry in $entries) {
+    $infoPath = Join-Path $entry.InstallLocation 'product-info.json'
+    if (Test-Path -LiteralPath $infoPath) {
+      $info = Get-Content -LiteralPath $infoPath -Raw | ConvertFrom-Json
+      if ($info.name -eq 'DevEco Studio') { $studioRoot = $entry.InstallLocation; break }
+    }
+  }
+  if ($studioRoot) { break }
+}
+if (-not $studioRoot) { throw 'DevEco Studio was not found through the Windows registry.' }
+$node = Join-Path $studioRoot 'tools\node\node.exe'
+$hvigor = Join-Path $studioRoot 'tools\hvigor\bin\hvigorw.js'
+$sdk = Join-Path $studioRoot 'sdk'
+$compiler = Join-Path $sdk 'default\openharmony\ets\build-tools\ets-loader\node_modules\typescript\lib\typescript.js'
+foreach ($tool in @($node, $hvigor, (Join-Path $studioRoot 'jbr\bin\java.exe'))) {
+  if (-not (Test-Path -LiteralPath $tool)) { throw "Required DevEco tool is missing: $tool" }
+}
+$originalPath = $env:Path
+$originalJava = $env:JAVA_HOME
+$originalSdk = $env:DEVECO_SDK_HOME
+$artifactRoot = Join-Path $projectRoot 'artifacts'
+New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
+Push-Location $projectRoot
+try {
+  # These changes apply only to this process. Persistent user/machine PATH is untouched.
+  $env:JAVA_HOME = Join-Path $studioRoot 'jbr'
+  $env:DEVECO_SDK_HOME = $sdk
+  $env:Path = "$(Join-Path $studioRoot 'jbr\bin');$(Join-Path $studioRoot 'tools\node');$(Join-Path $studioRoot 'tools\ohpm\bin');$originalPath"
+  # Windows PowerShell represents native stderr warnings as ErrorRecords; use the actual exit code.
+  $ErrorActionPreference = 'Continue'
+  & $node $hvigor --mode module -p product=default -p module=entry@default -p buildMode=debug assembleHap --no-daemon 2>&1 |
+    Tee-Object -FilePath (Join-Path $artifactRoot 'build.txt')
+  $ErrorActionPreference = 'Stop'
+  if ($LASTEXITCODE -ne 0) { throw "HAP build failed with exit code $LASTEXITCODE" }
+  if ($RunChecks) {
+    & $node (Join-Path $scriptRoot 'test-domain.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }
+    & $node (Join-Path $scriptRoot 'test-services.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Mocked-service checks failed' }
+  }
+  $hap = Join-Path $projectRoot 'entry\build\default\outputs\default\entry-default-unsigned.hap'
+  if (-not (Test-Path -LiteralPath $hap)) { throw 'Expected unsigned HAP was not produced.' }
+  Write-Output "Unsigned HAP: $hap"
+  Get-FileHash -LiteralPath $hap -Algorithm SHA256
+} finally {
+  Pop-Location
+  $env:Path = $originalPath
+  $env:JAVA_HOME = $originalJava
+  $env:DEVECO_SDK_HOME = $originalSdk
+}
