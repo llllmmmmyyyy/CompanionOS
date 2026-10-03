@@ -43,3 +43,7 @@
 **/.hvigor/
 **/.idea/
 **/local.properties
+artifacts/
+**/.preview/
+**/__pycache__/
+*.hprof

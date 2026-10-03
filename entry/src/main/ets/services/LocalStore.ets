@@ -1,6 +1,6 @@
 import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
-import { Completion, ParentSettings, Snapshot, dayKey, restoreSnapshot } from '../model/Companion';
+import { Completion, Snapshot, dayKey, parseSnapshot } from '../model/Companion';
 
 class LegacyRecord {
   id: string = '';
@@ -18,18 +18,20 @@ export class LocalStore {
   }
 
   load(): Snapshot {
-    const raw = this.store.getSync('mvp', '') as string;
+    let raw: string = '';
+    try { raw = this.store.getSync('mvp', '') as string; }
+    catch { throw new Error('Local storage could not be read'); }
     if (raw !== '') {
-      const data = restoreSnapshot(raw);
-      this.recovered = data.countDay === '';
-      return data;
+      const data = parseSnapshot(raw);
+      this.recovered = data === undefined;
+      return data ? data : new Snapshot();
     }
     // Preserve valid completions made by the original offline homepage.
     const data = new Snapshot();
     try {
       const legacy = JSON.parse(this.store.getSync('records', '[]') as string) as LegacyRecord[];
       if (!Array.isArray(legacy)) { this.recovered = true; return data; }
-      const valid = legacy.filter((item: LegacyRecord) => item !== null && typeof item.id === 'string' &&
+      const valid = legacy.filter((item: LegacyRecord) => item !== null && typeof item.id === 'string' && item.id.length <= 100 &&
         typeof item.title === 'string' && item.title.length <= 80 && Number.isFinite(item.completedAt) && item.completedAt > 0);
       data.records = valid.slice(0, 20).map((item: LegacyRecord) => {
         const record = new Completion();
@@ -55,7 +57,9 @@ export class LocalStore {
   async save(data: Snapshot): Promise<void> {
     const raw = JSON.stringify(data);
     if (raw.length > preferences.MAX_VALUE_LENGTH) { throw new Error('Local data is too large'); }
-    this.store.putSync('mvp', raw);
-    await this.store.flush();
+    try {
+      this.store.putSync('mvp', raw);
+      await this.store.flush();
+    } catch { throw new Error('Local storage could not be saved'); }
   }
 }

@@ -2,6 +2,9 @@
 import { ACTIVITIES, Activity, ActivitySession, Completion, ParentSettings, Snapshot,
   addCompletion, countToday, validSettings } from '../model/Companion';
 import { LocalStore } from '../services/LocalStore';
+import { Notifications } from '../services/Notifications';
+import { AiService } from '../services/AiService';
+import { Widgets } from '../services/Widgets';
 
 @Entry
 @Component
@@ -18,6 +21,10 @@ struct Index {
   @State storageReady: boolean = false;
   @State notice: string = '';
   @State today: number = 0;
+  @State aiLoading: boolean = false;
+  @State recommendation: string = '';
+  @State recommendationId: string = '';
+  @State notificationStatus: string = 'Optional: enable a system notification when a foreground activity ends.';
   @StorageLink('appForeground') @Watch('foregroundChanged') foreground: boolean = true;
   private session: ActivitySession = new ActivitySession();
   private store: LocalStore | undefined = undefined;
@@ -30,6 +37,7 @@ struct Index {
       this.store = new LocalStore(context);
       this.data = this.store.load();
       this.storageReady = true;
+      Widgets.update(context, this.data);
       if (this.store.recovered) { this.notice = 'Some local data was unreadable. Safe defaults have been restored.'; }
     } catch {
       this.notice = 'Local storage is unavailable. You can explore activities, but saving is disabled. Reopen the app to retry.';
@@ -61,9 +69,37 @@ struct Index {
     this.today = countToday(this.data, Date.now());
     if (this.session.tick(Date.now(), this.foreground)) {
       this.notice = 'Time is up. Parent / caregiver: confirm when you have finished together.';
+      this.publishEndNotification();
     }
     this.phase = this.session.phase;
     this.remaining = this.session.remaining(Date.now());
+  }
+
+  private async publishEndNotification(): Promise<void> {
+    const id = this.session.id;
+    const status = await Notifications.publish(this.selected.title, () =>
+      this.foreground && this.session.id === id && this.session.phase === 'ready');
+    if (this.session.id === id && this.session.phase === 'ready' && status !== '') { this.notice = status; }
+  }
+
+  private async enableNotifications(): Promise<void> {
+    if (this.busy) { return; }
+    this.busy = true;
+    this.notificationStatus = await Notifications.enable(this.getUIContext().getHostContext() as common.UIAbilityContext);
+    this.busy = false;
+  }
+
+  private async recommendActivity(): Promise<void> {
+    if (this.aiLoading) { return; }
+    this.aiLoading = true;
+    const settings = this.data.settings;
+    const result = await AiService.recommend(settings);
+    if (this.data.settings === settings) {
+      const activity = ACTIVITIES.find((item: Activity) => item.id === result.activityId);
+      this.recommendation = `${result.message}\n${activity ? activity.title : 'Penguin Walk'}`;
+      this.recommendationId = result.activityId;
+    }
+    this.aiLoading = false;
   }
 
   private navigate(screen: string): void {
@@ -127,6 +163,7 @@ struct Index {
       await this.store.save(updated);
       this.data = updated;
       this.session.phase = 'completed';
+      Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.phase = 'completed';
       this.confirmed = false;
       this.today = countToday(updated, Date.now());
@@ -161,6 +198,9 @@ struct Index {
       await this.store.save(updated);
       this.data = updated;
       this.notice = 'Parent settings saved on this device.';
+      Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
+      this.recommendation = '';
+      this.recommendationId = '';
       this.navigate('home');
     } catch { this.notice = 'Settings could not be saved. Please try again.'; }
     finally { this.busy = false; }
@@ -193,11 +233,23 @@ struct Index {
         .padding(20).width('100%').backgroundColor('#E0EEE5').borderRadius(20)
       Text(`Ages ${this.data.settings.age} • ${this.data.settings.minutes} minutes • Adult accompanied`)
         .fontSize(15).fontColor('#52645C').width('100%')
+      Text(this.data.settings.aiEndpoint === '' ? 'AI service: not configured. All three activities work offline.' :
+        'AI service: configured, connection not yet verified. Offline activities stay available.')
+        .fontSize(14).fontColor('#52645C').width('100%')
+      Button(this.aiLoading ? 'Finding an activity...' : 'Recommend an activity').width('100%')
+        .backgroundColor('#E0EEE5').fontColor('#203C31').enabled(!this.aiLoading)
+        .onClick(() => { this.recommendActivity(); })
+      if (this.recommendation !== '') {
+        Text(this.recommendation).fontSize(16).fontColor('#28745E').width('100%')
+      }
       ForEach(ACTIVITIES, (activity: Activity) => {
         Column({ space: 10 }) {
           Text('Offline activity').fontSize(13).fontColor('#28745E').width('100%')
           Text(activity.title).fontSize(23).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
           Text(activity.interest).fontSize(15).fontColor('#52645C').width('100%')
+          if (this.recommendationId === activity.id) {
+            Text('Recommended activity').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#28745E').width('100%')
+          }
           if (this.data.settings.interests.includes(activity.interest)) {
             Text('Matches your interests').fontSize(13).fontColor('#28745E').width('100%')
           }
@@ -236,9 +288,17 @@ struct Index {
             .fontColor(this.draft.minutes === minutes ? Color.White : '#203C31').onClick(() => { this.draft.minutes = minutes; })
         })
       }.width('100%')
+      Text('Optional AI service (parent only)').fontSize(20).fontColor('#203C31').width('100%')
+      Text('Leave empty for offline mode. Enter a trusted HTTPS recommendation endpoint. Never enter an API key here. Only age group, interests and duration are sent when you request a recommendation.')
+        .fontSize(14).fontColor('#52645C').width('100%')
+      TextInput({ text: this.draft.aiEndpoint, placeholder: 'https://your-service/recommend' })
+        .maxLength(200).onChange((value: string) => { this.draft.aiEndpoint = value.trim(); })
+      Text(this.notificationStatus).fontSize(15).fontColor('#52645C').width('100%')
+      Button('Enable notifications').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31')
+        .enabled(!this.busy).onClick(() => { this.enableNotifications(); })
       Button(this.busy ? 'Saving...' : 'Save settings').width('100%').backgroundColor('#28745E').fontColor(Color.White)
         .enabled(this.storageReady && !this.busy).onClick(() => { this.saveSettings(); })
-    }.width('100%')
+    }.width('100%').enabled(!this.busy)
   }
 
   @Builder

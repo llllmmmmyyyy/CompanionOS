@@ -1,5 +1,7 @@
 {
   "string": [
+    { "name": "widget_name", "value": "Today together" },
+    { "name": "widget_description", "value": "Today's family activity and completion count" },
     {
       "name": "module_desc",
       "value": "Offline parent and child animal activities"

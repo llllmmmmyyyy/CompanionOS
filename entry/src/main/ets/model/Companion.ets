@@ -50,7 +50,7 @@ export class Snapshot {
   settings: ParentSettings = new ParentSettings();
   records: Completion[] = [];
   total: number = 0;
-  countDay: string = '';
+  countDay: string = dayKey(Date.now());
   todayCount: number = 0;
 }
 
@@ -76,7 +76,7 @@ export function validEndpoint(endpoint: string): boolean {
   return /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]{1,5})?(\/[a-zA-Z0-9/_-]*)?$/.test(endpoint);
 }
 
-export function restoreSnapshot(raw: string): Snapshot {
+export function parseSnapshot(raw: string): Snapshot | undefined {
   try {
     const data = JSON.parse(raw) as Snapshot;
     if (data === null || data.version !== 1 || !validSettings(data.settings) ||
@@ -89,12 +89,17 @@ export function restoreSnapshot(raw: string): Snapshot {
         typeof record.title === 'string' && record.title.length <= 80 &&
         Number.isFinite(record.completedAt) && record.completedAt > 0 &&
         [3, 5, 10].includes(record.minutes) && typeof record.demo === 'boolean')) {
-      return new Snapshot();
+      return undefined;
     }
     return data;
   } catch {
-    return new Snapshot();
+    return undefined;
   }
+}
+
+export function restoreSnapshot(raw: string): Snapshot {
+  const saved = parseSnapshot(raw);
+  return saved ? saved : new Snapshot();
 }
 
 export function addCompletion(data: Snapshot, record: Completion): Snapshot {
