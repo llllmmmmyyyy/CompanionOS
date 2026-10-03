@@ -8,10 +8,10 @@ This iteration changes Phone presentation and navigation only. Tablet gameplay, 
 
 | Tab | Content |
 |---|---|
-| Home | Tablet status, one contextual primary action, compact session choices, real What We Noticed statistic and today's recorded foreground minutes |
+| Home | Tablet status, one contextual primary action, compact saved-session summary and Change session settings link, real What We Noticed statistic and today's recorded foreground minutes |
 | Activities | Play/Watch/Move/Create/Calm catalog; existing Video Library and optional Phone fallback activities |
 | Insights | Seven-day styles, completion/retry/feedback counts, Play/Watch/Move counts, evidence, recent Tablet outcomes and links to separate Phone journals |
-| Parent | Existing profile/settings route, saved session choices, memory signals, custom sliders, Child Mode exit and technical information |
+| Parent | Child & Safety Settings route, saved duration/preset grids, memory signals, custom sliders, Child Mode exit and technical information |
 
 Large Home buttons for settings, video, fallback, legacy insights and parent-confirmed progress were removed from the hierarchy, not deleted. Memory/custom sliders and transport/OS-lock disclaimers moved to Parent. Detailed balance-plan strings are absent from Home. Preset buttons use compact neutral surfaces; the selected preset is subtle, while Start Child Mode / Start Session / Resume / View Summary is the strongest accent.
 
@@ -37,3 +37,9 @@ Duration defaults to 30 minutes for new installations; existing saved selections
 Index keeps the old activities, games, settings, insights and progress routes for existing features. Four parent root screens use home, parent-activities, parent-insights and parent-controls. Old Progress remains reachable as Parent-confirmed records, without mixing it into the Tablet journal. Existing detail Back returns Home. The Activities catalog does not remotely open individual games; children choose them on Tablet, and the existing Phone fallback remains optional.
 
 Implementation: entry/src/main/ets/pages/Index.ets and ParentDashboard.ets. Testing: TESTING.md. The development relay limitation remains documented and visible under Parent > About / Technical Information. Physical small phones, large fonts and screen readers still need human verification.
+
+## Compact Home follow-up
+
+Home no longer renders sessionOptions. The existing saved duration/preset appear inside the Tablet status card as `30 min · Balanced` (actual values, not fixed copy), with `Change session settings >` opening Parent. What We Noticed immediately follows this card; Today's Activity follows insights. Card spacing/padding is reduced, and the decorative footer is omitted from Home. Scroll remains above the bottom navigation; full Today content was screenshot-checked on the tested Phone.
+
+All duration choices, four presets, Custom balance, memory signals, safety/profile, Exit Child Mode and technical details remain in Parent. Parent Settings is relabelled Child & Safety Settings without changing its route/store. The existing contextual controls are preserved; the ready state has exactly one Start Session button. No transport, balance, game or persistence logic changes. Small physical devices/large fonts still need human review; scrolling remains available.

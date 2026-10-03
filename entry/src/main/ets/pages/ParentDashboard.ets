@@ -107,7 +107,6 @@ export struct ParentDashboard {
       Row({ space: 6 }) { ForEach(pair, (preset: string) => { Button(preset).fontSize(12).layoutWeight(1).height(34).backgroundColor(this.data.preset === preset ? '#D6EBDC' : '#F0F2ED').fontColor('#335248').onClick(() => { this.data.preset = preset; this.rules = presetRules(preset); this.save(); }) }) }
     })
     Text(`${this.data.preset}: Learning + movement + creative + calm`).fontSize(13).fontColor('#536D61').width('100%')
-    if (this.tab === 'home') { Text('Customize >').fontSize(13).fontColor('#335E49').width('100%').onClick(() => this.openPage('parent-controls')) }
   }
   @Builder
   history() {
@@ -117,11 +116,11 @@ export struct ParentDashboard {
 
   }
   build() {
-    Column({ space: 14 }) {
+    Column({ space: 10 }) {
       Text(this.tab === 'home' ? 'CompanionOS Parent' : this.tab === 'parent-activities' ? 'Activities' : this.tab === 'parent-insights' ? 'Activity Insights' : 'Parent').fontSize(25).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       if (this.tab === 'home') {
         Text('Understand your child through everyday discoveries.').fontSize(14).fontColor('#536D61').width('100%')
-        Column({ space: 8 }) {
+        Column({ space: 6 }) {
           Text('TABLET STATUS').fontSize(11).fontWeight(FontWeight.Bold).fontColor('#536D61').width('100%')
           Text(`Tablet: ${this.connected ? 'Connected' : 'Disconnected'}`).fontSize(20).fontWeight(FontWeight.Bold).width('100%')
           Text(`Child Mode: ${!this.connected ? 'Unavailable' : this.status.active ? 'Active' : 'Ready'}`).fontSize(14).width('100%')
@@ -131,24 +130,23 @@ export struct ParentDashboard {
           } else if (this.uiState() === 'SESSION_COMPLETE') { Text(`${this.status.completed === this.status.total && this.status.total > 0 ? 'Session complete' : 'Session ended'} | ${this.status.completed} / ${this.status.total} activities completed`).fontSize(15).width('100%') }
           else if (this.uiState() === 'CHILD_MODE_READY') { Text("Ready for today's adventure").fontSize(15).width('100%') }
           else if (!this.connected) { Text('Open CompanionOS on your Tablet.').fontSize(14).width('100%') }
+          Text(`${this.data.minutes} min \u00B7 ${this.data.preset}`).fontSize(14).fontColor('#536D61').width('100%')
+          Text('Change session settings >').fontSize(13).fontColor('#335E49').width('100%').padding({ top: 2, bottom: 4 }).onClick(() => this.openPage('parent-controls'))
           this.controls()
           if (this.sending) { Text('Sending request...').fontSize(12) }
           if (this.detail.includes('failed') || this.detail.includes('unavailable') || this.detail.includes('could not')) { Text(this.detail.includes('saving') || this.detail.includes('journal') ? 'Local saving needs attention. See Parent for details.' : 'Connection or request failed. See Parent for details.').fontSize(12).fontColor('#914B3A').width('100%') }
-        }.width('100%').padding(14).backgroundColor('#E8F0E7').borderRadius(16)
-        if (!['SESSION_RUNNING', 'SESSION_PAUSED'].includes(this.uiState())) {
-          Column({ space: 8 }) { this.sessionOptions() }.width('100%').padding(14).backgroundColor('#FFFFFF').borderRadius(16)
-        }
-        Column({ space: 8 }) {
+        }.width('100%').padding(12).backgroundColor('#E8F0E7').borderRadius(16)
+        Column({ space: 6 }) {
           Text('What We Noticed').fontSize(19).fontWeight(FontWeight.Bold).width('100%')
           Text(this.quickInsight()).fontSize(15).width('100%')
           Text('View Activity Insights >').fontSize(14).fontColor('#335E49').width('100%').onClick(() => this.openPage('parent-insights'))
-        }.width('100%').padding(14).backgroundColor('#FFFFFF').borderRadius(16)
+        }.width('100%').padding(12).backgroundColor('#FFFFFF').borderRadius(16)
         Column({ space: 6 }) {
           Text("Today's Activity").fontSize(18).fontWeight(FontWeight.Bold).width('100%')
           ForEach(['LEARN', 'MOVE', 'CREATE', 'CALM'], (category: string) => { Text(`${category}   ${Math.floor(this.today().filter((r: WorldResult) => r.category === category).reduce((sum: number, r: WorldResult) => sum + r.duration, 0) / 60)} min`).fontSize(14).width('100%') })
           Text(`${this.today().filter((r: WorldResult) => r.completed).length} activities completed`).fontSize(14).width('100%')
           Text('View history >').fontSize(14).fontColor('#335E49').width('100%').onClick(() => this.openPage('parent-insights'))
-        }.width('100%').padding(14).backgroundColor('#FFFFFF').borderRadius(16)
+        }.width('100%').padding(12).backgroundColor('#FFFFFF').borderRadius(16)
       } else if (this.tab === 'parent-activities') {
         ForEach(['Play', 'Watch', 'Move', 'Create', 'Calm'], (category: string) => {
           Column({ space: 6 }) {
@@ -168,7 +166,7 @@ export struct ParentDashboard {
         Button('Phone fallback Activity Insights').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('insights'))
         Button('Parent-confirmed records').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('progress'))
       } else {
-        Button('Parent Settings').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('settings'))
+        Button('Child & Safety Settings').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('settings'))
         Text('Age, interests, safety and content preferences').fontSize(14).fontColor('#536D61')
         this.sessionOptions()
         Text('Memory sequence length').fontSize(16).width('100%')

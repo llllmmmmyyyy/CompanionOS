@@ -1,3 +1,27 @@
+# Compact Parent Home verification - 2026-10-04
+
+Phone-only presentation changes: sessionOptions is rendered only in Parent, actual saved duration/preset summary lives in the status card, insights and Today follow directly, spacing is reduced, and the Home-only decorative footer is omitted. No balance/insight/transport/storage/Tablet game logic changed.
+
+Phone build command: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1`; final BUILD SUCCESSFUL, process exit 0. Final unsigned development HAP: `entry/build/default/outputs/default/entry-default-unsigned.hap`, SHA256 `0790C2B63B9459AFDA2C05473817CC7832D0E09C7FD1C295AE484CBA99A5CC2A`. Actually installed/launched on existing Phone API 21, connected to existing Tablet API 21. Tablet was not modified/rebuilt for this change. Existing broad host/backend suites were not rerun for this UI-only change; older results below are historical.
+
+| Check | Target/API | Actual verification | Status |
+|---|---|---|---|
+| Home configuration removal | Phone/21 | Final layout has zero duration/preset grid buttons; real 30 min / Balanced summary present | PASS |
+| Single Start Session | Phone + Tablet/21 | Final ready layout counted exactly one Button labelled Start Session; no second start CTA in that state | PASS |
+| Primary Start Session | Both/21 | Actual tap opened Tablet Bridge, Phone showed 30-minute maximum and 0/9; End still worked | PASS |
+| Change settings navigation | Phone/21 | Home link opened Parent on initial and final HAP | PASS |
+| Saved summary | Phone/21 | Changed to 15 min/More Learning; Home showed those values; restored original 30/Balanced | PASS |
+| Retained Parent controls | Phone/21 | Four duration buttons/four presets, memory 2-5, Custom, Exit and technical info visible; Custom opened saved 35/30/30 sliders | PASS |
+| Child & Safety Settings | Phone/21 | Renamed entry opened unchanged profile route with saved interests/age/duration/category controls | PASS |
+| Insight/Today hierarchy | Phone/21 | Actual screenshots show What We Noticed immediately below status/action card, Today below insight | PASS |
+| Today not covered by navigation | Phone/21 | Final ready screenshot shows full card; View history bottom=2146px, navigation Home column starts=2538px on 1316x2832 display | PASS |
+| App log | Phone/21 | Current app-PID log had zero Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured scope |
+| Small physical screens / large fonts / screen readers | Physical Phone | Not run; vertical scrolling remains available above navigation | NOT RUN |
+
+Evidence stays ignored under artifacts/: home-summary-build-final.txt, home-summary-final-ready.jpeg/json, home-summary-final-parent/running layouts, home-summary-changed/custom/child-safety layouts and home-summary-runtime.txt. These are HDC runtime touches/screenshots, not a human usability study. Test sessions were intentionally ended and are not falsely marked complete.
+
+---
+
 # Official submission audit validation - 2026-10-04
 
 This audit adds documentation and build/hygiene tooling, not product features. App source, Tablet gameplay, protocol and persistence schemas are unchanged. Older statements about unavailable competition rules describe their original sessions; the official challenge/README have now been read and mapped in COMPLIANCE_MATRIX.

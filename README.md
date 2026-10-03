@@ -14,7 +14,7 @@ CompanionOS separates the child and parent experiences across HarmonyOS devices.
 
 ## Product Architecture
 
-**PHONE = Parent Control + Insights**: Home, Activities, Insights and Parent; contextual remote controls, saved preferences, history and evidence.
+**PHONE = Parent Control + Insights**: Home, Activities, Insights and Parent; contextual remote controls, a compact saved-session summary, history and evidence. Duration/preset grids and advanced settings are kept in Parent.
 
 **TABLET = Child Interactive World**: original Pico character, native 2D scenes, locally owned gameplay, video, movement and feedback.
 
@@ -136,7 +136,7 @@ The tested emulators accept unsigned development HAPs. For devices requiring sig
 
 Both guest applications use **http://10.0.2.2:18080**, session **family-demo**. Windows relay listens on **127.0.0.1:18080**. Guest 127.0.0.1 is the guest itself and cannot connect different emulators. No HDC reverse tunnel is needed in the tested DevEco emulator setup. Other networking environments are unverified.
 
-Phone Parent: choose memory **2 lights**, then Home select **Balanced / 15 min** for a finite five-mission recording. Fresh installs default to 30 minutes; saved choices are preserved. Exit Child Mode in Parent if needed, then Home > Start Child Mode > Start Session. Child may choose Dino Forest before the first learning interaction. Follow [75-90 second demo](docs/DEMO_SCRIPT.md); label time edits and development history honestly.
+Phone Parent: choose memory **2 lights**, **Balanced / 15 min**, then return Home for a finite five-mission recording. Fresh installs default to 30 minutes; saved choices are preserved. Exit Child Mode in Parent if needed, then Home > Start Child Mode > Start Session. Child may choose Dino Forest before the first learning interaction. Follow [75-90 second demo](docs/DEMO_SCRIPT.md); label time edits and development history honestly.
 
 ## Generated HAP Files
 

@@ -4,7 +4,7 @@
 
 ## Preparation
 
-Build both current HAPs, restore backend dependencies/build and start `npm.cmd start` in backend. Launch Phone/Tablet with the deployment helper in README. Phone Parent: memory 2 lights; Home: Balanced / 15 min. This is a maximum foreground window, not fifteen measured minutes of engagement. Choose Dino Forest before the first learning interaction if recommendation selected a different mission. Exit Child Mode in Parent before recording, so activation can be shown from Home. Confirm relay Connected; use built-in content, no private imported video or provider credentials.
+Build both current HAPs, restore backend dependencies/build and start `npm.cmd start` in backend. Launch Phone/Tablet with the deployment helper in README. Phone Parent: memory 2 lights, Balanced / 15 min; return Home to start. This is a maximum foreground window, not fifteen measured minutes of engagement. Choose Dino Forest before the first learning interaction if recommendation selected a different mission. Exit Child Mode in Parent before recording, so activation can be shown from Home. Confirm relay Connected; use built-in content, no private imported video or provider credentials.
 
 The finite five-mission sequence is Bridge, Memory, Move, Garden and the allocated built-in video when Dino Forest is chosen. Actual mission ordering can follow the retained story adapter/recommendation; rehearse the current saved configuration. Do not alter gameplay or substitute Skip/Next for genuine completion. If a daily gift is already earned, show retained world progress rather than claiming a second gift that date.
 

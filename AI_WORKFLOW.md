@@ -1,3 +1,9 @@
+# Compact Parent Home refinement - 2026-10-04
+
+Codex applied the user instruction to remove duplicate duration/preset grids from Home without deleting settings. Home now displays the actual saved duration/preset and a Parent navigation link; insights follow the primary status/action card, then Today. Parent's existing profile route is relabelled Child & Safety Settings. No new models, transport, persistence, Tablet gameplay, balance rules, dependency or asset was introduced.
+
+Codex built the Phone HAP, installed it on API 21 Phone, inspected screenshots/layouts, opened Parent/custom/profile settings, changed duration/preset and observed Home's real summary, restored original 30/Balanced selection, and exercised Start Session against the real connected Tablet. A final build omitted Home's decorative footer and was reinstalled for final layout/control verification. These are real emulator touches, not human usability research. Existing broad host/backend checks were not rerun for this presentation-only change. See TESTING.md for actual package/test scope.
+
 # Official submission disclosure audit - 2026-10-04
 
 This summary is current; historical entries below retain their original dates and narrower verification scope. Source: the official HackYeah challenge and participant README, read directly for this audit. No artificial project history or human review is invented.

@@ -1499,7 +1499,7 @@ struct Index {
           else if (this.screen === 'progress') { this.progressContent() }
           else if (this.screen === 'connect') { this.connectionContent() }
           else { this.activityContent() }
-          Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
+          if (this.screen !== 'home') { Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 }) }
         }.width('100%').padding({ left: 16, right: 16, top: 4 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
       if (['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
