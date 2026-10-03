@@ -55,5 +55,5 @@ try {
   $tvResult = & $hdc -t $Tablet shell aa start -a TvAbility -b com.example.companionos
   $phoneResult = & $hdc -t $Phone shell aa start -a EntryAbility -b com.example.companionos
   if (($tvResult -join "`n") -notmatch 'start ability successfully' -or ($phoneResult -join "`n") -notmatch 'start ability successfully') { throw "Launch failed: $tvResult $phoneResult" }
-  Write-Output 'Both applications launched; this is not yet a connection test. Tablet: Connect. Phone: Play on Large Screen > Connect to Emulator Tablet. Endpoint http://10.0.2.2:18080, room family-demo.'
+  Write-Output 'Both applications launched; this is not yet a connection test. Phone: Home > Start Child Mode, then Start Tablet session. Legacy video receiver: Play on Large Screen > Connect to Emulator Tablet. Endpoint http://10.0.2.2:18080, room family-demo.'
 } finally { Pop-Location }

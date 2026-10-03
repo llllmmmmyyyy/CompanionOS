@@ -1,7 +1,10 @@
 import { Activity } from '../model/Companion';
-import { VideoSource } from '@companion/protocol';
+import { VideoSource, GameState, GameCommand } from '@companion/protocol';
 
 export class TvFrame {
+  gameCommand: GameCommand = new GameCommand();
+  game: GameState = new GameState();
+  activityMode: string = 'VIDEO';
   content: VideoSource = new VideoSource();
   activityId: string = '';
   videoUrl: string = '';

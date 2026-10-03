@@ -23,3 +23,11 @@ The parent-work hero and six category/activity SVG illustrations were authored f
 ## Final refinement inventory
 
 This iteration adds no dependencies, external fonts, downloaded media or third-party artwork. It reuses the existing original SVG system and bundled clip. Codex authored the plan/UI/documentation changes; no separate ChatGPT, Gemini or Huawei coding agent was used. Historical dependency/asset inventories above retain their original verification limits.
+
+## Tablet world / game refinement
+
+Pico, scene map/cloud/plant/backpack/book/energy/flower objects and native game graphics were authored from original vector shapes in this coding session. The seven shared mini-game SVGs are original authored illustrations; Tablet copies intentionally reuse the same originals. No image generator, stock character, paid asset, third-party game engine or external font was used.
+
+The original `counting.mp4` is a short counting scene encoded from programmatic System.Drawing frames using the already installed local FFmpeg tool described above. `scripts/create-counting-video.ps1` contains reproducible authoring steps; temporary frames/encoder binaries are ignored. The small authored MP4 is intentionally included in both native modules. Existing cloud fallback media remains unchanged. An OS font was used to draw frame numerals, without distributing a font file. No project-wide license or inherited starter-art rights are inferred.
+
+No new runtime package dependency was added for the world. HarmonyOS SDK terms and existing backend development dependency licenses remain as inventoried above.

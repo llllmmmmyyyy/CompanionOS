@@ -1,3 +1,4 @@
+import { WorldRelay, Command, Status, Result } from './world-relay.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -7,10 +8,10 @@ import { ActivityJobs, type ActivityJob } from './activities.js';
 import { validateRequest } from './domain.js';
 import { GoogleProvider } from './provider.js';
 import { GeminiActivityProvider, GeminiVideoProvider, HuaweiMaaSClient, HuaweiMaaSActivityProvider, HuaweiMaaSVideoProvider, ProviderAdapter } from './content-providers.js';
-import { Relay } from './protocol.js';
+import { Relay, GameCommand } from './protocol.js';
 
-async function body(req: IncomingMessage): Promise<unknown> {
-  let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 16384) throw new Error('Request too large'); }
+async function body(req: IncomingMessage, limit = 16384): Promise<unknown> {
+  let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > limit) throw new Error('Request too large'); }
   return JSON.parse(raw);
 }
 function json(res: ServerResponse, value: unknown, code = 200) {
@@ -22,6 +23,7 @@ function publicJob(job: ActivityJob) {
     videoPrompt: step.veoPrompt, videoUrl: job.segments[index]?.videoUrl || '' })) } } : job;
 }
 export async function app(jobs: ActivityJobs, relay = new Relay(), huawei?: ActivityJobs) {
+  const worldRelay = new WorldRelay();
   await jobs.initialize();
   await huawei?.initialize();
   return createServer(async (req, res) => {
@@ -54,10 +56,17 @@ export async function app(jobs: ActivityJobs, relay = new Relay(), huawei?: Acti
           ...(parts ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}), 'Cache-Control': 'private, max-age=3600' });
         const stream = createReadStream(file, { start, end }); stream.on('error', () => res.destroy()); stream.pipe(res); return;
       }
-      const room = /^\/tv\/rooms\/([a-zA-Z0-9_-]{4,32})\/(phone|state|feedback|disconnect)$/.exec(route);
+      const world = /^\/world\/rooms\/([a-zA-Z0-9_-]{4,32})\/(phone|tablet|command)$/.exec(route);
+      if (world) {
+        if (req.method === 'GET') return json(res, worldRelay.poll(world[1],world[2]));
+        if(req.method === 'POST' && world[2] === 'command'){worldRelay.command(world[1],await body(req,262144) as Command);return json(res,{ok:true});}
+        if(req.method === 'POST' && world[2] === 'tablet'){worldRelay.tablet(world[1],await body(req,262144) as {status:Status;results:Result[]});return json(res,worldRelay.poll(world[1],'tablet'));}
+      }
+      const room = /^\/tv\/rooms\/([a-zA-Z0-9_-]{4,32})\/(phone|state|feedback|disconnect|game)$/.exec(route);
       if (room) {
         if (req.method === 'POST' && room[2] === 'phone') { relay.send(room[1], await body(req)); return json(res, relay.status(room[1], false)); }
         if (req.method === 'GET' && room[2] === 'state') return json(res, relay.status(room[1], url.searchParams.get('receiver') === 'true'));
+        if (req.method === 'POST' && room[2] === 'game') { relay.game(room[1], await body(req) as GameCommand); return json(res, { ok: true }); }
         if (req.method === 'POST' && room[2] === 'feedback') { const value = await body(req) as { status: string }; relay.feedback(room[1], value.status); return json(res, { ok: true }); }
         if (req.method === 'POST' && room[2] === 'disconnect') { relay.disconnect(room[1]); return json(res, { ok: true }); }
       }

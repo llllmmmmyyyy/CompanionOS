@@ -1,7 +1,9 @@
+import { BalanceRules, validRules } from './SessionBalanceEngine';
 import { ActivityContentSource } from '@companion/protocol';
 export { ActivityContentSource } from '@companion/protocol';
 
 export class ParentSettings {
+  balanceRules: BalanceRules = new BalanceRules();
   age: string = '4–5';
   interests: string[] = ['Movement'];
   minutes: number = 3;
@@ -68,6 +70,12 @@ export const ACTIVITIES: Activity[] = [
 ];
 
 export class Completion {
+  sessionId?: string; category?: string; activityMode?: string; gameType?: string;
+  plannedDuration?: number; actualDuration?: number; startedAt?: number;
+  completed?: boolean; skipped?: boolean; childFeedback?: string; difficultyFeedback?: string;
+  movementPlanned?: boolean; movementConfirmed?: boolean; learningActivityCompleted?: boolean;
+  questionsAttempted?: number; questionsCorrect?: number; attemptCount?: number;
+
   contentSource: ActivityContentSource = ActivityContentSource.BUILT_IN;
   id: string = '';
   activityId: string = '';
@@ -102,7 +110,7 @@ export function validSettings(settings: ParentSettings): boolean {
     settings.interests.every((item: string) => ['Movement', 'Sounds', 'Nature'].includes(item)) &&
     Array.isArray(settings.preferredActivityTypes) && settings.preferredActivityTypes.length > 0 &&
     settings.preferredActivityTypes.length <= 4 && settings.preferredActivityTypes.every((value: string) => ['MOVE', 'LEARN', 'CREATE', 'CALM'].includes(value)) &&
-    [15, 30, 45, 60].includes(settings.sessionDuration) && ['Gentle', 'Standard'].includes(settings.activityDifficulty) &&
+    validRules(settings.balanceRules) && [15, 30, 45, 60].includes(settings.sessionDuration) && ['Gentle', 'Standard'].includes(settings.activityDifficulty) &&
     typeof settings.indoorOnly === 'boolean' && typeof settings.noJumping === 'boolean' && typeof settings.lowIntensity === 'boolean' &&
     typeof settings.aiEndpoint === 'string' && settings.aiEndpoint.length <= 200 &&
     (settings.aiEndpoint === '' || validEndpoint(settings.aiEndpoint));
@@ -117,6 +125,7 @@ export function parseSnapshot(raw: string): Snapshot | undefined {
     const data = JSON.parse(raw) as Snapshot;
     if (data && data.settings) {
       const defaults = new ParentSettings();
+      if (data.settings.balanceRules === undefined) { data.settings.balanceRules = new BalanceRules(); }
       if (data.settings.preferredActivityTypes === undefined) { data.settings.preferredActivityTypes = defaults.preferredActivityTypes; }
       if (data.settings.sessionDuration === undefined) { data.settings.sessionDuration = defaults.sessionDuration; }
       if (data.settings.activityDifficulty === undefined) { data.settings.activityDifficulty = defaults.activityDifficulty; }
@@ -133,10 +142,11 @@ export function parseSnapshot(raw: string): Snapshot | undefined {
         typeof record.activityId === 'string' && record.activityId.length <= 40 &&
         typeof record.title === 'string' && record.title.length <= 80 &&
         Number.isFinite(record.completedAt) && record.completedAt > 0 &&
-        [3, 5, 10].includes(record.minutes) && typeof record.demo === 'boolean')) {
+        Number.isInteger(record.minutes) && record.minutes >= 1 && record.minutes <= 10 && typeof record.demo === 'boolean')) {
       return undefined;
     }
     for (const record of data.records) {
+      sanitizeInteractionFields(record);
       if (record.contentSource === undefined) { record.contentSource = ActivityContentSource.BUILT_IN; }
       if (!['GEMINI_AI', 'HUAWEI_AI', 'BUILT_IN', 'USER_VIDEO'].includes(record.contentSource)) { return undefined; }
     }
@@ -144,6 +154,27 @@ export function parseSnapshot(raw: string): Snapshot | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Invalid optional interaction details become unknown without deleting legacy journal entries.
+function sanitizeInteractionFields(record: Completion): void {
+  if (!['MOVE', 'LEARN', 'CREATE', 'CALM'].includes(record.category || '')) { record.category = undefined; }
+  if (!['VIDEO', 'INTERACTIVE', 'GUIDED_OFFSCREEN'].includes(record.activityMode || '')) { record.activityMode = undefined; }
+  if (!['', 'CHOICE', 'MEMORY_SEQUENCE', 'SORTING', 'MOVEMENT_CHALLENGE'].includes(record.gameType || '')) { record.gameType = undefined; }
+  if (record.sessionId !== undefined && (typeof record.sessionId !== 'string' || record.sessionId.length > 100)) { record.sessionId = undefined; }
+  if (record.plannedDuration !== undefined && (!Number.isFinite(record.plannedDuration) || record.plannedDuration <= 0 || record.plannedDuration > 10)) { record.plannedDuration = undefined; }
+  if (record.actualDuration !== undefined && (!Number.isFinite(record.actualDuration) || record.actualDuration < 0 || record.actualDuration > 86400)) { record.actualDuration = undefined; }
+  if (record.startedAt !== undefined && (!Number.isFinite(record.startedAt) || record.startedAt <= 0)) { record.startedAt = undefined; }
+  if (!['Liked', 'Okay', 'Disliked'].includes(record.childFeedback || '')) { record.childFeedback = undefined; }
+  if (!['Too easy', 'Just right', 'Too hard'].includes(record.difficultyFeedback || '')) { record.difficultyFeedback = undefined; }
+  if (record.completed !== undefined && typeof record.completed !== 'boolean') { record.completed = undefined; }
+  if (record.skipped !== undefined && typeof record.skipped !== 'boolean') { record.skipped = undefined; }
+  if (record.movementPlanned !== undefined && typeof record.movementPlanned !== 'boolean') { record.movementPlanned = undefined; }
+  if (record.movementConfirmed !== undefined && typeof record.movementConfirmed !== 'boolean') { record.movementConfirmed = undefined; }
+  if (record.learningActivityCompleted !== undefined && typeof record.learningActivityCompleted !== 'boolean') { record.learningActivityCompleted = undefined; }
+  if (record.questionsAttempted !== undefined && (!Number.isInteger(record.questionsAttempted) || record.questionsAttempted < 0 || record.questionsAttempted > 1000)) { record.questionsAttempted = undefined; }
+  if (record.questionsCorrect !== undefined && (!Number.isInteger(record.questionsCorrect) || record.questionsCorrect < 0 || record.questionsCorrect > (record.questionsAttempted === undefined ? 1000 : record.questionsAttempted))) { record.questionsCorrect = undefined; }
+  if (record.attemptCount !== undefined && (!Number.isInteger(record.attemptCount) || record.attemptCount < 0 || record.attemptCount > 1000)) { record.attemptCount = undefined; }
 }
 
 export function restoreSnapshot(raw: string): Snapshot {

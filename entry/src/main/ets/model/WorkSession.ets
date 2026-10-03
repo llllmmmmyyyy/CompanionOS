@@ -1,14 +1,20 @@
+import { GameState, validGame } from '@companion/protocol';
+import { BalanceRules, SessionBalanceEngine, validRules } from './SessionBalanceEngine';
 import { Activity, ParentSettings } from './Companion';
 
 export const WORK_TYPES: string[] = ['MOVE', 'LEARN', 'CREATE', 'CALM'];
 export const PREPARATIONS: string[] = ['Recommended', 'Built-in', 'Huawei AI', 'Gemini AI', 'My Videos'];
 export class WorkEntry {
+  mode: string = 'GUIDED_OFFSCREEN';
+  gameType: string = '';
   category: string = 'MOVE';
   minutes: number = 5;
   outcome: string = 'pending';
   demo: boolean = false;
 }
 export class WorkState {
+  game: GameState = new GameState();
+  daily: boolean = false; adventureDate: string = '';
   version: number = 1;
   id: string = '';
   minutes: number = 30;
@@ -22,18 +28,16 @@ export class WorkState {
   activityId: string = '';
   activityDemo: boolean = false;
   finishedAt: number = 0;
+  rules: BalanceRules = new BalanceRules();
 }
 export function planWork(minutes: number, settings: ParentSettings): WorkState {
   minutes = [15, 30, 45, 60].includes(minutes) ? minutes : 30;
   const state = new WorkState();
   state.id = `work-${Date.now()}`; state.minutes = minutes; state.phase = 'active';
-  const types = WORK_TYPES.filter((type: string) => settings.preferredActivityTypes.includes(type));
-  const balanced: string[] = ['MOVE', 'LEARN', 'LEARN', 'CREATE', 'CREATE', 'CALM'];
-  const count = Math.max(2, Math.floor(minutes / 5));
-  state.entries = Array.from({ length: count }, (_value: number, index: number) => {
-    const entry = new WorkEntry();
-    entry.category = minutes === 30 && types.length === 4 ? balanced[index] : types[index % types.length] || 'CALM';
-    return entry;
+  state.rules = settings.balanceRules;
+  state.entries = SessionBalanceEngine.plan(minutes, settings.balanceRules).map((slot) => {
+    const entry = new WorkEntry(); entry.category = slot.category; entry.minutes = slot.minutes;
+    entry.mode = slot.mode; entry.gameType = slot.gameType; return entry;
   });
   return state;
 }
@@ -57,7 +61,7 @@ export function parseWork(raw: string): WorkState {
     const state = JSON.parse(raw) as WorkState;
     if (!state || state.version !== 1 || typeof state.id !== 'string' || state.id.length > 100 ||
       ![15, 30, 45, 60].includes(state.minutes) || !PREPARATIONS.includes(state.preparation) ||
-      !['idle', 'active', 'completed', 'ended'].includes(state.phase) || !Array.isArray(state.entries) || state.entries.length > 12 ||
+      !['idle', 'active', 'completed', 'ended'].includes(state.phase) || !Array.isArray(state.entries) || state.entries.length > 16 ||
       !Number.isInteger(state.index) || state.index < 0 || state.index > state.entries.length ||
       (state.phase === 'active' && state.index >= state.entries.length) ||
       !Number.isFinite(state.remaining) || state.remaining < 0 || state.remaining > 600 ||
@@ -65,8 +69,16 @@ export function parseWork(raw: string): WorkState {
       !['idle', 'running', 'paused', 'ready', 'completed', 'cancelled'].includes(state.activityPhase) ||
       typeof state.activityId !== 'string' || state.activityId.length > 100 || !Number.isFinite(state.finishedAt) ||
       typeof state.activityDemo !== 'boolean' ||
-      !state.entries.every((entry: WorkEntry) => entry && WORK_TYPES.includes(entry.category) && [3, 5, 10].includes(entry.minutes) &&
+      !state.entries.every((entry: WorkEntry) => entry && WORK_TYPES.includes(entry.category) && Number.isInteger(entry.minutes) && entry.minutes >= 1 && entry.minutes <= 10 &&
         ['pending', 'completed', 'skipped'].includes(entry.outcome) && typeof entry.demo === 'boolean')) { return new WorkState(); }
+    if (state.game === undefined) { state.game = new GameState(); }
+    if (state.daily === undefined) { state.daily = false; state.adventureDate = ''; }
+    if (!validGame(state.game) || typeof state.daily !== 'boolean' || typeof state.adventureDate !== 'string' || state.adventureDate.length > 30) { return new WorkState(); }
+    if (state.rules === undefined) { state.rules = new BalanceRules(); }
+    state.entries.forEach((entry: WorkEntry) => {
+      if (entry.mode === undefined) { entry.mode = 'GUIDED_OFFSCREEN'; entry.gameType = ''; }
+    });
+    if (!validRules(state.rules) || !state.entries.every((entry: WorkEntry) => ['VIDEO', 'INTERACTIVE', 'GUIDED_OFFSCREEN'].includes(entry.mode) && ['', 'CHOICE', 'MEMORY_SEQUENCE', 'SORTING', 'MOVEMENT_CHALLENGE'].includes(entry.gameType))) { return new WorkState(); }
     return state;
   } catch { return new WorkState(); }
 }

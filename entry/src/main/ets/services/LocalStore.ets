@@ -21,6 +21,12 @@ export class LocalStore {
     let raw: string = '';
     try { raw = this.store.getSync('mvp', '') as string; }
     catch { throw new Error('Local storage could not be read'); }
+    if (raw === '' && ['a', 'b'].includes(this.store.getSync('active', '') as string)) {
+      const bank = this.store.getSync('active', '') as string;
+      const count = this.store.getSync(`${bank}-count`, 0) as number;
+      if (!Number.isInteger(count) || count < 1 || count > 100) { this.recovered = true; return new Snapshot(); }
+      for (let index = 0; index < count; index++) { raw += this.store.getSync(`${bank}-${index}`, '') as string; }
+    }
     if (raw !== '') {
       const data = parseSnapshot(raw);
       this.recovered = data === undefined;
@@ -56,9 +62,15 @@ export class LocalStore {
 
   async save(data: Snapshot): Promise<void> {
     const raw = JSON.stringify(data);
-    if (raw.length > preferences.MAX_VALUE_LENGTH) { throw new Error('Local data is too large'); }
+    const size = Math.min(2048, Math.floor(preferences.MAX_VALUE_LENGTH / 4));
+    const count = Math.ceil(raw.length / size);
+    if (count > 100) { throw new Error('Local data is too large'); }
+    const bank = this.store.getSync('active', 'b') === 'a' ? 'b' : 'a';
     try {
-      this.store.putSync('mvp', raw);
+      for (let index = 0; index < count; index++) { this.store.putSync(`${bank}-${index}`, raw.slice(index * size, (index + 1) * size)); }
+      this.store.putSync(`${bank}-count`, count);
+      await this.store.flush();
+      this.store.putSync('active', bank); this.store.putSync('mvp', '');
       await this.store.flush();
     } catch { throw new Error('Local storage could not be saved'); }
   }

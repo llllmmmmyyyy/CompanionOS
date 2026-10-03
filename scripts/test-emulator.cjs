@@ -9,7 +9,7 @@ function load(file) {
   const exports = {}; cache.set(file, exports);
   const box = { exports, Date, Math, Number, JSON, Array, Promise, Error,
     setInterval: callback => { interval = callback; return 1; }, clearInterval: () => {},
-    require: name => name === '@companion/protocol' ? { ...load('shared/Index.ets'), backendRequest: (...args) => request(...args) } :
+    require: name => name === './GameBoard' ? {GameBoard:()=>{}} : name === '@companion/protocol' ? { ...load('shared/Index.ets'), backendRequest: (...args) => request(...args) } :
       file === path.resolve(__dirname, '../shared/Index.ets') && name === './Network' ? { backendRequest: (...args) => request(...args) } :
         load(path.relative(path.resolve(__dirname, '..'), path.resolve(path.dirname(file), name + '.ets'))) };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 } }).outputText, box);
@@ -38,7 +38,7 @@ let passed = 0; async function test(name, run) { await run(); passed++; console.
   await test('strict shared protocol rejects malformed, unknown, private and oversized messages', () => {
     const m = new TvMessage(); assert.ok(parseMessage(JSON.stringify(m)));
     for (const change of [{ protocolVersion: 2 }, { type: 'BAD' }, { phase: 'unknown' }, { stepIndex: 99 },
-      { videoUrl: 'file:///private' }, { videoSource: 'fake' }, { title: 'x'.repeat(81) }, { remaining: -1 }]) {
+      { videoUrl: 'file:///private' }, { videoSource: 'fake' }, { activityMode: 'UNKNOWN' }, { title: 'x'.repeat(81) }, { remaining: -1 }]) {
       assert.equal(parseMessage(JSON.stringify({ ...m, ...change })), undefined);
     }
     for (const raw of ['null', '{}', '[1]', '{broken', 'x'.repeat(17000)]) assert.equal(parseMessage(raw), undefined);
@@ -92,6 +92,12 @@ let passed = 0; async function test(name, run) { await run(); passed++; console.
     job.segments[0].videoUrl = 'file:///secret'; assert.throws(() => backendActivity(job, r, 'http://10.0.2.2:18080'));
     request = async () => { throw Error('unavailable'); };
     await assert.rejects(BackendActivityService.create('http://10.0.2.2:18080', r, ['Movement'], () => {}, () => true));
+  });
+  await test('Tablet real inputs reach the Phone callback exactly once; stale or malformed commands are filtered', async()=>{
+    const {GameCommand}=load('shared/Index.ets');const action=new GameCommand();action.id='input-1';action.sessionId='active';action.action='answer';action.value='2';action.phase='input';
+    const received=[];request=async()=>JSON.stringify({receiverConnected:true,actions:[action,{...action,id:'invalid',action:'camera'}]});
+    const transport=new EmulatorTvTransport(EMULATOR_RELAY_ENDPOINT,'family-demo',(event,frame)=>{if(event==='gameInput')received.push(frame.gameCommand)});await transport.connect();const frame=new TvFrame();transport.synchronize(frame);await flush();transport.synchronize(frame);await flush();assert.equal(received.length,1);assert.equal(received[0].value,'2');transport.disconnect();
+    let endpoint='';request=async(url)=>{endpoint=url;return '{}'};const receiver=new TvReceiver(EMULATOR_RELAY_ENDPOINT,'family-demo',()=>{});assert.equal(await receiver.gameInput(action),true);assert.ok(endpoint.endsWith('/game'));receiver.stop();
   });
   console.log(`${passed} emulator protocol/client host checks passed`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

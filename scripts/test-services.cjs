@@ -13,7 +13,7 @@ function load(file, mocks = {}, extra = {}) {
     Date, JSON, Number, Math, Array, setTimeout, clearTimeout, ...extra };
   vm.runInNewContext(js, box); return box.exports;
 }
-const model = load('model/Companion.ets', { '@companion/protocol': require('./load-protocol.cjs')(ts) });
+const model = load('model/Companion.ets', { '@companion/protocol': require('./load-protocol.cjs')(ts), './SessionBalanceEngine': load('model/SessionBalanceEngine.ets') });
 let passed = 0;
 async function test(name, run) { await run(); passed++; console.log(`PASS ${name}`); }
 async function main() {
@@ -95,7 +95,7 @@ async function main() {
     values.set('mvp', '{broken'); const store = new LocalStore({}); assert.equal(store.load().total, 0); assert.equal(store.recovered, true);
   });
   await test('previous homepage records and larger daily count migrate without loss', async () => {
-    values.set('mvp', '');
+    values.set('mvp', ''); values.delete('active');
     values.set('records', JSON.stringify([{ id: 'legacy-1', title: 'Penguin Walk', animal: 'Penguin', completedAt: Date.now() }]));
     values.set('countDay', model.dayKey(Date.now())); values.set('todayCount', 5);
     const data = new LocalStore({}).load();
@@ -103,6 +103,34 @@ async function main() {
   });
   await test('failed Preferences flush is reported to caller for retry', async () => {
     failFlush = true; await assert.rejects(new LocalStore({}).save(new model.Snapshot()));
+  });
+  await test('expanded twenty-record journal exceeds one Preferences value and still round-trips', async () => {
+    failFlush = false; values.clear(); let data = new model.Snapshot();
+    for(let i=0;i<20;i++){const r=new model.Completion();r.id='full-'+i;r.title='Penguin Walk';r.completedAt=Date.now();r.activityMode='GUIDED_OFFSCREEN';r.category='MOVE';r.actualDuration=100;r.plannedDuration=5;r.gameType='MOVEMENT_CHALLENGE';r.startedAt=Date.now();r.childFeedback='Liked';r.movementConfirmed=true;r.completed=true;r.skipped=false;r.sessionId=r.id;data=model.addCompletion(data,r);}
+    await new LocalStore({}).save(data); assert.equal(new LocalStore({}).load().records.length,20);
+    for(const value of values.values()) if(typeof value==='string') assert.ok(value.length<=8192);
+  });
+  const behavior = load('model/BehaviorInsightEngine.ets', {'./Companion': model});
+  const {BehaviorStore} = load('services/BehaviorStore.ets', {'@kit.ArkData': {preferences: {...prefs, getPreferencesSync: () => ({getSync: (key,fallback)=>values.has(key)?values.get(key):fallback, putSync:(key,value)=>{if(typeof value==='string'&&value.length>8192)throw Error('value too long');values.set(key,value)},flushSync:()=>{if(failFlush)throw Error('disk')}})}}, '../model/BehaviorInsightEngine': behavior});
+  await test('large local event history uses bounded chunks and fresh-store recovery', async()=>{
+    values.clear(); const data=new behavior.BehaviorData();for(let i=0;i<100;i++){const e=new behavior.ChildInteractionEvent();e.eventId='event-'+i;e.sessionId='session-'+i;e.activityId='learn';e.activityCategory='LEARN';e.timestamp=Date.now();e.eventType='ACTIVITY_STARTED';data.events.push(e)}
+    new BehaviorStore({}).save(data);assert.equal(new BehaviorStore({}).load().events.length,100);new BehaviorStore({}).save(new behavior.BehaviorData());assert.equal(new BehaviorStore({}).load().events.length,0);
+    failFlush=true;assert.throws(()=>new BehaviorStore({}).save(data));failFlush=false;
+  });
+  const journeyModel=load('model/AdventureJourney.ets',{'./Companion':model});
+  const {JourneyStore}=load('services/JourneyStore.ets',{'@kit.ArkData':{preferences:{...prefs,getPreferencesSync:()=>({getSync:(key,fallback)=>values.has(key)?values.get(key):fallback,putSync:(key,value)=>values.set(key,value),flushSync:()=>{}})}},'../model/AdventureJourney':journeyModel});
+  await test('Adventure Journey persists through fresh Preferences store without losing earned progress',async()=>{
+    values.clear();let journey=new journeyModel.JourneyState();journey=journeyModel.completeAdventure(journey,'2026-10-4',false,new Date(2026,9,4).getTime());new JourneyStore({}).save(journey);assert.equal(new JourneyStore({}).load().worlds[0],1);assert.equal(new JourneyStore({}).load().completedDays[0],'2026-10-4');
+  });
+  const worldProtocol = require('./load-protocol.cjs')(ts);
+  const worldPrefs={'@kit.ArkData':{preferences:{getPreferencesSync:()=>({getSync:(key,fallback)=>values.has(key)?values.get(key):fallback,putSync:(key,value)=>{if(typeof value==='string'&&value.length>8192)throw Error('oversized');values.set(key,value)},flushSync:()=>{if(failFlush)throw Error('disk')}})}},'@companion/protocol':worldProtocol,'../model/SessionBalanceEngine':load('model/SessionBalanceEngine.ets')};
+  const {WorldStore}=load('../../../../tventry/src/main/ets/services/WorldStore.ets',worldPrefs);
+  await test('Tablet world raw journal and earned decorations survive chunked store/restart; corrupt data recovers',async()=>{
+    values.clear();let state=new worldProtocol.WorldState();state.active=true;state.decorations=2;state.days=['2026-10-4'];for(let i=0;i<200;i++)worldProtocol.WorldEngine.log(state,'OBJECT_PLACED',String(i),Date.now());new WorldStore({}).save(state);let restored=new WorldStore({}).load();assert.equal(restored.events.length,200);assert.equal(restored.decorations,2);failFlush=true;assert.throws(()=>new WorldStore({}).save(new worldProtocol.WorldState()));failFlush=false;assert.equal(new WorldStore({}).load().events.length,200);values.set(values.get('active')+'-count',-1);assert.equal(new WorldStore({}).load().active,false);
+  });
+  const {ParentWorldData,ParentWorldStore}=load('services/ParentWorldStore.ets',worldPrefs);
+  await test('Phone compact result journal/preset survive chunks and corrupt nested results are rejected',async()=>{
+    values.clear();const data=new ParentWorldData();data.minutes=45;data.preset='Low Energy';for(let i=0;i<100;i++){let state=new worldProtocol.WorldState();state.active=true;state=worldProtocol.WorldEngine.open(state,'bridge',Date.now()+i);for(let j=0;j<3;j++)state=worldProtocol.WorldEngine.act(state,'place',j,Date.now());state=worldProtocol.WorldEngine.next(state,Date.now());data.results.push(state.results[0]);}new ParentWorldStore({}).save(data);assert.equal(new ParentWorldStore({}).load().results.length,100);assert.equal(new ParentWorldStore({}).load().minutes,45);data.customRules.movement=999;new ParentWorldStore({}).save(data);assert.equal(new ParentWorldStore({}).load().results.length,100);assert.equal(new ParentWorldStore({}).load().customRules.movement,20);data.results[0].style='IQ';new ParentWorldStore({}).save(data);assert.equal(new ParentWorldStore({}).load().results.length,0);
   });
   console.log(`${passed} mocked-service checks passed; actual platform behavior remains unverified.`);
 }

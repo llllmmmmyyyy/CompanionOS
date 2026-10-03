@@ -1,4 +1,74 @@
-# Testing evidence
+# Current Tablet-child / Phone-parent verification
+
+Development session: 2026-10-03; emulator local clocks displayed 2026-10-04. Current evidence supersedes older architectural descriptions below; historical tests are retained and are not reclassified as new world tests.
+
+## Environment and test method
+
+Actual native ArkTS/ArkUI project, existing compatible/target API 21 products and empty signing configuration. Installed DevEco Studio 6.0.1.251 / SDK 6.0.1.112. HDC detected Phone 127.0.0.1:5555 and Tablet 127.0.0.1:5557; both returned API 21 and the deployment helper checked Phone/Tablet device types. Both unsigned HAPs were actually installed and launched. UI gameplay was driven with HDC UITest real touches/pans, checked with layouts, screenshots, relay outcomes and app logs. This is emulator runtime testing, not Preview, physical-device testing or a study involving children.
+
+## Actual Tablet gameplay results
+
+| Core mission | Required explicit status | Actual observed interaction |
+|---|---|---|
+| Dino Bridge Builder | IMPLEMENTED AND PLAYED ON TABLET | Dragged a stone to Pico (invalid), Try again, dragged all three stones into their targets, bridge repaired and characters crossed, Loved it/Just right, one completion saved |
+| Robot Memory Repair | IMPLEMENTED AND PLAYED ON TABLET | Screenshot showed Blue light glowing during preview; native panel group disabled while previewing. Red first was invalid, retry, Blue then Red activated Robot; Loved it/Tricky saved. Longer sequences have pure-rule coverage, not an exhaustive native playthrough |
+| Animal Rescue World | IMPLEMENTED AND PLAYED ON TABLET | Dolphin to Land rejected; retry and Water; Lion to Land; Whale to Water; visible relocation and completion. A placed-animal hit-test bug was fixed and the new HAP passed the previously blocked final habitat tap |
+| Star Collector | IMPLEMENTED AND PLAYED ON TABLET | Amber star rejected, retry, all five actual blue stars collected; gate changed and completion saved |
+| Copy Pico | IMPLEMENTED AND PLAYED ON TABLET | Animated character/10-second display, Done initially gated, More time restarted interval, waited and tapped Done, child-confirmed result saved |
+| Number Move | IMPLEMENTED AND PLAYED ON TABLET | Amber crystal rejected, retry, four blue crystals collected, actual transition to 10-second marching demonstration, waited then Done and saved |
+
+Additional runtime passes: Rocket wrong-shape target/retry/three correct drags/launch; Garden three actual flower placements and finish without correctness scoring; Calm cloud touch/finish without scoring; Storybook native original counting video played (app log confirmed native start), ended and returned to the world, then Continue saved WATCHING result. No live Gemini/Huawei generated video was claimed.
+
+Pico tap reaction and remote ENTER_CHILD_MODE were actually observed, with Phone showing ACTIVE and Tablet world replacing the technical receiver screen. Original SVG scenes were visually inspected. Full animation-frame timing, child usability, screen-reader speech and accessibility certification remain unverified.
+
+## Actual compact synchronization and disconnect
+
+Stopped only the owned Windows Node relay while Tablet Rocket was active. The Tablet showed Parent connection paused, accepted three local drags and completed/saved the mission. Restarted the relay, observed automatic reconnect, and recovered 14 summary records with 14 unique IDs. Repeated synchronization preserved that count. Raw object logs were absent from the Phone relay response.
+
+Phone actually showed six completed core activities in Tablet history, actual attempts/retries/durations/feedback and sample-protected style counts in Parent Insights. Initial evidence-button content was below the viewport; a dedicated evidence view was added for immediate inspection. Interrupted drag automation used an incorrect temporary coordinate parser and also created skipped outcomes; those are retained as test records, not counted as successful games or real child preferences. The corrected parser drove the passing bridge test.
+
+## Final installed-HAP control, ending and recovery checks
+
+**Passed actual remote controls:** EXIT_CHILD_MODE made Phone INACTIVE and returned Tablet to the receiver screen; ENTER_CHILD_MODE restored the child world. START_SESSION created a 30-minute-budget, nine-mission balanced story. PAUSE_SESSION showed Adventure paused and the budget stayed exactly 1769 seconds across the check; RESUME_SESSION continued. NEXT_ACTIVITY skipped the current Bridge and opened Robot Memory; END_SESSION showed the child-safe ending and Phone Session ended / 0:00. These are observed Tablet reactions, not HTTP-only success claims.
+
+**Passed finite Daily Adventure:** selected Balanced / 15 min; child chose Robot then returned to Forest before their first attempt, without touching Phone for gameplay. Completed Bridge, Memory, real Copy Pico timer/Done, Garden and native allocated video. Five genuine completed results matched five planned missions. Tablet displayed Today's Adventure Complete and one garden gift; Phone showed 5/5 and Session ended. It finished earlier than the maximum window; fifteen real minutes did not elapse. No Skip/Next was used to simulate completion in this adventure.
+
+**Passed persistence/evidence:** force-stopped and relaunched both apps. Tablet retained the completion ending, 16 completed discoveries and one garden gift. Phone retained all 21 summaries (16 completed), selected 15-minute window and Custom configuration. Actually moved the Custom MOVE slider from 20% to 35%; after restart it still displayed 35%, LEARN 30%, passive 30%. Returned to Balanced afterward. The dedicated evidence view displayed individual Bridge/Rocket completed/skipped outcomes, actual attempts/retries/seconds and explicit feedback. Earlier Phone Progress retained total 20 / today 14, and profile retained selected Movement/Nature; Tablet summaries did not inflate that parent-confirmed journal.
+
+**Passed final background/Skip behavior:** installed the final Tablet HAP, opened Copy Pico, sent the Tablet to its launcher for twelve seconds and resumed the app. It showed Adventure paused and still ten movement seconds; no background movement was invented. Parent Resume then a real foreground interval enabled Done. A second Copy mission used Skip and Not for me; its synchronized result was completed=false, skipped=true, feedback=disliked and movementConfirmed=false. Final relay contained 23 records, 23 unique IDs, 17 completed; both apps were left connected with Child Mode active at the hub and one persisted gift.
+
+**Runtime:** captured Phone and Tablet app-PID logs after restart had zero matches for Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled. The final Tablet background/Skip UI flow also completed without a process crash. Expected handled network errors occurred during the deliberate relay outage. One temporary automation attempt to tap Balanced while it was above the viewport failed; scrolling to the top and repeating succeeded. No app bug or successful native test is inferred from that helper failure.
+
+## Final build/check artifacts
+
+- Phone native build succeeded; SHA-256 `DE161A3E9BDB1B33BE3A5DEB8F70B3CBD325DD2CC794994005E581E27EF0D842`.
+- Tablet native build succeeded; SHA-256 `30CBB042827D37FFC0A27405A776725B1C52A89BF17F1F9ABE8D2BBC828051D4`.
+- Paths: `entry/build/default/outputs/default/entry-default-unsigned.hap`, `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`.
+- **87 host checks passed**: domain 14, Work/balance/insights 17, fallback games/Journey 10, Tablet world 14, mocked platform/storage 18, TV/AI 7, emulator clients 7.
+- **23 backend checks passed**, including actual local HTTP compact commands, malformed input and 300-result synchronization. **110 automated checks total**, zero failed in the final suites. Cloud HTTP is mocked where explicitly labelled.
+- Both unsigned HAPs were installed and launched on the actual API 21 emulators. No signed physical-device/release artifact was generated. Build logs/screenshots/raw runtime captures stay ignored under artifacts and are not uploaded with child/test journals.
+
+## Short human follow-up checklist
+
+| Not verified | Minimum follow-up |
+|---|---|
+| Physical devices/signing | Configure appropriate signing and use a reachable, secured production transport; emulator 10.0.2.2 is not a physical-device endpoint |
+| Full runtime variants | Run 15/30/45/60 real-time windows, other presets/ages, native 4/5-signal memory and 5/10-minute legacy expiry variants |
+| Accessibility | Inspect speech/focus, large fonts, smaller Tablet/Phone sizes and reduced-motion behavior |
+| Live providers/widget | Use owner-controlled backend credentials and review a real result; host the FormKit widget separately |
+| Submission recording/rules | Record actual interactions via DEMO_SCRIPT, review starter-asset rights and obtain the competition's actual RULES/CRITERIA |
+
+## Automated checks and limitations
+
+Current suites cover domain/settings/journal, balanced plans and passive caps, descriptive behavior/sample safeguards, all fallback games, all world transitions including 2/3/4/5 memory signals, finite/deduplicated progress, style recommendation safeguards, chunked stores/failed flush/corrupt nested data, notification authorization/failures, old relay and new compact HTTP endpoints. Large 300-result actual HTTP synchronization is covered. Platform and cloud-service mocks are separate from device tests.
+
+The temporary root npm invocation failed because the ArkTS root has no package.json; rerunning npm test in backend passed. Native compile errors discovered during conversion were fixed before successful builds. Signing/throw-analysis warnings remain; unsigned emulator acceptance is not a signed release claim.
+
+Not verified: physical Phone/Tablet installation, credentialed Gemini/Huawei success, FormKit hosting, reliable background notifications, full wall-clock 15/30/45/60 windows and every preset/age/video combination, 4/5-signal native playthrough, large-font/smaller-device layout, screen-reader/reduced-motion behavior, release performance/security or educational effectiveness. No RULES/CRITERIA file was found, so competition compliance/score is not certified.
+
+## Retained earlier evidence
+
+### Testing evidence
 
 ## Homepage UI and accessibility polish - 2026-10-03
 

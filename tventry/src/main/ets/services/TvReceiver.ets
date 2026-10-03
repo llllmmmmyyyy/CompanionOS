@@ -1,4 +1,4 @@
-import { TvMessage, RelayStatus, parseMessage, backendRequest, validBackendUrl, connectionError } from '@companion/protocol';
+import { TvMessage, RelayStatus, parseMessage, backendRequest, validBackendUrl, connectionError, GameCommand } from '@companion/protocol';
 
 export type ReceiverListener = (status: string, message: TvMessage, detail: string) => void;
 export class TvReceiver {
@@ -33,6 +33,10 @@ export class TvReceiver {
       this.lastStatus = status; this.lastDetail = detail;
     }
     this.listener(status, this.last, detail);
+  }
+  async gameInput(command: GameCommand): Promise<boolean> {
+    try { await backendRequest(`${this.endpoint}/tv/rooms/${this.room}/game`, 'POST', JSON.stringify(command)); return true; }
+    catch (error) { this.report(this.lastStatus, `Game input failed: ${connectionError(error as Error)}. Continue on Phone.`); return false; }
   }
   async feedback(status: string): Promise<void> {
     try { await backendRequest(`${this.endpoint}/tv/rooms/${this.room}/feedback`, 'POST', JSON.stringify({ status })); }

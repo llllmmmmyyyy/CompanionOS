@@ -55,6 +55,12 @@ try {
     & $node (Join-Path $scriptRoot 'test-work.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Work-session checks failed' }
+    & $node (Join-Path $scriptRoot 'test-games.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Interactive game checks failed' }
+    & $node (Join-Path $scriptRoot 'test-world.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Tablet world checks failed' }
     & $node (Join-Path $scriptRoot 'test-services.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Mocked-service checks failed' }

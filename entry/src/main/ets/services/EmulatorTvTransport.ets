@@ -1,4 +1,4 @@
-import { TvMessage, RelayStatus, parseMessage, validBackendUrl, backendRequest, connectionError } from '@companion/protocol';
+import { TvMessage, RelayStatus, validGameCommand, GameCommand, parseMessage, validBackendUrl, backendRequest, connectionError } from '@companion/protocol';
 import { Activity } from '../model/Companion';
 import { TvFrame, TvSessionTransport, TvEventListener } from './TvSessionTransport';
 
@@ -10,6 +10,7 @@ class PendingCommand {
 
 export class EmulatorTvTransport implements TvSessionTransport {
   private active: boolean = false;
+  private handledActions: string[] = [];
   private pending: boolean = false;
   private commands: PendingCommand[] = [];
   private connected: boolean = false;
@@ -56,7 +57,7 @@ export class EmulatorTvTransport implements TvSessionTransport {
     const command = this.commands.shift();
     if (!command) { this.pending = false; return; }
     const message = new TvMessage();
-    message.type = command.type; message.sessionId = command.frame.sessionId;
+    message.game = command.frame.game; message.activityMode = command.frame.activityMode; message.type = command.type; message.sessionId = command.frame.sessionId;
     message.activityId = command.frame.activityId; message.title = command.frame.title;
     message.instruction = command.frame.instruction; message.stepIndex = command.frame.step;
     message.totalSteps = command.frame.steps; message.phase = command.frame.phase;
@@ -69,6 +70,12 @@ export class EmulatorTvTransport implements TvSessionTransport {
       if (this.active && generation === this.generation) {
         const wasConnected = this.connected; this.connected = result.receiverConnected === true;
         if (this.connected !== wasConnected) { this.listener(this.connected ? 'connected' : 'disconnected', command.frame); }
+        if (Array.isArray(result.actions)) {
+          result.actions.filter((action: GameCommand) => validGameCommand(action) && !this.handledActions.includes(action.id)).forEach((action: GameCommand) => {
+            this.handledActions = [...this.handledActions, action.id].slice(-200);
+            const input = new TvFrame(); input.gameCommand = action; this.listener('gameInput', input);
+          });
+        }
         if (result.videoStatus === 'VIDEO_FAILED') { this.listener('videoFallback', command.frame); }
       }
     } catch (error) {

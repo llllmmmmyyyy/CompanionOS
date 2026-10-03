@@ -1,82 +1,42 @@
-# Architecture
+# Actual architecture
 
-## Parent work-session layer
+CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet is the child's interactive learning world, while the Phone acts as the parent's control and insight dashboard.
 
-Home, Activities and the existing Progress/Parent views share four bottom tabs. Index adds work setup, parent status, summary and a reduced child-facing activity state. Existing single-activity state machine, source selection, timer, notification and parent-confirmation paths remain the execution layer.
+## Native modules
 
-`model/WorkSession.ets` owns deterministic category scheduling, validated checkpoint data, skip/end transitions and summary totals. `services/WorkStore.ets` stores a separate bounded Preferences checkpoint, so corrupt work data cannot erase the existing history. ParentSettings adds preferred types, work-window minutes, difficulty and safety preferences; old snapshots receive defaults before validation. Age groups represent childAge; interests and quick-activity minutes retain their existing fields.
+| Module | Role | Existing target |
+|---|---|---|
+| entry | ParentDashboard plus retained Index Phone fallback and provider review | Phone / default / API 21 |
+| tventry | ChildWorld local authority plus retained TvHome video receiver | Tablet / tablet / API 21 |
+| shared | WorldEngine, game metadata/protocol/HTTP, original fallback GameEngine/GameBoard | Native HAR |
+| backend | Existing provider adapters, review/import/video serving and demo relays | Windows Node >=22 |
 
-Flow: parent profile -> work duration/source preference -> short category plan -> review and optional content preparation -> child activity -> parent confirmation -> existing LocalStore journal -> next activity or summary. Stable work ID + entry index protects history against retries after restart. Demo activity minutes are excluded from category summary totals. Skip/end never fabricate completions. Checkpoints retain remaining seconds/step/demo and restart in a paused Built-in state; media and live jobs are deliberately reviewed again. Only the latest work session/summary is retained.
+`ChildWorldModel.ets` is a pure transition model. `ChildWorld.ets` renders interactive native Stack scenes, SVG objects, pan gestures, ambient/Pico animations and Video. WorldStore owns the bounded raw journal and world progress. ParentWorldStore owns compact results/configuration. SessionBalanceEngine supplies every remote session's category/minute/mode allocation. The Tablet story adapter splits longer interactive LEARN slots into two short missions (for example bridge then memory), without changing any category or video minutes. Parent Custom percentage controls and 2-5 signals are independently persisted. Invalid optional Custom data falls back safely without discarding valid history. Recommendations may change an interactive LEARN mission, never its protected category allocation or video allowance.
 
-Original SVGs in entry/rawfile form a semantic MOVE/LEARN/CREATE/CALM illustration system; the hero shows a working parent and a child indoors. The existing fallback MP4 is copied unchanged into Phone for offline native Video playback. No new UI framework is used.
+## Compact child-world synchronization
 
-Content origin is shared enum ActivityContentSource. VideoSource carries source/URI/title/activity/provider from Phone to Large Screen; private paths stay on Phone. Provider-independent ActivityJobs retains common validation, retry, review/cache and fallbacks for Gemini and Huawei adapters. System-imported My Video stores one MP4 privately plus Preferences metadata, optionally publishes it to the loopback cache for separate-Large Screen playback, and uses the same session/confirmation/history flow. Old records without source default to Built-in. See AI_ARCHITECTURE.md for exact cloud contracts and verification limits.
+Phone sends validated commands to POST `/world/rooms/family-demo/command`. Tablet POSTs `{status, results}` to `/world/rooms/family-demo/tablet` once per foreground second and receives queued commands. Phone GETs `/world/rooms/family-demo/phone` approximately every 1.5 seconds while the dashboard is mounted.
 
-With all four preferred types, the thirty-minute plan is MOVE, LEARN, LEARN, CREATE, CREATE, CALM (six five-minute entries). Other durations or restricted type selections retain short cyclic plans. Unsupported requested work durations safely normalize to thirty minutes. The setup renders planned category totals before starting.
+Commands: ENTER_CHILD_MODE, EXIT_CHILD_MODE, START_SESSION, PAUSE_SESSION, RESUME_SESSION, NEXT_ACTIVITY, END_SESSION. Tablet acknowledgement is its subsequent status; a successful POST alone does not prove execution. A persistent bounded handled-ID journal prevents replay. Completed results use stable mission IDs; relay and Phone deduplicate them. Optional feedback can update the same terminal result without increasing counts. Queues/results are bounded and ephemeral in Windows memory; Tablet re-sends its local summaries after relay restart.
 
-## Integrated system
+Status covers Child Mode, mission/world/style, phase, session foreground budget and completed/total. Raw object/sequence events are never part of this payload. Both emulator guests use 10.0.2.2:18080; the Windows server listens on loopback. No HDC reverse tunnel, cloud relay, OS kiosk or production distributed-device implementation is claimed. There is no network authentication/encryption on this loopback-only development setup; do not expose it as a production service.
 
-`entry` remains Phone controller/storage owner. `tventry` is an independent Large Screen entry HAP with minimum API 21. `shared` is a local protocol/HTTP HAR. `backend` handles activity jobs, provider calls, local media cache and transient relay rooms. Phone snapshots control playback; only parent-confirmed Phone storage updates counts. See [Large Screen](TV_MODE.md), [protocol](TV_PROTOCOL.md), [backend/AI](AI_ARCHITECTURE.md). Earlier core details below describe preserved Phone behavior.
+## Local authority and recovery
 
-## Native structure
+Tablet executes gameplay immediately, without a Phone round trip per tap. It can finish the current safe mission while Phone or relay is unavailable. It retains results for reconnect. Backgrounding pauses the world and video; timers do not assume continuous background execution. Restoration of an active session is safely paused; resuming a memory preview replays the signals. An explicit parent pause blocks game changes. A disconnected saved adventure can be resumed locally using the visible recovery control.
 
-CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. Home, Settings, Activity, Progress, Large Screen Connection and the landscape local Large Screen Player are clear states in one entry page; there is no Flutter or web runtime. The phone owns the session; a transport projects frames into the local Large Screen view. The real distributed channel remains an extension point. See [Large Screen architecture](TV_MODE.md) and [AI architecture](AI_ARCHITECTURE.md).
+WorldStore, ParentWorldStore, BehaviorStore, JourneyStore and expanded Phone LocalStore split JSON below the installed Preferences value limit. The inactive bank is flushed before the bank pointer is published. Missing or invalid data returns safe defaults; failed writes are visible. Tablet keeps <=1000 raw events, <=300 compact outcomes and <=1000 rewarded dates; Phone keeps <=300 Tablet outcomes. These are bounded local journals, not permanent cloud histories. Phone fallback retains its separate legacy completion journal/cumulative counters.
 
-| Module | Responsibility |
-|---|---|
-| `model/Companion.ets` | Curated catalog, settings and completion schema, snapshot validation, counts and session transitions |
-| `services/LocalStore.ets` | Preferences load/save, old homepage migration and recovery |
-| `pages/Index.ets` | Home, Parent Settings, Activity, Progress and guarded user actions |
-| `services/Notifications.ets` | Permission request/check and basic system notification submission |
-| `services/AiService.ets` | Optional HTTPS recommendation request, validation and offline fallback |
-| `services/Widgets.ets` | Widget data, known form IDs and best-effort pushes |
-| `widget/TodayFormAbility.ets` | Form lifecycle, fresh local snapshot reads and scheduled refresh |
-| `widget/pages/TodayCard.ets` | 2×2 card showing suggested activity, today's count, data date and app launch link |
+## Video and retained services
 
-## Activity state machine
+Existing `/tv/rooms/...` protocol and transport remain for Phone fallback/native reviewed-video projection. Its legacy interactive GameBoard path still sends validated input commands to Phone; **the primary ChildWorld never uses that per-input route**. ChildWorld owns raw inputs locally and sends only summaries through `/world/...`.
 
-```mermaid
-stateDiagram-v2
-    [*] --> idle
-    idle --> running: Start (normal or demo)
-    running --> ready: Foreground deadline or resume after deadline
-    running --> cancelled: Parent cancels
-    ready --> cancelled: Parent cancels
-    ready --> completed: Parent confirms and save succeeds
-    ready --> ready: Save fails (retry)
-    completed --> idle: Choose an activity
-    cancelled --> idle: Choose an activity
-```
+Reviewed Gemini/Huawei/imported video URIs can be projected through the existing content flow and opened from the storybook. With no reviewed URI, original local counting/cloud clips keep WATCH available. Native completion returns to the scene. Early return is a skipped video, not a completed playback. Keys remain backend environment variables; no raw behavior log is included in provider requests. Actual authenticated generation remains unverified.
 
-Normal mode freezes the selected 3/5/10 minutes at session start; Demo Mode uses ten seconds and marks its record. A synchronous busy guard blocks concurrent confirmations. The session phase must be `ready`, the parent must check the confirmation box, and the snapshot deduplicates session IDs. No completion is added on cancellation, mere timer expiry, leaving or process termination.
+Existing notifications use real NotificationKit authorization/publish for Phone foreground expiry and do not guarantee background delivery. FormKit widget code remains; hosting has not been verified. Local child summaries do not pretend to be parent-confirmed Phone completions and do not silently inflate that widget/journal.
 
-## Data and failure handling
+## Insights and privacy
 
-The Preferences file `companion_history` stores a single `mvp` JSON snapshot: schema version, settings, latest 20 records, total count, local calendar-day key and daily count. Snapshot writes are flushed before success appears in the UI. A failed flush leaves the UI ready to retry; session ID deduplication prevents another successful count for that session. Preferences failure/durability semantics still require device testing.
+ParentDashboard aggregates actual summaries by BUILDING, MEMORY, SORTING, COUNTING, EXPLORING, CREATING, MOVEMENT and WATCHING. Evidence exposes per-mission outcome, attempts, retries, duration and optional feedback. Preference recommendations require at least three recent outcomes of the relevant game and explicit feedback weighting. Repeated explicit tricky memory feedback can reduce sequence length to two. No diagnostic/ability/personality inference occurs.
 
-Settings are edited as a separate draft. Saves are validated and applied together; controls are disabled during save. Missing data starts with defaults. Invalid JSON/schema recovers safely with a notice. Valid previous homepage records/counts are imported without deleting old keys. Older history discarded by the original implementation cannot be reconstructed.
-
-The session is intentionally not persisted. Timers exist only for foreground UI updates. AppStorage foreground changes stop/restart the interval; resume calculates time from a saved deadline. Background-expired sessions do not produce a retroactive notification. Changes to the device wall clock may affect countdowns. Widget callbacks are scheduled by the OS and are not background alarms.
-
-## Platform and AI flow
-
-```mermaid
-flowchart LR
-    Settings[Parent settings] --> Store[Validated Preferences snapshot]
-    Home[Home] --> Activity[Curated activity]
-    Activity --> Deadline[Foreground deadline]
-    Deadline --> Notify[System notification: allow/check/publish]
-    Deadline --> Confirm[Parent confirmation]
-    Confirm --> Store
-    Store --> Progress[Counts, records, badges]
-    Store --> Widget[Desktop card update]
-    Home --> Request[Optional HTTPS service]
-    Request --> Validate[Age, duration, interest, adult flag, catalog ID]
-    Validate --> Home
-    Request --> Fallback[Offline recommendation on failure]
-    Fallback --> Home
-```
-
-Notification rejection or failure changes messaging, not completion eligibility. Publishing is checked against the still-active foreground session. Widget pushes are best effort and failure-isolated. The form registration profile and LocalStorage bindings are compiled into the HAP.
-
-The original catalog-recommendation adapter is separate from the current backend activity/video pipeline. See AI_ARCHITECTURE.md for the implemented optional backend. The client sends only age group, interests, duration and allowed catalog IDs after explicit parent request. It never renders arbitrary server-generated activity instructions. Provider secrets must remain on a separately operated backend; see `AI_SERVICE.md`.
+BehaviorInsightEngine remains the Phone fallback's descriptive raw-event engine with Today/7/30-day windows and sample safeguards. The two data sources are labelled rather than falsely treating remote summaries as individually observed raw answer events. Adult supervision and safety constraints apply to both.

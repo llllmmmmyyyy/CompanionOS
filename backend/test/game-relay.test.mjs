@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {Relay,waitingMessage,validMessage} from '../dist/protocol.js';
+import {ActivityJobs} from '../dist/activities.js';
+import {app} from '../dist/server.js';
+const frame=()=>({...waitingMessage(),sessionId:'real-game-session',activityMode:'INTERACTIVE',phase:'running',game:{version:1,id:'dino-number',phase:'input',round:0,selected:[]}});
+const command={id:'',sessionId:'real-game-session',action:'answer',value:'2',revision:0,round:0,phase:'input',selectedCount:0};
+test('relay preserves optional game state and queues bounded validated Tablet actions without cloud calls',()=>{const relay=new Relay();relay.send('family-demo',frame());relay.game('family-demo',command);const state=relay.status('family-demo',true);assert.equal(state.actions.length,1);assert.equal(state.actions[0].value,'2');assert.ok(state.actions[0].id);assert.throws(()=>relay.game('family-demo',{...command,sessionId:'stale'}));assert.throws(()=>relay.game('family-demo',{...command,action:'unsafe'}));assert.equal(validMessage({...frame(),activityMode:'UNKNOWN'}),false);assert.equal(validMessage({...frame(),game:{...frame().game,id:'unknown'}}),false);relay.send('family-demo',{...frame(),sessionId:'next-session'});assert.equal(relay.status('family-demo',false).actions.length,0)});
+test('actual local HTTP Tablet game-input route round-trips into Phone relay state',async()=>{const dir=await mkdtemp(join(tmpdir(),'companion-games-'));const jobs=new ActivityJobs(dir);const server=await app(jobs);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));try{const root=`http://127.0.0.1:${server.address().port}/tv/rooms/family-demo`;assert.equal((await fetch(root+'/phone',{method:'POST',body:JSON.stringify(frame())})).status,200);assert.equal((await fetch(root+'/game',{method:'POST',body:JSON.stringify(command)})).status,200);const response=await(await fetch(root+'/state?receiver=true')).json();assert.equal(response.actions[0].action,'answer');assert.equal(response.message.game.id,'dino-number');assert.equal((await fetch(root+'/game',{method:'POST',body:'{}'})).status,400)}finally{await new Promise(resolve=>server.close(resolve));await rm(dir,{recursive:true,force:true})}});

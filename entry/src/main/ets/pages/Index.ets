@@ -1,3 +1,4 @@
+import { ParentDashboard } from './ParentDashboard';
 ﻿import { common } from '@kit.AbilityKit';
 import { ACTIVITIES, Activity, ActivitySession, Completion, ParentSettings, Snapshot,
   addCompletion, countToday, validSettings } from '../model/Companion';
@@ -13,12 +14,39 @@ import { EmulatorTvTransport } from '../services/EmulatorTvTransport';
 import { BackendActivityService, backendActivity } from '../services/BackendActivityService';
 import { ActivityContentSource, VideoSource, contentLabel, EMULATOR_RELAY_ENDPOINT, connectionError } from '@companion/protocol';
 import { UserVideo, UserVideoStore } from '../services/UserVideoStore';
-import { WorkState, WORK_TYPES, PREPARATIONS, planWork, settleEntry, endWork, remainingWork, categoryMinutes, workActivity } from '../model/WorkSession';
+import { WorkState, WorkEntry, WORK_TYPES, PREPARATIONS, planWork, settleEntry, endWork, remainingWork, categoryMinutes, workActivity } from '../model/WorkSession';
 import { WorkStore } from '../services/WorkStore';
+
+import { BalanceRules, BALANCE_PRESETS, presetRules, validRules, SessionBalanceEngine } from '../model/SessionBalanceEngine';
+import { BehaviorData, ChildInteractionEvent, appendEvent, BehaviorInsightEngine } from '../model/BehaviorInsightEngine';
+import { GameState, GameEngine, GameBoard, GAME_IDS, gameDefinition } from '@companion/protocol';
+import { JourneyState, WORLDS, worldName, completeAdventure, claimActivity, collectibles } from '../model/AdventureJourney';
+import { JourneyStore } from '../services/JourneyStore';
+import { BehaviorStore } from '../services/BehaviorStore';
 
 @Entry
 @Component
 struct Index {
+  @State game: GameState = new GameState();
+  @State journey: JourneyState = new JourneyState();
+  private journeyStore: JourneyStore | undefined = undefined;
+  @State behavior: BehaviorData = new BehaviorData();
+  @State workRules: BalanceRules = new BalanceRules();
+  @State insightDays: number = 7;
+  @State sequenceVisible: boolean = true;
+  @State gameLevel: string = 'Gentle';
+  @State gameSolved: boolean = false;
+  @State gameMessage: string = '';
+  @State taskAttempts: number = 0;
+  @State taskCorrect: number = 0;
+  @State childFeedback: string = '';
+  @State difficultyFeedback: string = '';
+  @State repeatFeedback: string = '';
+  @State activityMode: string = 'GUIDED_OFFSCREEN';
+  @State gameType: string = '';
+  private behaviorStore: BehaviorStore | undefined = undefined;
+  private eventSequence: number = 0;
+  private activityStarted: number = 0;
   @State work: WorkState = new WorkState();
   @State workMinutes: number = 30;
   @State preparation: string = 'Recommended';
@@ -83,15 +111,29 @@ struct Index {
       this.store = new LocalStore(context);
       this.videos = new UserVideoStore(context); this.userVideo = this.videos.load();
       this.data = this.store.load();
+      try { this.behaviorStore = new BehaviorStore(context); this.behavior = this.behaviorStore.load(); } catch { this.notice = 'Local interaction storage is unavailable. Core activities remain available.'; }
+      try { this.journeyStore = new JourneyStore(context); this.journey = this.journeyStore.load(); } catch { this.notice = 'Journey storage unavailable. Games remain playable.'; }
+      this.workRules = this.data.settings.balanceRules;
       this.workStore = new WorkStore(context); this.work = this.workStore.load();
       this.workMinutes = this.data.settings.sessionDuration;
       if (this.work.phase === 'active') {
         this.selected = workActivity(this.work.entries[this.work.index].category, this.data.settings);
         this.preparation = this.work.preparation;
+        this.activityMode = this.work.entries[this.work.index].mode; this.gameType = this.work.entries[this.work.index].gameType;
         if (['running', 'paused', 'ready'].includes(this.work.activityPhase)) {
+          this.game = this.work.game; if (this.game.id !== '' && this.game.phase !== 'idle') { this.game = GameEngine.pause(this.game, Date.now()); }
           this.demo = this.work.activityDemo;
           this.session.start(Date.now(), this.work.entries[this.work.index].minutes, this.demo);
           this.session.id = `${this.work.id}-${this.work.index}`;
+          const restoredEvents = this.behavior.events.filter((e: ChildInteractionEvent) => e.sessionId === this.session.id);
+          this.gameSolved = this.game.phase === 'success';
+          this.gameLevel = restoredEvents.length > 0 ? restoredEvents[0].difficulty : this.data.settings.activityDifficulty;
+          this.taskAttempts = restoredEvents.filter((e: ChildInteractionEvent) => e.eventType === 'ANSWER_SELECTED').length;
+          this.taskCorrect = restoredEvents.filter((e: ChildInteractionEvent) => e.eventType === 'ANSWER_CORRECT').length;
+          this.activityStarted = restoredEvents.find((e: ChildInteractionEvent) => e.eventType === 'ACTIVITY_STARTED')?.timestamp || 0;
+          const feedback = restoredEvents.find((e: ChildInteractionEvent) => e.eventType === 'FEEDBACK_SUBMITTED');
+          if (feedback) { this.childFeedback = feedback.feedback; this.difficultyFeedback = feedback.difficultyFeedback; }
+          this.selected.title = this.game.id !== '' ? gameDefinition(this.game.id).title : this.activityMode === 'VIDEO' ? this.selected.category === 'LEARN' ? 'Dino Counting Adventure' : this.selected.category === 'CALM' ? 'Cloud Breathing' : this.selected.title : this.selected.title;
           this.session.deadline = Date.now() + this.work.remaining * 1000;
           if (this.work.remaining > 0) { this.session.pause(Date.now()); }
           else { this.session.phase = 'ready'; }
@@ -100,6 +142,7 @@ struct Index {
           this.notice = 'Work session restored safely. Resume when ready; content returns to Built-in after restart.';
         }
       }
+      this.saveAdventureEnding();
       this.storageReady = true;
       Widgets.update(context, this.data);
       if (this.store.recovered) { this.notice = 'Some local data was unreadable. Safe defaults have been restored.'; }
@@ -132,6 +175,7 @@ struct Index {
 
   private updateClock(): void {
     this.today = countToday(this.data, Date.now());
+    if (this.game.id !== '' && this.foreground && ['running', 'ready'].includes(this.session.phase)) { this.game = GameEngine.tick(this.game, Date.now()); }
     if (this.session.tick(Date.now(), this.foreground)) {
       try { this.phoneVideoController.pause(); } catch {}
       this.notice = 'Time is up. Parent / caregiver: confirm when you have finished together.';
@@ -149,6 +193,7 @@ struct Index {
 
   private frame(): TvFrame {
     const frame = new TvFrame();
+    frame.game = this.game; frame.activityMode = this.activityMode;
     frame.sessionId = this.session.id;
     frame.activityId = this.selected.id;
     frame.title = this.selected.title;
@@ -159,6 +204,8 @@ struct Index {
     const step = this.selected.activitySteps[this.stepIndex];
     frame.instruction = step ? step.instruction : 'Play gently together.';
     frame.visual = step ? step.fallbackVisual : this.selected.theme;
+    if (this.activityMode === 'INTERACTIVE' && this.game.id !== '') { frame.instruction = GameEngine.prompt(this.game); }
+    if (this.activityMode === 'VIDEO' && this.selected.contentSource === ActivityContentSource.BUILT_IN && this.selected.category === 'LEARN') { frame.instruction = `Count together: ${Math.min(5, Math.floor(((this.demo ? 10 : this.session.minutes * 60) - this.remaining) % 10 / 2) + 1)} dinosaurs. One, two, three, four, five!`; }
     frame.videoUrl = step ? step.videoUrl : '';
     frame.videoSource = frame.videoUrl === '' ? 'FALLBACK' : 'REMOTE_CACHED';
     const content = new VideoSource(); content.sourceType = this.selected.contentSource;
@@ -189,7 +236,8 @@ struct Index {
     if (this.tvConnection === 'Connecting') { return; }
     this.transport?.disconnect(); this.transport = undefined;
     this.tvConnection = 'Connecting'; this.transportMode = 'emulator';
-    const transport = new EmulatorTvTransport(this.backendUrl.trim(), this.roomCode.trim(), (event: string) => {
+    const transport = new EmulatorTvTransport(this.backendUrl.trim(), this.roomCode.trim(), (event: string, frame: TvFrame) => {
+      if (event === 'gameInput') { const command = frame.gameCommand; if (this.session.id === command.sessionId && this.game.revision === command.revision && this.game.round === command.round && this.game.phase === command.phase && this.game.selected.length === command.selectedCount) { this.gameAction(command.action, command.value); } }
       if (event === 'connected') { this.tvConnection = 'Connected'; }
       else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
       else if (event === 'videoFallback') { this.notice = 'Large Screen video unavailable. Safe fallback visual is playing.'; }
@@ -212,7 +260,7 @@ struct Index {
     const token = ++this.generationToken;
     const request = new ActivityPlanRequest(); request.childAge = this.data.settings.age;
     request.interest = this.data.settings.interests[0]; request.category = this.generationCategory;
-    request.durationMinutes = this.work.phase === 'active' ? 5 : this.data.settings.minutes; request.educationalGoal = this.learningGoal.trim();
+    request.durationMinutes = this.work.phase === 'active' ? (this.work.entries[this.work.index].minutes <= 3 ? 3 : 5) : this.data.settings.minutes; request.educationalGoal = this.learningGoal.trim();
     const endpoint = this.backendUrl.trim();
     try {
       const job = await BackendActivityService.create(endpoint, request, this.data.settings.interests,
@@ -270,7 +318,7 @@ struct Index {
       request.childAge = this.data.settings.age;
       request.interest = this.data.settings.interests[0];
       request.category = category;
-      request.durationMinutes = this.work.phase === 'active' ? 5 : this.data.settings.minutes;
+      request.durationMinutes = this.work.phase === 'active' ? (this.work.entries[this.work.index].minutes <= 3 ? 3 : 5) : this.data.settings.minutes;
       request.educationalGoal = category === 'LEARN' ? 'Count five objects together' : 'Practice gentle turn taking';
       const plan = await new MockAiActivityService().generateActivityPlan(request);
       this.openActivity(activityFromPlan(plan, request));
@@ -281,12 +329,14 @@ struct Index {
 
   private pauseActivity(): void {
     try { this.phoneVideoController.pause(); } catch { /* No attached video. */ }
-    this.session.pause(Date.now()); this.updateClock(); this.transport?.pauseActivity(this.frame());
+    this.recordBehavior('PAUSE');
+    this.game = GameEngine.pause(this.game, Date.now()); this.session.pause(Date.now()); this.updateClock(); this.transport?.pauseActivity(this.frame());
   }
 
   private resumeActivity(): void {
     try { this.phoneVideoController.start(); } catch { /* No attached video. */ }
-    this.session.continueActivity(Date.now()); this.updateClock(); this.transport?.resumeActivity(this.frame());
+    this.recordBehavior('RESUME');
+    this.game = GameEngine.resume(this.game, Date.now()); this.session.continueActivity(Date.now()); this.updateClock(); this.transport?.resumeActivity(this.frame());
   }
 
   private nextStep(): void {
@@ -368,21 +418,37 @@ struct Index {
     if (this.work.phase === 'active') {
       this.work.remaining = this.session.remaining(Date.now()); this.work.activityPhase = this.session.phase;
       this.work.step = Math.min(2, this.stepIndex); this.work.activityId = this.selected.id;
-      this.work.activityDemo = this.demo;
+      this.work.game = this.game; this.work.activityDemo = this.demo;
     }
     try { this.workStore.save(this.work); this.workSavedAt = Date.now(); }
     catch { this.notice = 'Work session could not be saved. Keep the app open and retry.'; }
   }
 
-  private startWork(): void {
-    if (!this.storageReady || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
-    this.work = planWork(this.workMinutes, this.data.settings); this.work.preparation = this.preparation;
+  private async startWork(daily: boolean = false): Promise<void> {
+    if (this.busy || !this.storageReady || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
+    if (!validRules(this.workRules)) { this.notice = 'Choose valid movement/learning goals (combined at most 80%).'; return; }
+    this.busy = true;
+    this.data.settings.balanceRules = this.workRules;
+    try { await this.store?.save(this.data); } catch { this.notice = 'Session goals could not be saved. Retry before starting.'; return; } finally { this.busy = false; }
+    this.work = planWork(this.workMinutes, this.previewSettings()); this.work.preparation = this.preparation; this.work.daily = daily; this.work.adventureDate = this.dayLabel(Date.now());
     this.openWorkEntry(); this.persistWork();
   }
 
   private openWorkEntry(): void {
-    this.session = new ActivitySession(); this.phase = 'idle';
+    this.game = new GameState(); this.session = new ActivitySession(); this.phase = 'idle';
     const activity = workActivity(this.work.entries[this.work.index].category, this.data.settings);
+    const entry = this.work.entries[this.work.index];
+    activity.duration = entry.minutes;
+    this.activityMode = entry.mode; this.gameType = entry.gameType;
+    if (entry.category === 'LEARN') {
+      const recent = BehaviorInsightEngine.window(this.behavior, 7, Date.now());
+      this.gameLevel = BehaviorInsightEngine.recommendDifficulty(recent, this.data.settings.activityDifficulty);
+      if (entry.mode === 'INTERACTIVE') { this.gameType = BehaviorInsightEngine.recommendGame(recent, this.gameType); entry.gameType = this.gameType; }
+      if (entry.mode === 'INTERACTIVE') { this.game = GameEngine.create(this.gameType === 'MEMORY_SEQUENCE' ? 'robot-memory' : this.gameType === 'SORTING' ? 'animal-sorting' : 'dino-number', this.gameLevel); activity.title = gameDefinition(this.game.id).title; }
+      else if (entry.mode === 'VIDEO') { activity.title = 'Dino Counting Adventure'; }
+    }
+    if (entry.category === 'MOVE' && entry.gameType === 'MOVEMENT_CHALLENGE') { this.activityMode = 'INTERACTIVE'; entry.mode = 'INTERACTIVE'; this.game = GameEngine.create('penguin-move', this.data.settings.activityDifficulty); activity.title = 'Penguin Move'; }
+    if (entry.category === 'CALM' && entry.mode === 'VIDEO') { activity.title = 'Cloud Breathing'; }
     this.generationCategory = activity.category; this.learningGoal = activity.educationalGoal;
     this.openActivity(activity); this.parentControls = false;
     this.notice = 'Review this short activity before starting. Take breaks between activities.';
@@ -400,6 +466,7 @@ struct Index {
     this.getUIContext().showAlertDialog({ title: 'Change activity?', message: 'This activity will be marked skipped, not completed.',
       primaryButton: { value: 'Keep activity', action: () => {} },
       secondaryButton: { value: 'Skip activity', action: () => {
+        if (['running', 'paused', 'ready'].includes(this.phase)) { this.recordBehavior('ACTIVITY_SKIPPED'); }
         this.session.cancel(); this.transport?.cancelActivity(this.frame());
         this.work = settleEntry(this.work, 'skipped', this.demo); this.persistWork();
         if (this.work.phase === 'active') { this.openWorkEntry(); } else { this.navigate('work-summary'); }
@@ -412,6 +479,7 @@ struct Index {
     this.getUIContext().showAlertDialog({ title: 'End work session?', message: 'Unfinished activities will be skipped. Saved completions remain.',
       primaryButton: { value: 'Keep session', action: () => {} },
       secondaryButton: { value: 'End Session', action: () => {
+        if (['running', 'paused', 'ready'].includes(this.phase)) { this.recordBehavior('ACTIVITY_SKIPPED'); }
         this.session.cancel(); this.phase = 'cancelled'; this.transport?.cancelActivity(this.frame());
         this.work = endWork(this.work); this.persistWork(); this.navigate('work-summary');
       } }
@@ -441,6 +509,7 @@ struct Index {
     this.selected = activity;
     this.generationCategory = activity.category; this.learningGoal = activity.educationalGoal;
     this.activeJobId = '';
+    if (this.work.phase !== 'active') { this.game = new GameState(); this.activityMode = 'GUIDED_OFFSCREEN'; this.gameType = ''; }
     this.activitySource = activity.id.startsWith('tv-') ? 'Mock plan • Not real AI output' : 'Offline activity';
     this.session = new ActivitySession();
     this.phase = 'idle';
@@ -451,11 +520,17 @@ struct Index {
     this.navigate('activity');
   }
 
-  private chooseBuiltIn(): void {
+  private chooseBuiltIn(video: boolean = false): void {
     if (this.backendLoading || this.importingVideo || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
     const original = this.work.phase === 'active' ? workActivity(this.work.entries[this.work.index].category, this.data.settings) :
       ACTIVITIES.find((item: Activity) => item.id === this.selected.id) || this.catalog().find((item: Activity) => item.id === this.selected.id) || ACTIVITIES[0];
-    this.openActivity(original); this.activitySource = 'CompanionOS Built-in • Offline activity';
+    this.openActivity(original);
+    if (video) { this.game = new GameState(); if (original.category === 'LEARN') { this.selected.title = 'Dino Counting Adventure'; } if (original.category === 'CALM') { this.selected.title = 'Cloud Breathing'; } }
+    this.activityMode = video ? 'VIDEO' : this.work.phase === 'active' && original.category === 'LEARN' ? 'INTERACTIVE' : 'GUIDED_OFFSCREEN';
+    this.gameType = video ? '' : this.work.phase === 'active' ? this.work.entries[this.work.index].gameType : original.category === 'MOVE' ? 'MOVEMENT_CHALLENGE' : '';
+    if (!video && this.work.phase === 'active' && original.category === 'LEARN') { this.game = GameEngine.create(this.gameType === 'MEMORY_SEQUENCE' ? 'robot-memory' : this.gameType === 'SORTING' ? 'animal-sorting' : 'dino-number', this.gameLevel); this.selected.title = gameDefinition(this.game.id).title; }
+    if (!video && this.work.phase === 'active' && original.category === 'MOVE') { this.game = GameEngine.create('penguin-move', this.gameLevel); this.activityMode = 'INTERACTIVE'; this.gameType = 'MOVEMENT_CHALLENGE'; this.selected.title = 'Penguin Move'; }
+    this.activitySource = 'CompanionOS Built-in • Offline activity';
     this.notice = 'Original content is ready. No AI request was made.';
   }
 
@@ -496,17 +571,35 @@ struct Index {
     if (this.selected.contentSource === ActivityContentSource.USER_VIDEO && !this.videos?.load()) {
       this.notice = 'Saved video is missing. Import a video or choose Built-in Video.'; return;
     }
+    if (this.work.phase === 'active') {
+      const entry = this.work.entries[this.work.index];
+      const hasVideo = this.activityMode === 'VIDEO' || this.selected.videoUrl !== '' || this.selected.localVideoPath !== '';
+      if (hasVideo && !SessionBalanceEngine.videoAllowed(this.work.entries, this.work.index, this.work.rules.passive)) {
+        this.notice = 'This video would exceed the video allowance or remove the last interactive learning activity. A Built-in activity is ready.';
+        this.chooseBuiltIn();
+      } else if (hasVideo) { this.activityMode = 'VIDEO'; }
+      entry.mode = this.activityMode;
+    } else {
+      this.activityMode = this.selected.videoUrl !== '' || this.selected.localVideoPath !== '' || this.activityMode === 'VIDEO' ? 'VIDEO' : this.game.id !== '' ? 'INTERACTIVE' : 'GUIDED_OFFSCREEN';
+    }
+    if (this.activityMode === 'VIDEO') { this.gameType = ''; }
+    if (this.activityMode === 'INTERACTIVE' && this.game.id !== '') { this.game = GameEngine.start(GameEngine.create(this.game.id, this.game.difficulty, this.demo), Date.now()); }
+    this.sequenceVisible = true; this.gameSolved = false; this.gameMessage = ''; this.taskAttempts = 0; this.taskCorrect = 0;
+    this.childFeedback = ''; this.difficultyFeedback = ''; this.repeatFeedback = '';
+    this.activityStarted = Date.now();
     this.session.contentSource = this.selected.contentSource; this.session.videoUrl = this.selected.videoUrl;
     this.session.localVideoPath = this.selected.localVideoPath; this.session.aiProvider = this.selected.aiProvider;
     this.session.aiGenerationId = this.selected.aiGenerationId;
     this.session.start(Date.now(), this.work.phase === 'active' ? this.work.entries[this.work.index].minutes : this.data.settings.minutes, this.demo);
     if (this.work.phase === 'active') { this.session.id = `${this.work.id}-${this.work.index}`; }
     this.stepIndex = 0; this.stepBoundary = (this.demo ? 10 : this.session.minutes * 60) - this.stepSeconds();
+    this.recordBehavior('ACTIVITY_STARTED');
+    if (this.behavior.events.some((event: ChildInteractionEvent) => !event.demo && event.gameType === this.gameType && event.activityMode === this.activityMode && event.activityId === (this.game.id !== '' ? this.game.id : this.selected.id) && event.eventType === 'ACTIVITY_COMPLETED' && event.sessionId !== this.session.id)) { this.recordBehavior('ACTIVITY_REPEATED'); }
     this.confirmed = false;
     this.notice = '';
     this.updateClock();
     this.transport?.startActivity(this.selected, this.frame());
-    this.parentControls = false; this.persistWork();
+    this.parentControls = false; this.scroller.scrollTo({ xOffset: 0, yOffset: 0 }); this.persistWork();
   }
 
   private cancelActivity(): void {
@@ -518,7 +611,7 @@ struct Index {
         message: 'No completion will be recorded.',
         primaryButton: { value: 'Keep playing', action: () => {} },
         secondaryButton: { value: 'Cancel activity', action: () => {
-          this.session.cancel(); this.phase = 'cancelled'; this.confirmed = false;
+          this.recordBehavior('ACTIVITY_SKIPPED'); this.session.cancel(); this.phase = 'cancelled'; this.confirmed = false;
           this.activeJobId = '';
           this.transport?.cancelActivity(this.frame());
           this.notice = 'Activity cancelled. No completion was recorded.';
@@ -539,20 +632,29 @@ struct Index {
   }
 
   private async completeActivity(): Promise<void> {
-    if (this.busy || !this.store || !this.storageReady || this.phase !== 'ready' || !this.confirmed) { return; }
+    if (this.busy || !this.store || !this.storageReady || this.phase !== 'ready' || !this.confirmed || (this.activityMode === 'INTERACTIVE' && !this.gameSolved)) { return; }
     this.busy = true;
     const record = new Completion();
     record.id = this.session.id;
-    record.activityId = this.selected.id;
+    record.activityId = this.game.id !== '' ? this.game.id : this.selected.id;
     record.title = this.selected.title;
     record.completedAt = Date.now();
     record.minutes = this.session.minutes;
     record.demo = this.session.demo;
     record.contentSource = this.session.contentSource;
+    record.sessionId = this.session.id; record.category = this.selected.category; record.activityMode = this.activityMode;
+    record.gameType = this.gameType; record.plannedDuration = this.session.minutes; record.startedAt = this.activityStarted || undefined;
+    record.actualDuration = this.activityStarted > 0 ? Math.max(0, Math.round((Date.now() - this.activityStarted) / 1000)) : undefined;
+    record.completed = true; record.skipped = false; record.childFeedback = this.childFeedback; record.difficultyFeedback = this.difficultyFeedback;
+    record.movementPlanned = this.selected.category === 'MOVE'; record.movementConfirmed = this.game.movementConfirmed;
+    record.learningActivityCompleted = this.game.learned || this.selected.category === 'LEARN'; record.questionsAttempted = this.activityMode === 'INTERACTIVE' ? this.game.attempts : undefined;
+    record.questionsCorrect = this.activityMode === 'INTERACTIVE' ? this.game.correct : undefined; record.attemptCount = record.questionsAttempted;
     const updated = addCompletion(this.data, record);
     try {
       await this.store.save(updated);
       this.data = updated;
+      try { const nextJourney = claimActivity(this.journey, record); this.journeyStore?.save(nextJourney); this.journey = nextJourney; } catch { this.notice = 'Completion saved; journey update unavailable.'; }
+      this.recordBehavior('ACTIVITY_COMPLETED');
       this.session.phase = 'completed';
       this.activeJobId = '';
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
@@ -564,7 +666,7 @@ struct Index {
       if (this.work.phase === 'active') {
         this.work = settleEntry(this.work, 'completed', this.demo); this.persistWork();
         if (this.work.phase === 'active') { this.openWorkEntry(); }
-        else { this.navigate('work-summary'); }
+        else { this.saveAdventureEnding(); this.navigate('work-summary'); }
       } else { this.navigate('progress'); }
     } catch {
       this.notice = 'Saving failed. Your activity is ready to confirm again.';
@@ -573,6 +675,7 @@ struct Index {
 
   private openSettings(): void {
     const settings = new ParentSettings();
+    settings.balanceRules = JSON.parse(JSON.stringify(this.data.settings.balanceRules)) as BalanceRules;
     settings.age = this.data.settings.age;
     settings.interests = this.data.settings.interests.slice();
     settings.minutes = this.data.settings.minutes;
@@ -600,7 +703,7 @@ struct Index {
       await this.store.save(updated);
       this.data = updated;
       this.notice = 'Parent settings saved on this device.';
-      this.workMinutes = updated.settings.sessionDuration;
+      this.workMinutes = updated.settings.sessionDuration; this.workRules = updated.settings.balanceRules;
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.recommendation = '';
       this.recommendationId = '';
@@ -616,6 +719,195 @@ struct Index {
 
   private clockLabel(): string {
     return `${Math.floor(this.remaining / 60).toString().padStart(2, '0')}:${(this.remaining % 60).toString().padStart(2, '0')}`;
+  }
+
+  private adjustGoals(move: number, learn: number): void {
+    const rules = JSON.parse(JSON.stringify(this.workRules)) as BalanceRules; rules.movement += move; rules.learning += learn; this.workRules = rules;
+  }
+  private previewSettings(): ParentSettings {
+    const settings = JSON.parse(JSON.stringify(this.data.settings)) as ParentSettings; settings.balanceRules = this.workRules; return settings;
+  }
+  private recordBehavior(type: string): void {
+    if (!this.behaviorStore || !this.session.id) { return; }
+    const event = new ChildInteractionEvent(); event.sessionId = this.session.id; event.activityId = this.game.id !== '' ? this.game.id : this.selected.id;
+    event.activityCategory = this.selected.category; event.activityMode = this.activityMode; event.gameType = this.gameType;
+    event.plannedMinutes = this.session.minutes; event.timestamp = Date.now(); event.eventType = type; event.demo = this.session.demo;
+    event.attemptNumber = this.taskAttempts; event.elapsedSeconds = this.activityStarted ? Math.min(86400, Math.max(0, Math.round((Date.now() - this.activityStarted) / 1000))) : -1;
+    event.selectedAnswer = this.game.lastInput; event.difficulty = this.game.id !== '' ? this.game.difficulty : this.selected.category === 'LEARN' ? this.gameLevel : this.data.settings.activityDifficulty; event.contentSource = this.selected.contentSource;
+    event.feedback = this.childFeedback; event.difficultyFeedback = this.difficultyFeedback; event.repeatFeedback = this.repeatFeedback;
+    event.eventId = `${event.sessionId}:${type}:${['ACTIVITY_STARTED', 'ACTIVITY_COMPLETED', 'ACTIVITY_SKIPPED', 'FEEDBACK_SUBMITTED', 'MOVEMENT_CONFIRMED'].includes(type) ? '' : Date.now().toString() + '-' + this.eventSequence++}`;
+    const current = new BehaviorData(); current.events = type === 'FEEDBACK_SUBMITTED' ? this.behavior.events.filter((e: ChildInteractionEvent) => e.eventId !== event.eventId) : this.behavior.events;
+    const next = appendEvent(current, event);
+    try { this.behaviorStore.save(next); this.behavior = next; } catch { this.notice = 'Interaction details could not be saved. Activity completion still works; retry later.'; }
+  }
+  private gameAction(action: string, value: string): void {
+    if (!['running', 'ready'].includes(this.phase) || this.game.id === '') { return; }
+    if (action === 'skip') { if (this.work.phase === 'active') { this.skipWorkEntry(); } else { this.cancelActivity(); } return; }
+    const transition = GameEngine.act(this.game, action, value, Date.now()); this.game = transition.state;
+    this.taskAttempts = this.game.attempts; this.taskCorrect = this.game.correct;
+    transition.events.forEach((type: string) => this.recordBehavior(type));
+    this.gameSolved = this.game.phase === 'success';
+    if (this.gameSolved) { this.session.deadline = Date.now(); this.session.phase = 'running'; this.updateClock(); }
+    this.persistWork(); this.syncTv();
+  }
+  private openGame(id: string): void {
+    if (['running', 'paused', 'ready'].includes(this.phase)) { this.notice = 'Finish or cancel the current activity first.'; return; }
+    const definition = gameDefinition(id, BehaviorInsightEngine.recommendDifficulty(BehaviorInsightEngine.window(this.behavior, 7, Date.now()), this.data.settings.activityDifficulty));
+    if (this.work.phase === 'active' && definition.category !== this.work.entries[this.work.index].category) { this.notice = 'Choose an adventure in the planned category.'; return; }
+    const activity = new Activity(id, definition.title, definition.category === 'MOVE' ? 'Movement' : 'Sounds', [definition.instruction, definition.storyContext, 'Take breaks. An adult stays available and confirms completion.']);
+    activity.category = definition.category; activity.educationalGoal = definition.learningGoal; activity.theme = definition.theme;
+    this.openActivity(activity); this.game = GameEngine.create(id, definition.difficulty); this.gameLevel = definition.difficulty;
+    this.activityMode = 'INTERACTIVE'; this.gameType = definition.gameType;
+    if (this.work.phase === 'active') { this.work.entries[this.work.index].gameType = definition.gameType; this.work.entries[this.work.index].mode = 'INTERACTIVE'; this.persistWork(); }
+  }
+  private dayLabel(now: number): string { const d = new Date(now); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+  private saveAdventureEnding(): void {
+    if (!this.work.daily || this.work.phase !== 'completed' || this.work.entries.some((entry) => entry.outcome !== 'completed')) { return; }
+    try { const next = completeAdventure(this.journey, this.work.adventureDate, this.work.entries.some((entry) => entry.demo), Date.now()); this.journeyStore?.save(next); this.journey = next; }
+    catch { this.notice = 'Activities saved; adventure story progress could not be saved.'; }
+  }
+  private preferenceExplanation(): string {
+    const events = BehaviorInsightEngine.window(this.behavior, 7, Date.now()).filter((e: ChildInteractionEvent) => e.activityCategory === this.selected.category && e.gameType === this.gameType);
+    const metrics = BehaviorInsightEngine.metrics(events);
+    return metrics.started < 3 ? 'Not enough recent interaction data yet. This activity supports the planned category goal.' :
+      `Why this choice? ${metrics.completed} of ${metrics.started} similar starts were marked complete in the last seven days. Balance goals remain protected. Difficulty: ${this.gameLevel}; changed only with at least three explicit feedback responses.`;
+  }
+  @Builder
+  balanceControls() {
+    Column({ space: 8 }) {
+      Text("Today's Session Goal").fontSize(22).fontWeight(FontWeight.Bold).width('100%')
+      ForEach(BALANCE_PRESETS, (preset: string) => {
+        Button(`${this.workRules.preset === preset ? 'Selected: ' : ''}${preset}`).width('100%')
+          .backgroundColor(this.workRules.preset === preset ? '#287452' : '#E1EEE8').fontColor(this.workRules.preset === preset ? '#FFFFFF' : '#203C31')
+          .onClick(() => { this.workRules = presetRules(preset); })
+      })
+      if (this.workRules.preset === 'Custom') {
+        Text(`MOVE minimum ${this.workRules.movement}% | LEARN minimum ${this.workRules.learning}%`).fontSize(15)
+        Row({ space: 6 }) {
+          Button('Move -').onClick(() => this.adjustGoals(-5, 0))
+          Button('Move +').onClick(() => this.adjustGoals(5, 0))
+          Button('Learn -').onClick(() => this.adjustGoals(0, -5))
+          Button('Learn +').onClick(() => this.adjustGoals(0, 5))
+        }.width('100%')
+      }
+      Text(`Interactive-first | Passive video maximum ${this.workRules.passive}%`).fontSize(14)
+      if (!validRules(this.workRules)) { Text('Use MOVE 10-50%, LEARN 20-50%, combined at most 80%.').fontColor('#8A3D20') }
+    }.width('100%')
+  }
+  @Builder
+  interactionContent() {
+    GameBoard({ state: this.game, onAction: (action: string, value: string) => this.gameAction(action, value) })
+  }
+  @Builder
+  gamesContent() {
+    Column({ space: 14 }) {
+      this.heading('Choose your adventure')
+      Text('WATCH + PLAY + MOVE + CREATE + CALM').fontSize(16).fontColor('#36584A')
+      ForEach(GAME_IDS, (id: string) => {
+        Column({ space: 8 }) {
+          Text(gameDefinition(id).title).fontSize(22).fontWeight(FontWeight.Bold)
+          Text(`${gameDefinition(id).category} | Interactive | ${gameDefinition(id).learningGoal}`).fontSize(15)
+          Button(`Play ${gameDefinition(id).title}`).width('100%').height(50).onClick(() => this.openGame(id))
+        }.padding(18).width('100%').backgroundColor('#E6F0E9').borderRadius(22)
+      })
+      Button('Watch Dino Counting Adventure').width('100%').onClick(() => { this.openActivity(workActivity('LEARN', this.data.settings)); this.chooseBuiltIn(true); })
+      Button('Watch Cloud Breathing').width('100%').onClick(() => { this.openActivity(workActivity('CALM', this.data.settings)); this.chooseBuiltIn(true); })
+    }.width('100%')
+  }
+  @Builder
+  dailyContent() {
+    Column({ space: 14 }) {
+      this.heading(`Daily Adventure: ${worldName(Date.now())}`)
+      Text('Nova says: a little counting, moving, watching and imagining. Then a gentle ending.').fontSize(18)
+      Text('30 minutes planned. Adult nearby. Pause or stop whenever you need.').fontSize(16)
+      ForEach(planWork(30, this.data.settings).entries, (entry: WorkEntry, index: number) => {
+        Text(`${index + 1}. ${entry.category === 'LEARN' ? entry.mode === 'VIDEO' ? 'Dino Counting Adventure' : 'Dino Number Adventure' : entry.category === 'MOVE' ? 'Penguin Move' : entry.category === 'CREATE' ? 'Imagine a Dinosaur Home' : entry.mode === 'VIDEO' ? 'Cloud Breathing' : 'Cloud Rest'} | ${entry.category} | ${entry.mode} | ${entry.minutes} min`).fontSize(17).width('100%').padding(14).backgroundColor('#E6F0E9').borderRadius(18)
+      })
+      Button('Start Daily Adventure').width('100%').height(54).enabled(!this.busy).onClick(() => { this.workMinutes = 30; this.workRules = this.data.settings.balanceRules; this.startWork(true); })
+      Text('The adventure ends after this plan. Progress stays when you miss a day; another session requires a parent to start it.').fontSize(14)
+    }.width('100%')
+  }
+  @Builder
+  journeyContent() {
+    Column({ space: 14 }) {
+      this.heading('Adventure Journey')
+      Text('Welcome back! Your adventure is waiting.').fontSize(20)
+      Text('Nova says: Great work today. A new story can wait until tomorrow.').fontSize(16)
+      ForEach(WORLDS, (world: string, index: number) => {
+        Column({ space: 6 }) {
+          Text(`Week ${index + 1}: ${world}`).fontSize(22).fontWeight(FontWeight.Bold)
+          Text(`${this.journey.worlds[index]} Daily Adventures marked complete`).fontSize(15)
+          Text(index === 0 ? 'A forest grows with each adventure.' : index === 1 ? 'A spaceship gets ready to explore.' : index === 2 ? 'An ocean grows more colorful.' : 'A friendly city lights up.').fontSize(17)
+          Progress({ value: Math.min(7, this.journey.worlds[index]), total: 7, type: ProgressType.Linear }).width('100%')
+          if (this.journey.demoWorlds[index] > 0) { Text(`Demo story progress: ${this.journey.demoWorlds[index]} labelled adventures`).fontSize(14); Progress({ value: Math.min(7, this.journey.demoWorlds[index]), total: 7, type: ProgressType.Linear }).width('100%').color('#D79455') }
+        }.padding(18).width('100%').backgroundColor('#E6F0E9').borderRadius(22)
+      })
+      Text('Your collection').fontSize(22).fontWeight(FontWeight.Bold)
+      if (collectibles(this.journey).length === 0) { Text('Small adventures, at your own pace. No rewards disappear when you miss a day.').fontSize(16) }
+      ForEach(collectibles(this.journey), (label: string) => { Text(label).fontSize(18).width('100%') })
+      Text(`${this.journey.completedDays.length} days with a completed Daily Adventure. ${this.journey.demoDays.length} separately labelled Demo days.`).fontSize(15)
+      Text('No purchases, random rewards, streak penalties or automatic endless play. Progress stays on this device.').fontSize(13)
+    }.width('100%')
+  }
+  @Builder
+  feedbackContent() {
+    Column({ space: 10 }) {
+      Text('How was this activity? Optional.').fontSize(19).fontWeight(FontWeight.Bold)
+      Row({ space: 6 }) {
+        ForEach(['Liked', 'Okay', 'Disliked'], (value: string) => {
+          Button(value === 'Liked' ? 'I liked it' : value === 'Okay' ? 'It was okay' : "I didn't like it").layoutWeight(1).height(50).fontSize(12)
+            .backgroundColor(this.childFeedback === value ? '#287452' : '#E1EEE8').fontColor(this.childFeedback === value ? '#FFFFFF' : '#203C31')
+            .onClick(() => { this.childFeedback = value; this.recordBehavior('FEEDBACK_SUBMITTED'); })
+        })
+      }.width('100%')
+      Row({ space: 6 }) {
+        ForEach(['Too easy', 'Just right', 'Too hard'], (value: string) => {
+          Button(value).layoutWeight(1).height(50).fontSize(14).backgroundColor(this.difficultyFeedback === value ? '#287452' : '#E1EEE8').fontColor(this.difficultyFeedback === value ? '#FFFFFF' : '#203C31')
+            .onClick(() => { this.difficultyFeedback = value; this.recordBehavior('FEEDBACK_SUBMITTED'); })
+        })
+      }.width('100%')
+      Text('Would you do this again?').fontSize(16)
+      Row({ space: 6 }) {
+        ForEach(['Yes', 'Maybe', 'No'], (value: string) => {
+          Button(value).layoutWeight(1).height(48).backgroundColor(this.repeatFeedback === value ? '#287452' : '#E1EEE8').fontColor(this.repeatFeedback === value ? '#FFFFFF' : '#203C31')
+            .onClick(() => { this.repeatFeedback = value; this.recordBehavior('FEEDBACK_SUBMITTED'); })
+        })
+      }.width('100%')
+      Button('Skip feedback').width('100%').height(48).backgroundColor('#E1EEE8').fontColor('#203C31').onClick(() => { this.childFeedback = ''; this.difficultyFeedback = ''; this.repeatFeedback = ''; this.recordBehavior('FEEDBACK_SUBMITTED'); })
+    }.width('100%')
+  }
+  @Builder
+  insightsContent() {
+    Column({ space: 14 }) {
+      this.heading('Activity Insights')
+      Text('What kinds of activities are working well?').fontSize(17)
+      Row({ space: 6 }) {
+        ForEach([1, 7, 30], (days: number) => { Button(days === 1 ? 'Today' : `Last ${days} days`).layoutWeight(1).onClick(() => { this.insightDays = days; }) })
+      }.width('100%')
+      Text(`${BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())).completed} activities marked complete`).fontSize(23).fontWeight(FontWeight.Bold)
+      Text(`${BehaviorInsightEngine.guidedMinutes(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now()), '')} planned guided minutes marked complete`).fontSize(16)
+      Text('What we noticed').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(BehaviorInsightEngine.observations(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())), (line: string) => { Text(line).fontSize(16).width('100%') })
+      Text('Activity balance').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(WORK_TYPES, (type: string) => {
+        Text(`${type}: ${BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now()).filter((e: ChildInteractionEvent) => e.activityCategory === type)).completed} marked complete`).fontSize(16).width('100%')
+        Progress({ value: BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now()).filter((e: ChildInteractionEvent) => e.activityCategory === type)).completed,
+          total: Math.max(1, BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())).completed), type: ProgressType.Linear }).width('100%')
+      })
+      Text('Interactive vs video').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(BehaviorInsightEngine.formats(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())), (line: string) => { Text(line).fontSize(15).width('100%') })
+      Text('Challenge response').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(BehaviorInsightEngine.challenge(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())), (line: string) => { Text(line).fontSize(16).width('100%') })
+      Text(`${BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())).correct} correct task responses / ${BehaviorInsightEngine.metrics(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now())).attempted} answers selected`).fontSize(16)
+      ForEach(['Too easy', 'Just right', 'Too hard'], (value: string) => { Text(`${value}: ${BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now()).filter((e: ChildInteractionEvent) => e.eventType === 'FEEDBACK_SUBMITTED' && e.difficultyFeedback === value).length} feedback responses`).fontSize(15) })
+      Text('Last seven days').fontSize(22).fontWeight(FontWeight.Bold)
+      Text('Planned guided minutes marked complete, not measured exercise or learning. Demo excluded.').fontSize(13)
+      ForEach(BehaviorInsightEngine.weekly(this.behavior, Date.now()), (line: string) => { Text(line).fontSize(14).width('100%') })
+      Text('Recent activity').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(BehaviorInsightEngine.window(this.behavior, this.insightDays, Date.now()).filter((e: ChildInteractionEvent) => ['ACTIVITY_COMPLETED', 'ACTIVITY_SKIPPED'].includes(e.eventType)).slice(-5).reverse(), (event: ChildInteractionEvent) => { Text(`${event.activityCategory} ? ${event.gameType || event.activityMode} ? ${event.eventType === 'ACTIVITY_COMPLETED' ? 'Marked complete' : 'Skipped'} ? ${this.dateLabel(event.timestamp)}`).fontSize(14).width('100%') })
+      Text('Activity Insights summarize CompanionOS usage and child-confirmed activity interactions. They help parents understand activity preferences and engagement patterns. They are not medical, psychological or developmental assessments. Demo activities and unknown historical interaction data are excluded.').fontSize(13)
+      Button('Reset local insights').width('100%').onClick(() => { this.getUIContext().showAlertDialog({ title: 'Reset insights?', message: 'Only interaction events are removed. Your completion journal stays.', primaryButton: { value: 'Keep', action: () => {} }, secondaryButton: { value: 'Reset', action: () => { const empty = new BehaviorData(); try { this.behaviorStore?.save(empty); this.behavior = empty; } catch { this.notice = 'Reset failed. Try again.'; } } } }); })
+    }.width('100%')
   }
 
   private dateLabel(timestamp: number): string {
@@ -645,6 +937,10 @@ struct Index {
         .width('100%').height(50).fontSize(16).fontWeight(FontWeight.Bold).backgroundColor('#287452').fontColor('#FFFFFF')
         .borderRadius(18).stateEffect(true).shadow({ radius: 5, color: '#14287452', offsetY: 2 })
         .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
+      Text(`Interactive + video + guided activities | ${this.data.settings.balanceRules.preset}`).fontSize(12).fontColor('#314D40').width('100%')
+      Row({ space: 6 }) {
+        ForEach(WORK_TYPES, (type: string) => { Text(`${type} ${planWork(this.data.settings.sessionDuration, this.data.settings).entries.filter((entry) => entry.category === type).reduce((sum: number, entry) => sum + entry.minutes, 0)}m`).fontSize(11).layoutWeight(1) })
+      }.width('100%')
       Text('Plan 15-60 minutes of guided activities').fontSize(13).fontColor('#314D40').width('100%')
     }.width('100%').padding(14).backgroundColor('#E6F0E9').borderRadius(22)
       .border({ width: 1, color: '#C5D8CD' }).shadow({ radius: 6, color: '#0A203C31', offsetY: 2 })
@@ -709,7 +1005,7 @@ struct Index {
   }
 
   @Builder
-  homeContent() {
+  fallbackContent() {
     Column({ space: 12 }) {
       Text('Ready for a little adventure?').fontSize(25).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       Text("Don't just limit screen time. Transform it.").fontSize(14).fontWeight(FontWeight.Medium).fontColor('#3D5145').width('100%')
@@ -717,6 +1013,9 @@ struct Index {
         Button('Return to activity').width('100%').backgroundColor('#287452').onClick(() => this.navigate('activity'))
       }
       this.heroCard()
+      Button('Play interactive adventures').width('100%').height(50).onClick(() => this.navigate('games'))
+      Button(`Daily Adventure: ${worldName(Date.now())}`).width('100%').height(50).onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'daily'); })
+      Button('Adventure Journey').width('100%').onClick(() => this.navigate('journey'))
       Text('Quick Activities').fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
       this.typeTiles(WORK_TYPES.slice(0, 2))
       this.typeTiles(WORK_TYPES.slice(2))
@@ -738,6 +1037,18 @@ struct Index {
         .accessibilityGroup(true).accessibilityText(`Today's progress. ${this.today} activities confirmed today; ${this.data.total} saved in total, including Demo completions. Tap for journal.`)
         .onClick(() => this.navigate('progress'))
       Text('An adult stays available. CompanionOS does not replace appropriate supervision.').fontSize(12).fontColor('#3D5145').width('100%')
+    }.width('100%')
+  }
+
+  @Builder
+  homeContent() {
+    Column({ space: 16 }) {
+      ParentDashboard({ settings: this.data.settings })
+      Button('Parent Settings').width('100%').onClick(() => this.openSettings())
+      Button('Video library: Built-in, AI and My Video').width('100%').onClick(() => this.navigate('games'))
+      Button('Phone-only fallback activities').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.navigate('phone-fallback'))
+      Button('Phone fallback Activity Insights').width('100%').onClick(() => this.navigate('insights'))
+      Button('Progress and parent-confirmed records').width('100%').onClick(() => this.navigate('progress'))
     }.width('100%')
   }
 
@@ -773,13 +1084,14 @@ struct Index {
             .onClick(() => { this.workMinutes = minutes; })
         })
       }.width('100%')
+      this.balanceControls()
       Text('How should CompanionOS prepare activities?').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
       Row({ space: 6 }) {
         ForEach(WORK_TYPES.filter((type: string) => this.data.settings.preferredActivityTypes.includes(type)), (type: string) => {
           Column({ space: 4 }) {
             Image($rawfile(`${type}.svg`)).width(46).height(46).objectFit(ImageFit.Contain)
             Text(type).fontSize(11).fontWeight(FontWeight.Bold)
-            Text(`${planWork(this.workMinutes, this.data.settings).entries.filter((entry) => entry.category === type).length * 5} min`).fontSize(13)
+            Text(`${planWork(this.workMinutes, this.previewSettings()).entries.filter((entry) => entry.category === type).reduce((sum: number, entry) => sum + entry.minutes, 0)} min`).fontSize(13)
           }.layoutWeight(1).padding(8).backgroundColor(this.typeColor(type)).borderRadius(16)
         })
       }.width('100%')
@@ -789,9 +1101,10 @@ struct Index {
           .onClick(() => { this.preparation = source; })
       })
       Text('Recommended uses safe Built-in activities. Other sources remain optional and are prepared and reviewed before each activity. AI failure never blocks Built-in content.').fontSize(14).fontColor('#59695F')
-      Text(`${Math.floor(this.workMinutes / 5)} short activities | Breaks are welcome | No strict continuous schedule`).fontSize(15).fontColor('#426352').width('100%')
+      Text(`${SessionBalanceEngine.plan(this.workMinutes, this.workRules).filter((slot) => slot.mode === 'VIDEO').reduce((sum: number, slot) => sum + slot.minutes, 0)} video minutes + interactive and guided activities`).fontSize(16).width('100%')
+      Text(`${SessionBalanceEngine.plan(this.workMinutes, this.workRules).length} short activities | Breaks are welcome | No strict continuous schedule`).fontSize(15).fontColor('#426352').width('100%')
       Text('An adult sets up a clear space, stays available and checks each activity. Younger children may need closer supervision. No climbing, jumping, sharp tools or outdoor tasks.').fontSize(14).fontColor('#59695F')
-      Button('Prepare work session').width('100%').height(54).backgroundColor('#294E3D').enabled(this.storageReady)
+      Button('Prepare work session').width('100%').height(54).backgroundColor('#294E3D').enabled(this.storageReady && !this.busy && validRules(this.workRules))
         .onClick(() => this.startWork())
     }.width('100%')
   }
@@ -819,12 +1132,19 @@ struct Index {
   workSummaryContent() {
     Column({ space: 16 }) {
       Image($rawfile('CALM.svg')).width('100%').height(170).objectFit(ImageFit.Contain)
+      if (this.work.daily && this.work.phase === 'completed') { Text("Today's adventure is complete! Great work. A new adventure will be waiting tomorrow.").fontSize(24).fontWeight(FontWeight.Bold) }
       this.heading(this.work.phase === 'completed' ? 'Work Session Complete' : 'Work Session Ended')
       Text(`${this.work.minutes} minutes planned`).fontSize(24).fontWeight(FontWeight.Bold)
       Text(`${this.work.entries.filter((entry) => entry.outcome === 'completed').length} activities confirmed`).fontSize(20)
       ForEach(WORK_TYPES, (type: string) => {
-        Text(`${categoryMinutes(this.work, type)} planned minutes ${type.toLowerCase()}`).fontSize(18).width('100%')
+        Text(`${type}: ${this.work.entries.filter((entry) => entry.category === type).reduce((sum: number, entry) => sum + entry.minutes, 0)} min planned`).fontSize(16).width('100%')
+        Text(`${categoryMinutes(this.work, type)} min marked complete (non-Demo)`).fontSize(18).width('100%')
+        Progress({ value: categoryMinutes(this.work, type), total: Math.max(1, this.work.entries.filter((entry) => entry.category === type).reduce((sum: number, entry) => sum + entry.minutes, 0)), type: ProgressType.Linear }).width('100%')
       })
+      ForEach(['INTERACTIVE', 'VIDEO', 'GUIDED_OFFSCREEN'], (mode: string) => { Text(`${mode}: ${this.work.entries.filter((entry) => entry.mode === mode).reduce((sum: number, entry) => sum + entry.minutes, 0)} min planned / ${this.work.entries.filter((entry) => entry.mode === mode && entry.outcome === 'completed' && !entry.demo).reduce((sum: number, entry) => sum + entry.minutes, 0)} min marked complete`).fontSize(14).width('100%') })
+      Text('Completed minute totals are planned durations marked complete, not measured exercise or learning.').fontSize(13)
+      if (this.work.daily) { Button('View Adventure Journey').width('100%').onClick(() => this.navigate('journey')) }
+      Button('Activity Insights').width('100%').onClick(() => this.navigate('insights'))
       Text(`${this.work.entries.filter((entry) => entry.outcome === 'skipped').length} activities skipped`).fontSize(18)
       Text('These are planned durations of confirmed activities, not measured movement or developmental outcomes. Demo activities are excluded from minute totals.').fontSize(13).fontColor('#59695F')
       Button('Back to Home').width('100%').onClick(() => this.navigate('home'))
@@ -836,6 +1156,7 @@ struct Index {
   settingsContent() {
     Column({ space: 16 }) {
       this.heading('Child Profile & Parent Settings')
+      Button('Activity Insights').width('100%').onClick(() => this.navigate('insights'))
       Text('Stored only on this device. Changes apply to your next activity.').fontSize(16).fontColor('#52645C')
       Text('Age group').fontSize(20).fontColor('#203C31').width('100%')
       Row({ space: 12 }) {
@@ -920,12 +1241,14 @@ struct Index {
         Image($rawfile(`${this.activityArt(this.selected)}.svg`)).width('100%').height(180).objectFit(ImageFit.Contain)
           .backgroundColor(this.typeColor(this.selected.category)).borderRadius(26)
         Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-        Text(`${this.selected.category} | Ages ${this.data.settings.age} | ${this.work.phase === 'active' ? 5 : this.data.settings.minutes} min`)
+        Text(`${this.selected.category} | Ages ${this.data.settings.age} | ${this.work.phase === 'active' ? this.work.entries[this.work.index].minutes : this.data.settings.minutes} min`)
           .fontSize(16).fontColor('#426352').width('100%')
         Text(this.activitySource).fontSize(13).fontColor('#59695F').width('100%')
         Column({ space: 8 }) {
           Text('Why this activity?').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
           Text(`Short ${this.selected.category.toLowerCase()} practice | ${this.selected.educationalGoal}`).fontSize(16).width('100%')
+          Text(this.activityMode === 'INTERACTIVE' ? 'Interactive rather than passive video. Task responses stay on this device.' : 'Guided activity: completion is confirmed, not sensor-verified.').fontSize(14).width('100%')
+          Text(this.preferenceExplanation()).fontSize(14).width('100%')
           Text(`Interest: ${this.selected.interest} | Indoor-friendly | Gentle instructions`).fontSize(15).width('100%')
           Text('Adult nearby and available. Younger children may need closer support.').fontSize(14).width('100%')
         }.padding(18).width('100%').backgroundColor('#E1EEE8').borderRadius(20)
@@ -950,15 +1273,19 @@ struct Index {
   childContent() {
     Column({ space: 16 }) {
       Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
-      if (this.phase !== 'ready') {
+      if (this.activityMode === 'INTERACTIVE' && this.game.id !== '') { this.interactionContent() }
+      if (this.phase !== 'ready' && this.activityMode === 'VIDEO') {
+        if (this.selected.category === 'LEARN' && this.selected.contentSource === ActivityContentSource.BUILT_IN) { Text(`Count together: ${Math.min(5, Math.floor(((this.demo ? 10 : this.session.minutes * 60) - this.remaining) % 10 / 2) + 1)} dinosaurs. One, two, three, four, five!`).fontSize(24).fontWeight(FontWeight.Bold) }
+        if (this.selected.category === 'CALM' && this.selected.contentSource === ActivityContentSource.BUILT_IN) { Text('A cloud drifts slowly. Breathe normally and relax your hands.').fontSize(22) }
         Video({ src: this.selected.contentSource === ActivityContentSource.USER_VIDEO ? `file://${this.selected.localVideoPath}` :
           (this.selected.activitySteps[this.stepIndex]?.videoUrl || $rawfile('fallback.mp4')), controller: this.phoneVideoController })
           .width('100%').height(220).controls(false).autoPlay(false).loop(true).muted(true)
+          .onStart(() => { console.info('[CompanionVideo] native playback started'); })
           .onPrepared(() => { if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} } })
           .onDisAppear(() => { try { this.phoneVideoController.pause(); } catch {} })
           .onError(() => { this.notice = 'Video unavailable. Follow the safe illustrated instructions below; the activity continues.'; })
       }
-      Text(this.phase === 'ready' ? 'Lovely effort! Check in with your adult.' : this.phase === 'paused' ? 'Take a gentle break.' : this.selected.steps[this.stepIndex])
+      Text(this.phase === 'ready' ? (this.activityMode === 'INTERACTIVE' && !this.gameSolved ? 'The activity window has ended. Finish the challenge or take a break.' : 'Lovely effort! Check in with your adult.') : this.phase === 'paused' ? 'Take a gentle break.' : this.selected.steps[this.stepIndex])
         .fontSize(25).fontWeight(FontWeight.Medium).fontColor('#253E33').width('100%')
       Progress({ value: this.stepIndex + 1, total: this.selected.steps.length, type: ProgressType.Linear }).width('100%').color('#547963')
         .animation({ duration: 200, curve: Curve.EaseOut })
@@ -966,7 +1293,8 @@ struct Index {
         Text(`Step ${this.stepIndex + 1} of ${this.selected.steps.length}`).fontSize(15).fontColor('#59695F').layoutWeight(1)
         Text(this.phase === 'ready' ? 'Finished' : this.clockLabel()).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#294E3D')
       }.width('100%')
-      Text(this.demo ? 'Demo - 10 seconds' : 'Play gently. Rest whenever you need.').fontSize(13).fontColor('#59695F')
+      if (this.game.id !== '') { Text('Built-in interactive game. Optional AI/video guidance is selected separately.').fontSize(13).fontColor('#36584A') }
+      Text(this.demo ? 'Demo - 10-second activity window; movement challenge 3 seconds' : 'Play gently. Rest whenever you need.').fontSize(13).fontColor('#59695F')
       Button(this.parentControls ? 'Close parent controls' : 'Parent controls').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
         .onClick(() => {
           if (this.parentControls) { this.parentControls = false; }
@@ -984,13 +1312,14 @@ struct Index {
           }.width('100%')
         }
         if (this.phase === 'ready') {
+          this.feedbackContent()
           Row({ space: 8 }) {
             Checkbox({ name: 'confirmParent' }).select(this.confirmed).selectedColor('#294E3D').enabled(!this.busy)
               .onChange((value: boolean) => { this.confirmed = value; })
             Text('I am the parent / caregiver. I confirm this activity was completed.').fontSize(16).layoutWeight(1)
           }
           Button(this.busy ? 'Saving...' : 'Mark as completed').width('100%').backgroundColor('#294E3D')
-            .enabled(this.confirmed && !this.busy && this.storageReady).onClick(() => { this.completeActivity(); })
+            .enabled(this.confirmed && !this.busy && this.storageReady && (this.activityMode !== 'INTERACTIVE' || this.gameSolved)).onClick(() => { this.completeActivity(); })
         }
         if (this.work.phase === 'active') { Button('Parent work view').width('100%').onClick(() => this.navigate('work-status')) }
         Button('Play on Large Screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
@@ -1003,7 +1332,12 @@ struct Index {
   @Builder
   contentChoices() {
     Column({ space: 10 }) {
-      Text('How should we prepare this activity?').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
+      Text(this.selected.category === 'LEARN' ? 'How would you like to learn?' : 'How should we prepare this activity?').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
+      if (['LEARN', 'MOVE'].includes(this.selected.category)) {
+        ForEach(GAME_IDS.filter((id: string) => gameDefinition(id).category === this.selected.category), (id: string) => { Button(`Play ${gameDefinition(id).title}`).width('100%').height(50).onClick(() => this.openGame(id)) })
+      }
+      Button('Watch an adventure').width('100%').height(50).onClick(() => this.chooseBuiltIn(true))
+      if (this.game.id === 'robot-memory') { Row({ space: 6 }) { ForEach(['Gentle', 'Standard', 'Hard'], (level: string) => { Button(level === 'Gentle' ? 'Easy: 2' : level === 'Standard' ? 'Medium: 3' : 'Hard: 4').layoutWeight(1).onClick(() => { this.game = GameEngine.create('robot-memory', level); this.gameLevel = level; }) }) }.width('100%') }
       Button('Recommended').width('100%').enabled(!this.backendLoading && !this.importingVideo).onClick(() => this.chooseBuiltIn())
       Text('Safe Built-in content, ready without a network.').fontSize(14)
       Button('Gemini AI').width('100%').enabled(!this.backendLoading && !this.importingVideo)
@@ -1013,7 +1347,7 @@ struct Index {
         .onClick(() => { this.createAdventure('HUAWEI'); })
       Text('Create a personalized activity with Huawei Cloud AI').fontSize(14).width('100%')
       Button('Built-in Video').width('100%').enabled(!this.backendLoading && !this.importingVideo)
-        .onClick(() => this.chooseBuiltIn())
+        .onClick(() => this.chooseBuiltIn(true))
       Text('Use original CompanionOS content').fontSize(14).width('100%')
       Button('My Video').width('100%').enabled(!this.backendLoading && !this.importingVideo)
         .onClick(() => { this.useMyVideo(); })
@@ -1111,6 +1445,7 @@ struct Index {
   progressContent() {
     Column({ space: 16 }) {
       this.heading('Progress')
+      Button('Activity Insights').width('100%').onClick(() => this.navigate('insights'))
       Text(`Completed today: ${this.today} • Total completions: ${this.data.total}`).fontSize(20).fontColor('#28745E').width('100%')
       if (this.work.phase === 'completed' || this.work.phase === 'ended') {
         Button('Latest work session summary').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
@@ -1156,11 +1491,16 @@ struct Index {
             Text(this.notice).fontSize(15).fontColor('#6B451C').padding(16).width('100%').backgroundColor('#FFF0D9').borderRadius(14)
           }
           if (this.screen === 'home') { this.homeContent() }
+          else if (this.screen === 'daily') { this.dailyContent() }
+          else if (this.screen === 'games') { this.gamesContent() }
+          else if (this.screen === 'journey') { this.journeyContent() }
           else if (this.screen === 'activities') { this.discoveryContent() }
           else if (this.screen === 'work-setup') { this.workSetupContent() }
           else if (this.screen === 'work-status') { this.workStatusContent() }
           else if (this.screen === 'work-summary') { this.workSummaryContent() }
           else if (this.screen === 'settings') { this.settingsContent() }
+          else if (this.screen === 'phone-fallback') { this.fallbackContent() }
+          else if (this.screen === 'insights') { this.insightsContent() }
           else if (this.screen === 'progress') { this.progressContent() }
           else if (this.screen === 'connect') { this.connectionContent() }
           else { this.activityContent() }

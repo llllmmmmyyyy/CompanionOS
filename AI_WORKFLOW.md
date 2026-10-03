@@ -1,4 +1,18 @@
-# AI development workflow
+# Current AI-assisted refinement - 2026-10-03
+
+Tool: Codex coding assistant, directly editing the existing native project. No additional coding agent, external art model, child research, cloud credential or commercial asset was used in this iteration.
+
+Actual user instructions progressed from balance/local behavior insights, to playable games/Daily Adventure, to a Tablet-primary 2D world connected to a Phone parent dashboard. The implementation preserved API 21 products, original fallback/providers/persistence/notifications. Raw inputs were moved to Tablet-local world authority; compact command/state/result endpoints were added to the existing Windows relay.
+
+Codex authored original SVG/native graphics, a local counting clip generation script, pure world/game/balance rules, chunked journal adapters, Phone controls/evidence and English documentation. Actual HDC touch/drag tests and screenshots exposed a placed-animal hit-target issue; the fixed HAP was reinstalled and the test repeated. A temporary UI test helper coordinate parser and compilation mistakes were corrected; their failed attempts are not counted as passed tests. A root npm test invocation had no package.json; the successful backend command was rerun from backend.
+
+Automated tests use actual pure ArkTS transitions plus mocked platform/cloud HTTP. Those mocks are not a claim of credentialed Gemini/Huawei success. HDC installation/runtime evidence is separately documented in TESTING.md. No signing configuration was invented or credential supplied.
+
+Human follow-up: review child suitability with adult supervision, screen-reader/reduced-motion/large-font behavior, physical-device signing and installation, actual competition rules and starter-asset rights; record the demonstration using DEMO_SCRIPT. Emulator test inputs are not real child-study evidence.
+
+## Earlier retained workflow notes
+
+### AI development workflow
 
 ## Homepage UI/accessibility polish - 2026-10-03
 

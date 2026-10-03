@@ -1,3 +1,14 @@
+# Current Tablet-primary submission additions
+
+- Native Phone parent dashboard and Tablet child world implemented; six core world games actually played on Tablet API 21. All seven controls, five-mission Daily completion, Custom/profile/history restart and background pause were observed. See TESTING for exact evidence.
+- Raw child events remain local on Tablet; compact outcomes, Phone history and descriptive style/evidence views implemented. Development data is test interactions, not child research.
+- Original Pico/scene assets, finite balanced Daily Adventure and persistent world gifts implemented. Short missions can end before the configured maximum window.
+- Both unsigned HAP paths remain `entry/build/default/outputs/default/entry-default-unsigned.hap` and `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`; actual latest build evidence is in TESTING.
+- Signed physical-device artifacts, actual credentialed AI success, widget hosting, recording, screen-reader review and actual competition-rules assessment remain pending.
+- English CHILD_MODE, INTERACTIVE_ACTIVITIES and ACTIVITY_INSIGHTS documentation added; README/architecture/demo/workflow/third-party/readiness updated.
+
+The older checklist below records earlier stages and does not replace the current evidence or confer competition compliance.
+
 # Submission checklist
 
 This checklist reports implementation and observed evidence. It is not a competition compliance certificate.

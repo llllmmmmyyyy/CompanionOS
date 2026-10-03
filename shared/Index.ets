@@ -1,4 +1,7 @@
+import { GameState, validGame } from './InteractiveActivity';
 import { BusinessError } from '@kit.BasicServicesKit';
+export { GameState, GameEngine, InteractiveActivity, gameDefinition, GAME_IDS, validGame } from './InteractiveActivity';
+export { GameBoard } from './GameBoard';
 export { backendRequest } from './Network';
 export const EMULATOR_RELAY_ENDPOINT: string = 'http://10.0.2.2:18080';
 export function connectionError(error: Error): string {
@@ -32,6 +35,8 @@ export const MESSAGE_TYPES: string[] = ['PING', 'HELLO', 'STATE_SYNC', 'START', 
   'NEXT_STEP', 'PREVIOUS_STEP', 'CANCEL', 'COMPLETE', 'VIDEO_READY', 'VIDEO_BUFFERING', 'VIDEO_FAILED'];
 
 export class TvMessage {
+  game: GameState = new GameState();
+  activityMode: string = 'VIDEO';
   content: VideoSource = new VideoSource();
   protocolVersion: number = 1;
   type: string = 'STATE_SYNC';
@@ -69,6 +74,10 @@ export function parseMessage(raw: string): TvMessage | undefined {
       !['FALLBACK', 'LOCAL', 'REMOTE_CACHED', 'REMOTE_STREAM'].includes(value.videoSource) ||
       typeof value.videoUrl !== 'string' || value.videoUrl.length > 1000 || !validMediaUrl(value.videoUrl) ||
       typeof value.visual !== 'string' || value.visual.length > 100) { return undefined; }
+    if (value.game === undefined) { value.game = new GameState(); }
+    if (!validGame(value.game)) { return undefined; }
+    if (value.activityMode === undefined) { value.activityMode = 'VIDEO'; }
+    if (!['VIDEO', 'INTERACTIVE', 'GUIDED_OFFSCREEN'].includes(value.activityMode)) { return undefined; }
     if (value.content === undefined) {
       value.content = new VideoSource(); value.content.uri = value.videoUrl;
       value.content.title = value.title; value.content.activityId = value.activityId;
@@ -78,7 +87,18 @@ export function parseMessage(raw: string): TvMessage | undefined {
   } catch { return undefined; }
 }
 
+export class GameCommand {
+  id: string = ''; sessionId: string = ''; action: string = ''; value: string = '';
+  revision: number = 0; round: number = 0; phase: string = ''; selectedCount: number = 0;
+}
+export function validGameCommand(command: GameCommand): boolean {
+  return !!command && typeof command.id === 'string' && command.id.length <= 80 && typeof command.sessionId === 'string' && command.sessionId.length <= 100 &&
+    ['answer', 'retry', 'next', 'more', 'done', 'skip'].includes(command.action) && typeof command.value === 'string' && command.value.length <= 40 &&
+    Number.isInteger(command.revision) && command.revision >= 0 && command.revision <= 1000 && Number.isInteger(command.round) && command.round >= 0 && command.round <= 3 && Number.isInteger(command.selectedCount) && command.selectedCount >= 0 && command.selectedCount <= 4 &&
+    ['input', 'retry', 'round-success', 'movement', 'confirm', 'preview'].includes(command.phase);
+}
 export class RelayStatus {
+  actions: GameCommand[] = [];
   revision: number = 0;
   connected: boolean = false;
   receiverConnected: boolean = false;
@@ -89,3 +109,5 @@ export class RelayStatus {
 export function validBackendUrl(url: string): boolean {
   return url === EMULATOR_RELAY_ENDPOINT || url === 'http://127.0.0.1:18080' || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]{1,5})?$/.test(url);
 }
+
+export { WorldEngine, WorldState, WorldStatus, WorldCommand, WorldResult, WorldEnvelope, WorldSlot, parseWorld, validWorldResult, worldSlots, recommendedWorld, WORLD_GAMES, worldTitle, worldStyle, worldName } from './ChildWorldModel';

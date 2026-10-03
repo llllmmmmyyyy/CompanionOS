@@ -7,9 +7,10 @@ const assert = require('node:assert/strict');
 const compilerPath = process.argv[2];
 if (!compilerPath) throw new Error('Usage: node scripts/test-domain.cjs <SDK typescript.js>');
 const ts = require(path.resolve(compilerPath));
+function loadBalance() { const b = {exports: {}}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/SessionBalanceEngine.ets'), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021}}).outputText, b); return b.exports; }
 const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/Companion.ets'), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 } }).outputText;
-const box = { exports: {}, Date, Math, Number, JSON, Array, require: () => require('./load-protocol.cjs')(ts) };
+const box = { exports: {}, Date, Math, Number, JSON, Array, require: id => id === '@companion/protocol' ? require('./load-protocol.cjs')(ts) : loadBalance() };
 vm.runInNewContext(js, box);
 const { Snapshot, ParentSettings, Completion, ActivitySession, restoreSnapshot, addCompletion, countToday, validSettings, validEndpoint } = box.exports;
 let passed = 0;

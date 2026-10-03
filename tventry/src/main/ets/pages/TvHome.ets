@@ -1,10 +1,15 @@
-import { TvMessage, contentLabel, EMULATOR_RELAY_ENDPOINT } from '@companion/protocol';
+import { ChildWorld } from './ChildWorld';
+import { TvMessage, contentLabel, EMULATOR_RELAY_ENDPOINT, GameBoard, GameState, GameEngine, GameCommand } from '@companion/protocol';
 import { TvReceiver } from '../services/TvReceiver';
 
 @Entry
 @Component
 struct TvHome {
+  @State childActive: boolean = false;
   @State connection: string = 'OFFLINE';
+  @State game: GameState = new GameState();
+  @State gamePending: boolean = false;
+  private inputAt: number = 0;
   @State frame: TvMessage = new TvMessage();
   @State endpoint: string = EMULATOR_RELAY_ENDPOINT;
   @State connectionDetail: string = 'Not connected';
@@ -14,6 +19,7 @@ struct TvHome {
   @StorageLink('tvForeground') @Watch('foregroundChanged') foreground: boolean = true;
   private receiver: TvReceiver | undefined = undefined;
   private controller: VideoController = new VideoController();
+  private gameSession: string = '';
   private appliedKey: string = '';
   private appliedPhase: string = '';
 
@@ -40,6 +46,8 @@ struct TvHome {
       this.appliedKey = key; this.receiver?.feedback('VIDEO_BUFFERING');
     }
     this.frame = message;
+    if (!this.gamePending || message.game.revision >= this.game.revision || message.sessionId !== this.gameSession || Date.now() - this.inputAt > 2500) { this.game = message.game; this.gamePending = false; this.gameSession = message.sessionId; }
+    if (message.activityMode !== 'VIDEO') { this.stopVideo(); this.mediaState = message.activityMode; this.appliedPhase = message.phase; return; }
     if (message.phase !== this.appliedPhase) {
       this.appliedPhase = message.phase;
       try {
@@ -48,6 +56,13 @@ struct TvHome {
         else if (['ready', 'completed', 'cancelled', 'idle'].includes(message.phase)) { this.stopVideo(); }
       } catch { this.videoFailed(); }
     }
+  }
+  private async gameAction(action: string, value: string): Promise<void> {
+    if (this.connection !== 'CONNECTED' || this.gamePending || this.frame.phase === 'paused' || this.game.paused) { return; }
+    const command = new GameCommand(); command.sessionId = this.frame.sessionId; command.action = action; command.value = value;
+    command.round = this.game.round; command.phase = this.game.phase; command.selectedCount = this.game.selected.length; command.revision = this.game.revision;
+    this.gamePending = true; this.inputAt = Date.now(); this.game = GameEngine.act(this.game, action, value, Date.now()).state;
+    const sent = await this.receiver?.gameInput(command); if (!sent) { this.gamePending = false; this.game = this.frame.game; }
   }
   private stopVideo(): void { try { this.controller.pause(); } catch { /* No attached video yet. */ } }
   private videoFailed(): void {
@@ -67,9 +82,11 @@ struct TvHome {
     if (this.frame.phase === 'paused') { return 'PAUSED'; }
     if (this.frame.phase === 'ready') { return 'Waiting for parent confirmation'; }
     if (this.frame.phase === 'idle') { return 'WAITING'; }
+    if (this.frame.activityMode !== 'VIDEO') { return this.frame.activityMode === 'INTERACTIVE' ? 'INTERACTIVE' : 'GUIDED ACTIVITY'; }
     return this.mediaState === 'BUFFERING' ? 'BUFFERING' : 'PLAYING';
   }
-  build() {
+  @Builder
+  legacyView() {
     Column({ space: 12 }) {
       Row({ space: 20 }) {
         Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
@@ -81,10 +98,12 @@ struct TvHome {
           .fontSize(15).fontColor('#D9EFE3').width('100%').maxLines(2)
       }
       Stack({ alignContent: Alignment.Center }) {
-        if (this.frame.content.uri !== this.failedUrl &&
+        if (this.frame.activityMode === 'INTERACTIVE' && this.game.id !== '' && !['idle', 'cancelled', 'completed'].includes(this.frame.phase)) {
+          Scroll() { GameBoard({ state: this.game, onAction: (action: string, value: string) => { this.gameAction(action, value); } }) }.height('100%').width('85%')
+        } else if (this.frame.activityMode === 'VIDEO' && this.frame.content.uri !== this.failedUrl &&
           ['running', 'paused'].includes(this.frame.phase)) {
           ForEach([this.videoKey()], (key: string) => {
-          Video({ src: this.frame.content.uri !== '' ? this.frame.content.uri : $rawfile('fallback.mp4'), controller: this.controller }).width('100%').height('100%')
+          Video({ src: this.frame.content.uri !== '' ? this.frame.content.uri : (this.frame.title === 'Dino Counting Adventure' ? $rawfile('counting.mp4') : $rawfile('fallback.mp4')), controller: this.controller }).width('100%').height('100%')
             .objectFit(ImageFit.Contain).controls(false).autoPlay(false).loop(true).muted(true)
             .onPrepared(() => this.prepared()).onError(() => this.videoFailed())
             .onStart(() => { this.mediaState = 'PLAYING'; })
@@ -107,7 +126,7 @@ struct TvHome {
           Text(this.connection === 'DISCONNECTED' ? 'Connection lost' : 'Paused — rest together')
             .fontSize(30).fontColor(Color.White).padding(24).backgroundColor('#B0101D26').borderRadius(20)
         }
-        if (this.mediaState === 'BUFFERING' && ['running', 'paused'].includes(this.frame.phase)) {
+        if (this.frame.activityMode === 'VIDEO' && this.mediaState === 'BUFFERING' && ['running', 'paused'].includes(this.frame.phase)) {
           Text('Preparing video...').fontSize(24).fontColor(Color.White).padding(20).backgroundColor('#B0101D26')
         }
       }.layoutWeight(1).width('100%').borderRadius(24).clip(true)
@@ -119,7 +138,7 @@ struct TvHome {
         Progress({ value: this.frame.phase === 'completed' ? this.frame.totalSteps : this.frame.stepIndex + 1,
           total: this.frame.totalSteps, type: ProgressType.Linear }).layoutWeight(1).color('#A6DEC0')
         Text(this.stateLabel()).fontSize(18).fontColor('#D9EFE3')
-        if (['running', 'paused'].includes(this.frame.phase)) { Text(`Video: ${this.mediaState}`).fontSize(16).fontColor('#B3C7BB') }
+        if (['running', 'paused'].includes(this.frame.phase)) { Text(this.frame.activityMode === 'VIDEO' ? `Video: ${this.mediaState}` : this.frame.activityMode).fontSize(16).fontColor('#B3C7BB') }
         Text(`${Math.floor(this.frame.remaining / 60)}:${(this.frame.remaining % 60).toString().padStart(2, '0')}`)
           .fontSize(16).fontColor('#B3C7BB')
       }.width('100%')
@@ -132,4 +151,7 @@ struct TvHome {
       }
     }.width('100%').height('100%').padding({ left: 24, right: 24, top: 16, bottom: 16 }).backgroundColor('#101D26')
   }
+  build() { Stack() { if (!this.childActive) { this.legacyView() }
+      ChildWorld({ frame: this.frame, endpoint: this.endpoint, room: this.room, onActive: (active: boolean) => { this.childActive = active; } }) }.width('100%').height('100%') }
+
 }
