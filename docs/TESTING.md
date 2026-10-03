@@ -1,3 +1,37 @@
+# Parent Phone UI verification - 2026-10-04
+
+This iteration changed only Phone UI/navigation. Tablet sources, backend protocol, persisted schemas and balance/insight engines were not modified. Actual HDC UITest touch input, UI layouts, screenshots and live relay state were used on the already running API 21 Phone and Tablet emulators. This is executed emulator runtime verification, not a human usability study.
+
+Phone build: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -RunChecks` built successfully and passed **87** existing domain/work/game/world/service/transport checks. Backend tests were not rerun for this UI-only change; older 110-check evidence below belongs to the previous iteration. Subsequent UI corrections were rebuilt successfully. Final Phone artifact was installed and launched:
+
+`entry/build/default/outputs/default/entry-default-unsigned.hap`
+
+SHA256: `A373579F950BFD931524389AC42015D039D66E7818AFD43679577E0CC97A5388`.
+
+Unsigned development package; emulator installation succeeded. No signing or SDK changes. Tablet package/code was retained, not rebuilt for this task.
+
+| Test | Target / API | Steps | Expected | Actual | Status |
+|---|---|---|---|---|---|
+| Phone launch / clean Home | Phone / 21 | Install current HAP, launch, inspect layout/screenshot | Status and contextual CTA; no large legacy entry stack or technical panel | Header/status/compact choices/real insight/today; duplicate header and clipped preset text corrected | PASS |
+| Disconnected | Phone + Tablet / 21 | Force-stop Tablet; wait heartbeat expiry | Reconnect only, no session controls | Disconnected, unavailable Child Mode, Reconnect | PASS |
+| Reconnect | Both / 21 | Tap Reconnect; restart existing Tablet app | Real Connected state returns | Connected status restored from Tablet | PASS |
+| Connected, Child Mode inactive | Both / 21 | Parent > Exit Child Mode, then Home | Start Child Mode only | Child Mode Ready; Start Child Mode; no Pause/Resume/Next/End | PASS |
+| Child Mode active | Both / 21 | Home > Start Child Mode, await poll | Start Session only | Ready for today's adventure; Start Session | PASS |
+| Session running | Both / 21 | Start Session | Current mission/time/count; Pause/Next/End only | Actual Robot/Bridge missions and 0/5; no Start/Resume/Exit controls | PASS |
+| Session paused | Both / 21 | Pause, wait for Tablet state | Adventure paused; Resume/End only | Correct paused card and controls | PASS |
+| Resume / Next | Both / 21 | Resume, then Next | Return to running; Tablet advances mission | Pause/Next returned; Robot moved to Bridge, skip remained a skip | PASS |
+| Early End | Both / 21 | End Session before completion | Summary/new-session actions; no false completion wording | Final HAP says Session ended, 0/5; View Summary and Start New Session | PASS |
+| Natural completion | Both / 21 | Final HAP > Start New Session; actually play Bridge, Memory, child-confirmed movement, Garden, native video; Continue after each | Completed status, 5/5 and summary action | Session complete, 5/5, View Summary; no fake Next-to-complete test | PASS |
+| Summary / evidence | Phone / 21 | View Summary, Why am I seeing this? | Dedicated Insights and actual result evidence | Saved completion/skips, attempts/retries/duration/feedback visible | PASS |
+| Four navigation tabs | Phone / 21 | Tap Home, Activities, Insights, Parent | Dedicated content and selected tab | All four opened; old Progress route preserved separately | PASS |
+| Video and settings retained | Phone / 21 | Activities > Open Video Library; Parent > Parent Settings | Existing content/profile routes still open | Existing video/game page and saved Movement/Nature profile opened | PASS |
+| Runtime logs | Phone / 21 | Inspect current app-PID hilog after navigation | No uncaught app errors | Zero matches for Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled | PASS |
+| Human usability / small physical device / accessibility | Physical Phone | Adult usability, large fonts, screen reader | Readable/usable | Not performed | NOT RUN |
+
+Local evidence is intentionally ignored under artifacts/: parent-cleanup-home-final.jpeg, parent-cleanup-completed.jpeg; parent-cleanup-running/paused/next/ended/disconnected/reconnected/inactive/activities/insights/parent/evidence/settings layouts; daily mission layouts and parent-cleanup-runtime.txt. Test records are development inputs, not data from children. The 15-minute adventure is a maximum window; the genuine short missions completed sooner. One locked-emulator UITest attempt was interrupted, unlocked and repeated; it is not a PASS. Polling acknowledgement is asynchronous: wait for the actual state rather than assuming an immediate button tap changed Tablet state.
+
+---
+
 # Current Tablet-child / Phone-parent verification
 
 Development session: 2026-10-03; emulator local clocks displayed 2026-10-04. Current evidence supersedes older architectural descriptions below; historical tests are retained and are not reclassified as new world tests.

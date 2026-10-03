@@ -8,6 +8,15 @@ CompanionOS separates the child and parent experiences across HarmonyOS devices.
 
 CompanionOS uses an engaging 2D child world to generate meaningful, natural interaction data. These observable patterns help parents understand which activity formats, challenges and learning experiences engage their child most effectively.
 
+## Parent Phone navigation
+
+- **Home:** contextual Tablet status/actions, compact session choices, What We Noticed and today's actual activity time.
+- **Activities:** Play/Watch/Move/Create/Calm overview, existing Video Library and optional Phone activities.
+- **Insights:** Tablet outcome patterns, evidence and recent history; links to the separate Phone fallback insights and parent-confirmed journal.
+- **Parent:** age/interests/safety settings, memory signals, custom balance, Child Mode exit and technical information.
+
+See [Parent Phone UI](docs/PARENT_PHONE_UI.md) for state handling and retained routes.
+
 ## Current product
 
 - **Tablet:** original Pico companion, visual world hub, draggable Dino Bridge and Rocket, flashing Robot Memory, Animal Rescue, Star Collector, Copy Pico and Number Move, Creative Garden, Calm Sky and native storybook video. Children give optional feedback on the Tablet and can finish a normal adventure without using the Phone.
@@ -15,7 +24,7 @@ CompanionOS uses an engaging 2D child world to generate meaningful, natural inte
 - **Finite Daily Adventure:** Help Dino Get Home follows the balanced category plan. Completing every mission adds a persistent garden decoration once per day. Skipped/incomplete adventures do not grant that day's reward. Missed days never remove progress. The session window is a maximum foreground budget; short missions may finish earlier. Planned minutes are not measured engagement or exercise.
 - **Local first:** detailed object/sequence/mission events stay on Tablet. Phone receives compact states and outcomes, not a live feed of raw taps. Both journals use bounded, double-bank chunked HarmonyOS Preferences. Disconnecting the parent does not stop a safe current mission.
 - **Retained fallback:** original Penguin Walk, Animal Sounds, Butterfly Stretch, Phone-only Work Session, parent confirmation, local history, BehaviorInsightEngine, Adventure Journey, notifications and widget code remain. Tablet child-completed summaries and parent-confirmed Phone records are clearly separate journals.
-- **Video remains:** Built-in Video, Gemini AI, Huawei AI and My Video use the existing adult-reviewed provider/import flow. Home's Video library opens that flow. The world storybook plays a reviewed source already projected by the legacy receiver when available; otherwise it plays an original Built-in clip. Live cloud generation is not credential-verified. No provider key belongs in either HAP.
+- **Video remains:** Built-in Video, Gemini AI, Huawei AI and My Video use the existing adult-reviewed provider/import flow. Activities > Open Video Library opens that flow. The world storybook plays a reviewed source already projected by the legacy receiver when available; otherwise it plays an original Built-in clip. Live cloud generation is not credential-verified. No provider key belongs in either HAP.
 
 An adult remains nearby and available. Activities avoid jumping, climbing, sharp tools and outdoor tasks. Movement is child-confirmed, never sensor verified. There is no camera/microphone/location monitoring, clinical assessment, OS kiosk or device lock.
 
@@ -49,7 +58,7 @@ Keep the backend terminal open. With both API 21 emulators already running, a se
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1
 ```
 
-The helper preserves an existing healthy listener. After changing backend source, restart the owned `npm start` process so new routes take effect. Start Child Mode on Phone, then Start Tablet session. For independent exploration, the Tablet also has Open Pico world locally.
+The helper preserves an existing healthy listener. After changing backend source, restart the owned `npm start` process so new routes take effect. Start Child Mode on Phone, then Start Session. For independent exploration, the Tablet also has Open Pico world locally.
 
 In DevEco Studio, open this repository, select `entry` / product `default` / Phone API 21 and Run. For the child app, select `tventry` / product `tablet` / Tablet API 21 and Run. Do not convert the project or select a TV API 19 target. Start the Windows backend separately for two-device control; local Tablet exploration and Phone fallback do not require cloud credentials.
 

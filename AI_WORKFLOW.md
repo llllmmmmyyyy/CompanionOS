@@ -1,3 +1,13 @@
+# Parent Phone UI refinement - 2026-10-04
+
+Codex directly refactored only Phone presentation/navigation. The user asked to remove Home clutter, retain existing functionality, use Home / Activities / Insights / Parent and show only actions matching real Tablet state. No additional coding agents or art models were used.
+
+Generated changes: contextual UI state derivation from existing WorldStatus, compact cards, real-data summaries, dedicated content/insight/settings entry points and route callbacks. Existing transport, storage, balance/insight algorithms and all Tablet gameplay were left unchanged. Codex inspected diffs, built the native Phone HAP and drove actual HDC emulator touches; this is not human usability research.
+
+Review exposed a duplicate header, truncated preset labels and shell-encoding punctuation errors; these were corrected and rebuilt. Premature End originally read "Session complete"; the final UI distinguishes "Session ended" from all-missions-completed. One UITest attempt met the emulator lock screen and was interrupted, unlocked and repeated; it is not counted as a passing test. The initial sandboxed build lacked write access to the existing user Hvigor cache; the authorized build was rerun with that access.
+
+Existing product AI verification statuses are unchanged. No keys, live provider verification or child research were added. Remaining human checks: small physical phones, large fonts/screen readers and parental usability. See TESTING.md for executed runtime results.
+
 # Current AI-assisted refinement - 2026-10-03
 
 Tool: Codex coding assistant, directly editing the existing native project. No additional coding agent, external art model, child research, cloud credential or commercial asset was used in this iteration.

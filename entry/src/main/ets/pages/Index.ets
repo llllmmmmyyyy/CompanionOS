@@ -1042,14 +1042,7 @@ struct Index {
 
   @Builder
   homeContent() {
-    Column({ space: 16 }) {
-      ParentDashboard({ settings: this.data.settings })
-      Button('Parent Settings').width('100%').onClick(() => this.openSettings())
-      Button('Video library: Built-in, AI and My Video').width('100%').onClick(() => this.navigate('games'))
-      Button('Phone-only fallback activities').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.navigate('phone-fallback'))
-      Button('Phone fallback Activity Insights').width('100%').onClick(() => this.navigate('insights'))
-      Button('Progress and parent-confirmed records').width('100%').onClick(() => this.navigate('progress'))
-    }.width('100%')
+    ParentDashboard({ settings: this.data.settings, tab: this.screen, openPage: (page: string) => { if (page === 'settings') { this.openSettings(); } else { this.navigate(page); } } })
   }
 
   @Builder
@@ -1477,20 +1470,22 @@ struct Index {
     if (this.screen === 'tv') { this.tvContent() }
     else {
     Column() {
+      if (!['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
       Row({ space: 12 }) {
-        if (this.screen !== 'home') {
+        if (!['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
           Button('Back').fontSize(14).backgroundColor('#E0EEE5').fontColor('#203C31').enabled(!this.busy)
             .onClick(() => { this.onBackPress(); })
         }
-        Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31')
+        Text('CompanionOS').fontSize(16).fontWeight(FontWeight.Bold).fontColor('#203C31')
         Blank()
       }.width('100%').padding({ left: 16, right: 16, top: 10, bottom: 10 })
+      }
       Scroll(this.scroller) {
         Column({ space: 16 }) {
           if (this.notice !== '') {
             Text(this.notice).fontSize(15).fontColor('#6B451C').padding(16).width('100%').backgroundColor('#FFF0D9').borderRadius(14)
           }
-          if (this.screen === 'home') { this.homeContent() }
+          if (['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) { this.homeContent() }
           else if (this.screen === 'daily') { this.dailyContent() }
           else if (this.screen === 'games') { this.gamesContent() }
           else if (this.screen === 'journey') { this.journeyContent() }
@@ -1507,19 +1502,19 @@ struct Index {
           Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
         }.width('100%').padding({ left: 16, right: 16, top: 4 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
-      if (['home', 'activities', 'progress', 'settings'].includes(this.screen)) {
+      if (['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
         Row() {
-          ForEach(['home', 'activities', 'progress', 'settings'], (tab: string) => {
+          ForEach(['home', 'parent-activities', 'parent-insights', 'parent-controls'], (tab: string) => {
             Column({ space: 2 }) {
-              Image($rawfile(`${tab === 'home' ? 'CALM' : tab === 'activities' ? 'MOVE' : tab === 'progress' ? 'LEARN' : 'CREATE'}.svg`))
+              Image($rawfile(`${tab === 'home' ? 'CALM' : tab === 'parent-activities' ? 'MOVE' : tab === 'parent-insights' ? 'LEARN' : 'CREATE'}.svg`))
                 .width(26).height(24).objectFit(ImageFit.Contain)
-              Text(tab === 'settings' ? 'Parent' : tab.charAt(0).toUpperCase() + tab.slice(1)).fontSize(12)
+              Text(tab === 'parent-controls' ? 'Parent' : tab === 'parent-insights' ? 'Insights' : tab === 'parent-activities' ? 'Activities' : 'Home').fontSize(12)
                 .fontWeight(this.screen === tab ? FontWeight.Bold : FontWeight.Medium).fontColor(this.screen === tab ? '#1E583C' : '#415248')
             }.layoutWeight(1).height(52).justifyContent(FlexAlign.Center).borderRadius(14)
               .border({ width: this.screen === tab ? 1 : 0, color: '#9FC3AC' })
               .backgroundColor(this.screen === tab ? '#D6EBDC' : '#FFFFFF')
               .animation({ duration: 120, curve: Curve.EaseOut })
-              .accessibilityGroup(true).accessibilityText(`${tab === 'settings' ? 'Parent' : tab}. ${this.screen === tab ? 'Selected' : 'Tap to open'}`)
+              .accessibilityGroup(true).accessibilityText(`${tab === 'parent-controls' ? 'Parent' : tab === 'parent-insights' ? 'Insights' : tab === 'parent-activities' ? 'Activities' : 'Home'}. ${this.screen === tab ? 'Selected' : 'Tap to open'}`)
               .onClick(() => this.selectTab(tab))
           })
         }.width('100%').padding({ left: 10, right: 10, top: 4, bottom: 4 }).backgroundColor('#FFFFFF')
