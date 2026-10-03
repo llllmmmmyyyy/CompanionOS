@@ -1,4 +1,4 @@
-import { TvMessage, RelayStatus, parseMessage, validBackendUrl, backendRequest } from '@companion/protocol';
+import { TvMessage, RelayStatus, parseMessage, validBackendUrl, backendRequest, connectionError } from '@companion/protocol';
 import { Activity } from '../model/Companion';
 import { TvFrame, TvSessionTransport, TvEventListener } from './TvSessionTransport';
 
@@ -21,11 +21,13 @@ export class EmulatorTvTransport implements TvSessionTransport {
     this.endpoint = endpoint; this.room = room; this.listener = listener;
   }
   async connect(): Promise<void> {
+    console.info(`[CompanionPhoneTV] connection attempt endpoint=${this.endpoint} room=${this.room}`);
     if (!validBackendUrl(this.endpoint) || !/^[a-zA-Z0-9_-]{4,32}$/.test(this.room)) { throw new Error('Invalid backend or room'); }
     const state = JSON.parse(await backendRequest(`${this.endpoint}/tv/rooms/${this.room}/state`)) as RelayStatus;
     if (state.receiverConnected !== true) { throw new Error('TV receiver is not online'); }
     this.active = true; this.connected = true; this.generation++;
     this.listener('connected', new TvFrame());
+    console.info(`[CompanionPhoneTV] Connected endpoint=${this.endpoint} room=${this.room}`);
   }
   disconnect(): void {
     this.active = false; this.connected = false; this.generation++; this.commands = [];
@@ -69,7 +71,8 @@ export class EmulatorTvTransport implements TvSessionTransport {
         if (this.connected !== wasConnected) { this.listener(this.connected ? 'connected' : 'disconnected', command.frame); }
         if (result.videoStatus === 'VIDEO_FAILED') { this.listener('videoFallback', command.frame); }
       }
-    } catch {
+    } catch (error) {
+      console.error(`[CompanionPhoneTV] endpoint=${this.endpoint} room=${this.room} ${command.type}: ${connectionError(error as Error)}`);
       if (this.active && generation === this.generation && this.connected) {
         this.connected = false; this.listener('disconnected', command.frame);
       }

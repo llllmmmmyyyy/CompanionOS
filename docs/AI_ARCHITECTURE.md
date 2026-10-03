@@ -40,7 +40,7 @@ TV receives approved URLs plus Phone snapshots, never provider secrets. Clips lo
 | POST /tv/rooms/:room/feedback | VIDEO_READY/VIDEO_BUFFERING/VIDEO_FAILED feedback |
 | POST /tv/rooms/:room/disconnect | Explicit disconnect |
 
-Host is http://127.0.0.1:8787; HDC-forwarded emulator endpoint is http://127.0.0.1:18080. Clients also accept HTTPS bases; other public cleartext bases are rejected. Loopback relay has no production authentication. Cloud deployment requires authentication/TLS/rate limits.
+Windows listens on http://127.0.0.1:18080; BOTH emulator apps use the verified host-gateway endpoint http://10.0.2.2:18080, without HDC reverse forwarding. Cached video URLs use that same gateway. Clients also accept HTTPS bases; other public cleartext bases are rejected. Legacy explicit loopback parsing remains for old tunnel fixtures, but is not the active/default transport. The development relay has no production authentication. Cloud deployment requires authentication/TLS/rate limits.
 
 ### Example request
 

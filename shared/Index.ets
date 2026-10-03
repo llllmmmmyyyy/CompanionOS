@@ -1,4 +1,12 @@
+import { BusinessError } from '@kit.BasicServicesKit';
 export { backendRequest } from './Network';
+export const EMULATOR_RELAY_ENDPOINT: string = 'http://10.0.2.2:18080';
+export function connectionError(error: Error): string {
+  if (!error) { return 'Unknown network error'; }
+  const code = (error as BusinessError).code;
+  const message = typeof error.message === 'string' ? error.message.slice(0, 180) : 'Unknown network error';
+  return typeof code === 'number' ? `Error ${code}: ${message}` : message;
+}
 export enum ActivityContentSource {
   GEMINI_AI = 'GEMINI_AI', HUAWEI_AI = 'HUAWEI_AI', BUILT_IN = 'BUILT_IN', USER_VIDEO = 'USER_VIDEO'
 }
@@ -42,7 +50,7 @@ export class TvMessage {
 
 export function validMediaUrl(url: string): boolean {
   return url === '' || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[a-zA-Z0-9/_?.=&%-]+$/.test(url) ||
-    /^http:\/\/127\.0\.0\.1:18080\/videos\/[a-f0-9]+$/.test(url);
+    /^http:\/\/(10\.0\.2\.2|127\.0\.0\.1):18080\/videos\/[a-f0-9]+$/.test(url);
 }
 
 export function parseMessage(raw: string): TvMessage | undefined {
@@ -79,5 +87,5 @@ export class RelayStatus {
 }
 
 export function validBackendUrl(url: string): boolean {
-  return url === 'http://127.0.0.1:18080' || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]{1,5})?$/.test(url);
+  return url === EMULATOR_RELAY_ENDPOINT || url === 'http://127.0.0.1:18080' || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]{1,5})?$/.test(url);
 }

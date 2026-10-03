@@ -1,5 +1,11 @@
 # AI development workflow
 
+## Emulator relay communication fix — 2026-10-03
+
+The user requested diagnosis and an actual Phone/TV connection fix without unrelated feature changes. The coding assistant inspected existing HTTP relay clients, Windows listeners and both running emulator routes. It found no 18080 listener and no reverse tunnels, replaced guest-loopback defaults with the actually verified 10.0.2.2 gateway, standardized the backend on port 18080, added visible connection/error diagnostics and updated the startup helper. No additional agents, generated assets or live AI-provider calls were used.
+
+Both native apps were built and installed. Actual device checks covered connection, player/control changes, relay outage and recovery; the startup command was executed. Host checks passed separately (40 ArkTS, 18 backend). See docs/TESTING.md for bounded evidence and remaining physical-device/signing limitations. No keys or local artifacts are committed.
+
 ## Multi-provider content extension — 2026-10-03
 
 The user asked the same coding assistant to preserve Gemini/videos and add Huawei MaaS, original Built-in and system-imported My Video within the existing session/history/TV architecture. No additional agents or image generation were used. The assistant directly edited the repository, consulted installed API 21 declarations and official Huawei MaaS/OpenHarmony media-tool documents, built unsigned Phone/TV HAPs and executed host/device checks. Work from the preceding integrated TV/backend stage was preserved.

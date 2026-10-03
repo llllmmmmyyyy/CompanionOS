@@ -28,29 +28,23 @@ try {
   } finally { Pop-Location }
   New-Item -ItemType Directory artifacts -Force | Out-Null
   $healthy = $false
-  try { $healthy = (Invoke-RestMethod 'http://127.0.0.1:8787/health' -TimeoutSec 2).protocolVersion -eq 1 } catch {}
+  try { $healthy = (Invoke-RestMethod 'http://127.0.0.1:18080/health' -TimeoutSec 2).protocolVersion -eq 1 } catch {}
   if (-not $healthy) {
-    $backendProcess = Start-Process -FilePath $node -ArgumentList '--env-file-if-exists=.env', 'dist/server.js' -WorkingDirectory (Join-Path $projectRoot 'backend') -WindowStyle Hidden -PassThru |
-      Select-Object -First 1
+    if (Get-NetTCPConnection -LocalPort 18080 -State Listen -ErrorAction SilentlyContinue) { throw 'Windows port 18080 is occupied by a service that did not return CompanionOS health. Leave it untouched and inspect the listener.' }
+    $taskPortBefore = $env:PORT; $taskHostBefore = $env:HOST
+    try {
+      $env:PORT = '18080'; $env:HOST = '127.0.0.1'
+      $backendProcess = Start-Process -FilePath $node -ArgumentList '--env-file-if-exists=.env', 'dist/server.js' -WorkingDirectory (Join-Path $projectRoot 'backend') -WindowStyle Hidden -PassThru |
+        Select-Object -First 1
+    } finally { $env:PORT = $taskPortBefore; $env:HOST = $taskHostBefore }
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
       Start-Sleep -Milliseconds 250
-      try { $healthy = (Invoke-RestMethod 'http://127.0.0.1:8787/health' -TimeoutSec 1).protocolVersion -eq 1 } catch {}
+      try { $healthy = (Invoke-RestMethod 'http://127.0.0.1:18080/health' -TimeoutSec 1).protocolVersion -eq 1 } catch {}
       if ($healthy) { break }
     }
     if (-not $healthy) { throw "Backend did not start. Inspect the console with npm start in backend. Process $($backendProcess.Id)." }
   }
-  foreach ($device in @($Phone, $Tv)) {
-    $tasks = (& $hdc -t $device fport ls) -join "`n"
-    if ($tasks -match ([regex]::Escape($device) + '\s+tcp:18080 tcp:8787\s+\[Reverse\]')) {
-      Write-Output "Reusing reverse forward for $device"
-    } else {
-      $forwardResult = (& $hdc -t $device rport tcp:18080 tcp:8787) -join "`n"
-      if ($forwardResult -match 'TCP Port listen failed at 18080') {
-        # HDC can omit the second device's same-port task from its global list even while its listener works.
-        Write-Output "Port 18080 is already listening on $device. Reusing it; app connection must verify the route."
-      } elseif ($forwardResult -notmatch 'Forwardport result:OK') { throw "Port forwarding failed for $device`: $forwardResult" }
-    }
-  }
+  Write-Output 'Windows relay is listening on port 18080. Both guests use http://10.0.2.2:18080, room family-demo. No HDC reverse tunnel is required.'
   $tvHap = Join-Path $projectRoot 'tventry\build\tv\outputs\default\tventry-default-unsigned.hap'
   $phoneHap = Join-Path $projectRoot 'entry\build\default\outputs\default\entry-default-unsigned.hap'
   foreach ($hap in @($tvHap, $phoneHap)) { if (-not (Test-Path -LiteralPath $hap)) { throw "HAP missing: $hap. Run again with -Build." } }
@@ -61,5 +55,5 @@ try {
   $tvResult = & $hdc -t $Tv shell aa start -a TvAbility -b com.example.companionos
   $phoneResult = & $hdc -t $Phone shell aa start -a EntryAbility -b com.example.companionos
   if (($tvResult -join "`n") -notmatch 'start ability successfully' -or ($phoneResult -join "`n") -notmatch 'start ability successfully') { throw "Launch failed: $tvResult $phoneResult" }
-  Write-Output 'Both applications launched. Phone: Play on TV > Connect to Emulator TV. Backend: http://127.0.0.1:18080, room: family-demo.'
+  Write-Output 'Both applications launched; this is not yet a connection test. TV: Connect. Phone: Play on TV > Connect to Emulator TV. Endpoint http://10.0.2.2:18080, room family-demo.'
 } finally { Pop-Location }

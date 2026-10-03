@@ -1,4 +1,4 @@
-import { TvMessage, contentLabel } from '@companion/protocol';
+import { TvMessage, contentLabel, EMULATOR_RELAY_ENDPOINT } from '@companion/protocol';
 import { TvReceiver } from '../services/TvReceiver';
 
 @Entry
@@ -6,7 +6,8 @@ import { TvReceiver } from '../services/TvReceiver';
 struct TvHome {
   @State connection: string = 'OFFLINE';
   @State frame: TvMessage = new TvMessage();
-  @State endpoint: string = 'http://127.0.0.1:18080';
+  @State endpoint: string = EMULATOR_RELAY_ENDPOINT;
+  @State connectionDetail: string = 'Not connected';
   @State room: string = 'family-demo';
   @State mediaState: string = 'WAITING';
   @State failedUrl: string = '__none__';
@@ -23,8 +24,10 @@ struct TvHome {
   }
   private connect(): void {
     this.receiver?.stop();
-    this.receiver = new TvReceiver(this.endpoint.trim(), this.room.trim(), (status: string, message: TvMessage) => {
+    this.connection = 'CONNECTING'; this.connectionDetail = 'Connecting...';
+    this.receiver = new TvReceiver(this.endpoint.trim(), this.room.trim(), (status: string, message: TvMessage, detail: string) => {
       this.connection = status;
+      this.connectionDetail = detail;
       if (status === 'CONNECTED') { this.apply(message); }
       else { this.stopVideo(); this.appliedPhase = ''; }
     });
@@ -73,6 +76,8 @@ struct TvHome {
         Text(this.frame.title).fontSize(22).fontColor('#D9EFE3').layoutWeight(1)
         Text(this.connection).fontSize(18).fontColor('#BCE5D0')
       }.width('100%')
+      Text(`${this.connectionDetail} • Endpoint: ${this.endpoint} • Room: ${this.room}`)
+        .fontSize(17).fontColor('#D9EFE3').width('100%').maxLines(2)
       Stack({ alignContent: Alignment.Center }) {
         if (this.frame.content.uri !== this.failedUrl &&
           ['running', 'paused'].includes(this.frame.phase)) {
@@ -116,11 +121,11 @@ struct TvHome {
         Text(`${Math.floor(this.frame.remaining / 60)}:${(this.frame.remaining % 60).toString().padStart(2, '0')}`)
           .fontSize(16).fontColor('#B3C7BB')
       }.width('100%')
-      if (this.frame.phase === 'idle' || this.connection === 'OFFLINE' || this.connection === 'ERROR') {
+      if (this.frame.phase === 'idle' || ['OFFLINE', 'ERROR', 'DISCONNECTED'].includes(this.connection)) {
         Row({ space: 12 }) {
           TextInput({ text: this.endpoint, placeholder: 'Backend URL' }).layoutWeight(2).onChange((value: string) => { this.endpoint = value; })
           TextInput({ text: this.room, placeholder: 'Room' }).layoutWeight(1).onChange((value: string) => { this.room = value; })
-          Button('Connect').onClick(() => this.connect())
+          Button('Connect').enabled(this.connection !== 'CONNECTING').onClick(() => this.connect())
         }.width('100%')
       }
     }.width('100%').height('100%').padding({ left: 40, right: 40, top: 28, bottom: 28 }).backgroundColor('#101D26')

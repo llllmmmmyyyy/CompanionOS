@@ -74,6 +74,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   const huaweiModel = process.env.HUAWEI_MAAS_MODEL || ''; const huaweiVideo = process.env.HUAWEI_MAAS_VIDEO_MODEL || 'Wan2.2-T2V-A14B';
   const huawei = new ActivityJobs(resolve('data'), huaweiClient && huaweiModel ? new ProviderAdapter(new HuaweiMaaSActivityProvider(huaweiClient, huaweiModel), new HuaweiMaaSVideoProvider(huaweiClient, huaweiVideo)) : undefined,
     `HUAWEI:${huaweiVideo}`, process.env.REQUIRE_VIDEO_REVIEW !== 'false', 'HUAWEI');
-  const server = await app(jobs, new Relay(), huawei); const host = process.env.HOST || '127.0.0.1'; const port = Number(process.env.PORT || 8787);
+  const server = await app(jobs, new Relay(), huawei); const host = process.env.HOST || '127.0.0.1'; const port = Number(process.env.PORT || 18080);
   server.listen(port, host, () => console.log(`CompanionOS backend http://${host}:${port}; provider ${key ? 'configured (not yet verified)' : 'unconfigured; safe fallback'}`));
 }

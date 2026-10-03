@@ -11,7 +11,7 @@ import { LocalDemoTvTransport, TvSessionTransport, TvFrame } from '../services/T
 import { NearbyTv } from '../services/NearbyTv';
 import { EmulatorTvTransport } from '../services/EmulatorTvTransport';
 import { BackendActivityService, backendActivity } from '../services/BackendActivityService';
-import { ActivityContentSource, VideoSource, contentLabel } from '@companion/protocol';
+import { ActivityContentSource, VideoSource, contentLabel, EMULATOR_RELAY_ENDPOINT, connectionError } from '@companion/protocol';
 import { UserVideo, UserVideoStore } from '../services/UserVideoStore';
 
 @Entry
@@ -23,7 +23,7 @@ struct Index {
   @State importingVideo: boolean = false;
   private videos: UserVideoStore | undefined = undefined;
   private phoneVideoController: VideoController = new VideoController();
-  @State backendUrl: string = 'http://127.0.0.1:18080';
+  @State backendUrl: string = EMULATOR_RELAY_ENDPOINT;
   @State roomCode: string = 'family-demo';
   @State transportMode: string = 'demo';
   @State generationCategory: string = 'MOVE';
@@ -169,9 +169,10 @@ struct Index {
     try {
       await transport.connect(); this.transport = transport; this.syncTv();
       this.notice = 'Connected to Emulator TV. Your phone controls the separate TV application.';
-    } catch {
-      this.tvConnection = 'Connection failed';
-      this.notice = 'Backend or TV receiver unavailable. Check endpoint, room and HDC port forwarding. Demo TV and phone activities remain available.';
+    } catch (error) {
+      this.tvConnection = 'Disconnected';
+      this.notice = `Connection failed: ${connectionError(error as Error)}. Check the Windows relay and matching room.`;
+      console.error(`[CompanionPhoneTV] endpoint=${this.backendUrl} room=${this.roomCode} ${this.notice}`);
     }
   }
 

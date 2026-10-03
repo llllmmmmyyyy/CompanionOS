@@ -10,8 +10,12 @@ export async function backendRequest(url: string, method: string = 'GET', data: 
       maxLimit: 32768, usingCache: false
     });
     if (response.responseCode < 200 || response.responseCode >= 300 || typeof response.result !== 'string') {
-      throw new Error('Backend request failed');
+      throw new Error(`HTTP ${response.responseCode}: relay request failed`);
     }
     return response.result;
+  } catch (error) {
+    const failure = error as Error;
+    console.error(`[CompanionRelay] ${method} ${url}: ${failure.message}`);
+    throw failure;
   } finally { request.destroy(); }
 }

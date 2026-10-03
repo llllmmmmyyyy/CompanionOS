@@ -1,8 +1,31 @@
 # Testing evidence
 
+## Direct emulator relay routing — 2026-10-03
+
+This section describes the current network fix; later sections retain historical evidence.
+
+Diagnosis on the running Windows machine found no listener on port 18080. An older Node backend was listening on 127.0.0.1:8787, and both HDC forwarding lists were empty. The HTTP relay is the CompanionOS backend (`backend/dist/server.js`), not a Phone TCP server. Guest loopback therefore reached neither Windows nor the other emulator. Both guests report eth0 10.0.2.15 with gateway 10.0.2.2; those identical guest addresses belong to separate virtual networks.
+
+The corrected topology is Phone and TV → `http://10.0.2.2:18080` → Windows Node relay bound to `127.0.0.1:18080`, using room `family-demo`. Windows loopback binding is intentional; guest loopback is not used. No firewall modification or HDC reverse tunnel was required.
+
+| Actual check | Result |
+|---|---|
+| Final unsigned builds | Passed: Phone API 21 and TV minimum API 19 / compiler API 21. Both HAPs installed on the existing running emulators. |
+| Host tests | Passed: 40 ArkTS checks and 18 backend tests. These are separate from device evidence. |
+| Startup helper | Passed: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1` compiled and started the stopped Windows backend, installed and launched both apps. |
+| TV Connect, then Phone Connect to Emulator TV | Passed: TV Connecting → waiting for Phone → CONNECTED; Phone Connection: Connected. Actual UI shows gateway endpoint and family-demo. Both HDC forwarding lists remained empty. |
+| START / PAUSE / RESUME / NEXT / CANCEL | Passed on both emulators through the direct gateway route: native TV Video PLAYING → PAUSED → PLAYING; step advances to 2/3; confirmed cancellation produces CANCELLED and leaves completed count unchanged. |
+| Relay unavailable / recovery | Passed: deliberately stopping the owned 18080 backend produced visible `Connection failed: Error 2300028: Timeout was reached`; Connect remained available. Restarting the backend and connecting both clients restored CONNECTED. |
+| Logs | Actual TV logs contain connection attempt, endpoint, room, CONNECTING, WAITING and CONNECTED. Network failures include native error codes in the UI and request/status diagnostics. |
+| Physical TV / other emulator network configurations | Not verified. 10.0.2.2 was verified on these two running DevEco emulators, not assumed universal. |
+
+Final HAP paths: `entry/build/default/outputs/default/entry-default-unsigned.hap` (SHA-256 `9D12C3E4D1B93A6586B51F8B82B51C33B694C18CEA567286911A2A24D6DA97C8`) and `tventry/build/tv/outputs/default/tventry-default-unsigned.hap` (SHA-256 `D097AAF69519ECF84192FA0C232F386B577C38B33A32522766890AD0D5B90773`). Signing remains unconfigured. An intermediate ArkTS misplaced-import error was fixed before these successful builds.
+
+Ignored local evidence includes `artifacts/relay-final-*.json`, `artifacts/relay-tv-stopped.json`, `artifacts/relay-final-tv-hilog.txt` and `artifacts/network-final-*-build.txt`. This targeted change does not revalidate unrelated AI providers, physical devices or release signing.
+
 ## Integrated backend, TV and content sources — 2026-10-03
 
-This is the current version. Sections below retain evidence from earlier versions and do not describe the latest implementation.
+This historical integrated stage used HDC reverse routing. The direct gateway correction and current build hashes are documented above.
 
 **Build:** Phone API 21 and TV minimum API 19 / compiler API 21 unsigned HAPs built with installed DevEco 6.0.1.251 / SDK 6.0.1.112. Phone SHA-256 `0EEF8A476859D17A3195232031B75F892023FF6FD03F59C5A63755E72E5FBC51`; TV SHA-256 `55B348D3F56CE0BC24C8CAAE8E0CC29F5D38E90E1BDBFB35759FC889FF661F87`. Actual paths: `entry/build/default/outputs/default/entry-default-unsigned.hap` and `tventry/build/tv/outputs/default/tventry-default-unsigned.hap`. Signing remains unconfigured; both development emulators accepted installation and launched the respective abilities. This does not verify physical installation or a signed release.
 

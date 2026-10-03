@@ -35,7 +35,7 @@ Phone product `default` remains minimum/target API 21. Separate product `tv` is 
 
 Backend requires Node.js 22+ (24.21.0 was available here). In Windows PowerShell inside `backend`, run `npm.cmd ci`, `npm.cmd run build`, then `npm.cmd start`. No key is needed for fallback. To enable providers, copy `.env.example` to ignored `.env`. Set `GEMINI_API_KEY` for Gemini/Veo, or `HUAWEI_MAAS_API_KEY` plus the exact enabled `HUAWEI_MAAS_MODEL` from your MaaS console. Huawei video uses the documented Wan text-to-video adapter; configure the enabled video model and explicit trusted storage hosts in `HUAWEI_VIDEO_DOWNLOAD_HOSTS`. No key goes into either app. Account/model access remains unverified. Generated footage is review-gated: inspect MP4 under backend/data/videos, then `npm.cmd run review -- <videoId>` to approve.
 
-The helper automates builds, backend start, port forwarding, installation and launch: run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1 -Build` from this repository. Policy changes apply only to that process. Emulators must already be running; override -Phone / -Tv if target IDs differ. No need to recreate running emulators.
+The helper automates builds, Windows backend start on port 18080, installation and launch: run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1 -Build` from this repository. Both apps connect directly to `http://10.0.2.2:18080` using emulator host-gateway networking; no HDC port forwarding is required. Policy changes apply only to that process. Emulators must already be running; override -Phone / -Tv if target IDs differ.
 
 Exact demo sequence (the helper performs setup steps):
 
@@ -46,9 +46,9 @@ Exact demo sequence (the helper performs setup steps):
 5. Launch `com.example.companionos` / `TvAbility`; Waiting for phone appears.
 6. Install Phone HAP: `entry/build/default/outputs/default/entry-default-unsigned.hap`.
 7. Launch `com.example.companionos` / `EntryAbility`.
-8. For each device forward `rport tcp:18080 tcp:8787` through HDC.
+8. TV: verify `http://10.0.2.2:18080` / `family-demo`, then press Connect. Connected to Windows relay / Waiting for Phone means the server is reachable.
 9. Phone: Play on TV → Connect to Emulator TV.
-10. Both apps use `http://127.0.0.1:18080`, room `family-demo`; host listens on `127.0.0.1:8787`.
+10. Both apps use `http://10.0.2.2:18080`, room `family-demo`; the Node server listens on Windows loopback port 18080. TV shows CONNECTED once Phone posts its heartbeat. Emulator loopback is not the host; the previous tunnel-only configuration is obsolete.
 11. Use Edit age, interests and duration to save the desired age/interests/3–10 minutes.
 12. Return to Play on TV, choose category and enter an educational goal.
 13. Tap Create Adventure and observe Planning / Generating video progress.

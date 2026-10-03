@@ -12,7 +12,7 @@ export function validMessage(m: unknown): m is TvMessage {
     Number.isInteger(v.stepIndex) && v.stepIndex >= 0 && v.stepIndex < v.totalSteps && Number.isInteger(v.remaining) && v.remaining >= 0 && v.remaining <= 600 &&
     ['idle', 'running', 'paused', 'ready', 'completed', 'cancelled'].includes(v.phase) &&
     ['FALLBACK', 'LOCAL', 'REMOTE_CACHED', 'REMOTE_STREAM'].includes(v.videoSource) && typeof v.videoUrl === 'string' && v.videoUrl.length <= 1000 &&
-    (v.videoUrl === '' || /^http:\/\/127\.0\.0\.1:18080\/videos\/[a-f0-9]+$/.test(v.videoUrl) || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[a-zA-Z0-9/_?.=&%-]+$/.test(v.videoUrl));
+    (v.videoUrl === '' || /^http:\/\/(10\.0\.2\.2|127\.0\.0\.1):18080\/videos\/[a-f0-9]+$/.test(v.videoUrl) || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[a-zA-Z0-9/_?.=&%-]+$/.test(v.videoUrl));
 }
 export function waitingMessage(): TvMessage { return { protocolVersion: 1, type: 'STATE_SYNC', sessionId: '', activityId: '', title: 'CompanionOS TV',
   instruction: 'Waiting for phone...', stepIndex: 0, totalSteps: 1, videoUrl: '', videoSource: 'FALLBACK', visual: 'Together', phase: 'idle', remaining: 0 }; }

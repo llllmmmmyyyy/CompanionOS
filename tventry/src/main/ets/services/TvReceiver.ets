@@ -1,6 +1,6 @@
-import { TvMessage, RelayStatus, parseMessage, backendRequest, validBackendUrl } from '@companion/protocol';
+import { TvMessage, RelayStatus, parseMessage, backendRequest, validBackendUrl, connectionError } from '@companion/protocol';
 
-export type ReceiverListener = (status: string, message: TvMessage) => void;
+export type ReceiverListener = (status: string, message: TvMessage, detail: string) => void;
 export class TvReceiver {
   private timer: number = -1;
   private pending: boolean = false;
@@ -8,6 +8,8 @@ export class TvReceiver {
   private last: TvMessage = new TvMessage();
   private revision: number = -1;
   private everConnected: boolean = false;
+  private lastStatus: string = '';
+  private lastDetail: string = '';
   private endpoint: string;
   private room: string;
   private listener: ReceiverListener;
@@ -15,16 +17,26 @@ export class TvReceiver {
     this.endpoint = endpoint; this.room = room; this.listener = listener;
   }
   start(): void {
+    console.info(`[CompanionTV] connection attempt endpoint=${this.endpoint} room=${this.room}`);
     if (!validBackendUrl(this.endpoint) || !/^[a-zA-Z0-9_-]{4,32}$/.test(this.room)) {
-      this.listener('ERROR', this.last); return;
+      this.report('ERROR', 'Invalid endpoint or room. Use http://10.0.2.2:18080 and family-demo.'); return;
     }
-    this.active = true; this.listener('CONNECTING', this.last);
+    this.active = true; this.report('CONNECTING', 'Connecting...');
     this.timer = setInterval(() => { this.poll(); }, 500); this.poll();
   }
   stop(): void { this.active = false; clearInterval(this.timer); }
+  private report(status: string, detail: string): void {
+    if (status !== this.lastStatus || detail !== this.lastDetail) {
+      const log = `[CompanionTV] endpoint=${this.endpoint} room=${this.room} ${status}: ${detail}`;
+      if (status === 'ERROR' || status === 'OFFLINE' || status === 'DISCONNECTED') { console.error(log); }
+      else { console.info(log); }
+      this.lastStatus = status; this.lastDetail = detail;
+    }
+    this.listener(status, this.last, detail);
+  }
   async feedback(status: string): Promise<void> {
     try { await backendRequest(`${this.endpoint}/tv/rooms/${this.room}/feedback`, 'POST', JSON.stringify({ status })); }
-    catch { /* Video errors never prevent phone completion. */ }
+    catch (error) { console.error(`[CompanionTV] feedback endpoint=${this.endpoint} room=${this.room}: ${connectionError(error as Error)}`); }
   }
   private async poll(): Promise<void> {
     if (!this.active || this.pending) { return; } this.pending = true;
@@ -36,10 +48,13 @@ export class TvReceiver {
       if (result.connected) {
         this.everConnected = true;
         if (result.revision !== this.revision) { this.last = message; this.revision = result.revision; }
-        this.listener('CONNECTED', this.last);
-      } else { this.listener(this.everConnected ? 'DISCONNECTED' : 'WAITING', this.last); }
-    } catch {
-      if (this.active) { this.listener(this.everConnected ? 'DISCONNECTED' : 'OFFLINE', this.last); }
+        this.report('CONNECTED', 'Connected • Phone online');
+      } else {
+        this.report(this.everConnected ? 'DISCONNECTED' : 'WAITING',
+          this.everConnected ? 'Relay connected; Phone heartbeat expired. Reconnect on Phone.' : 'Connected to Windows relay • Waiting for Phone');
+      }
+    } catch (error) {
+      if (this.active) { this.report(this.everConnected ? 'DISCONNECTED' : 'OFFLINE', `Connection failed: ${connectionError(error as Error)}`); }
     } finally { this.pending = false; }
   }
 }
