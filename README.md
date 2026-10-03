@@ -2,77 +2,171 @@
 
 Small activities. Meaningful family moments.
 
-**Help parents understand their child better through natural interaction behavior.**
+## Problem
 
-CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet is the child's interactive learning world, while the Phone acts as the parent's control and insight dashboard.
+Parents need a clear way to guide bounded screen-based activities and understand observable play patterns, without surveillance or diagnostic labels. Children need interaction, movement, creativity and a calm ending rather than an endless video feed. An adult remains nearby and available; this is not a replacement for supervision.
 
-CompanionOS uses an engaging 2D child world to generate meaningful, natural interaction data. These observable patterns help parents understand which activity formats, challenges and learning experiences engage their child most effectively.
+## Solution
 
-## Parent Phone navigation
+CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet provides an engaging interactive world for the child, while the Phone acts as the parent's control and insight dashboard.
 
-- **Home:** contextual Tablet status/actions, compact session choices, What We Noticed and today's actual activity time.
-- **Activities:** Play/Watch/Move/Create/Calm overview, existing Video Library and optional Phone activities.
-- **Insights:** Tablet outcome patterns, evidence and recent history; links to the separate Phone fallback insights and parent-confirmed journal.
-- **Parent:** age/interests/safety settings, memory signals, custom balance, Child Mode exit and technical information.
+**The tablet engages the child. The phone helps the parent understand the child.** Insights describe recorded activities and explicit feedback, not ability, IQ, attention measurement or diagnosis. Educational effectiveness has not been studied.
 
-See [Parent Phone UI](docs/PARENT_PHONE_UI.md) for state handling and retained routes.
+## Product Architecture
 
-## Current product
+**PHONE = Parent Control + Insights**: Home, Activities, Insights and Parent; contextual remote controls, saved preferences, history and evidence.
 
-- **Tablet:** original Pico companion, visual world hub, draggable Dino Bridge and Rocket, flashing Robot Memory, Animal Rescue, Star Collector, Copy Pico and Number Move, Creative Garden, Calm Sky and native storybook video. Children give optional feedback on the Tablet and can finish a normal adventure without using the Phone.
-- **Phone:** live Tablet status, in-app Child Mode entry/exit, start/pause/resume/next/end controls, 15/30/45/60-minute configuration, balance presets, 2-5 memory signals, locally saved Tablet history, interaction styles, descriptive Parent Insights and evidence.
-- **Finite Daily Adventure:** Help Dino Get Home follows the balanced category plan. Completing every mission adds a persistent garden decoration once per day. Skipped/incomplete adventures do not grant that day's reward. Missed days never remove progress. The session window is a maximum foreground budget; short missions may finish earlier. Planned minutes are not measured engagement or exercise.
-- **Local first:** detailed object/sequence/mission events stay on Tablet. Phone receives compact states and outcomes, not a live feed of raw taps. Both journals use bounded, double-bank chunked HarmonyOS Preferences. Disconnecting the parent does not stop a safe current mission.
-- **Retained fallback:** original Penguin Walk, Animal Sounds, Butterfly Stretch, Phone-only Work Session, parent confirmation, local history, BehaviorInsightEngine, Adventure Journey, notifications and widget code remain. Tablet child-completed summaries and parent-confirmed Phone records are clearly separate journals.
-- **Video remains:** Built-in Video, Gemini AI, Huawei AI and My Video use the existing adult-reviewed provider/import flow. Activities > Open Video Library opens that flow. The world storybook plays a reviewed source already projected by the legacy receiver when available; otherwise it plays an original Built-in clip. Live cloud generation is not credential-verified. No provider key belongs in either HAP.
-
-An adult remains nearby and available. Activities avoid jumping, climbing, sharp tools and outdoor tasks. Movement is child-confirmed, never sensor verified. There is no camera/microphone/location monitoring, clinical assessment, OS kiosk or device lock.
-
-## Environment and actual transport
-
-Native Stage ArkTS / ArkUI V1; existing configuration retained. Installed DevEco Studio 6.0.1.251, SDK 6.0.1.112, compatible/target API 21. `entry` uses product `default` / Phone; `tventry` uses product `tablet` / Tablet; `shared` is the reusable HAR. The old `Tv` file names are retained for compatibility.
-
-Both emulator guests use **http://10.0.2.2:18080**, room **family-demo**. Windows runs the CompanionOS Node backend/relay on loopback port 18080. Guest 127.0.0.1 points to that guest, so it cannot connect two emulators. This is an HTTP polling development relay, not production HarmonyOS distributed-device transport. Raw child event logs are not sent to cloud AI.
+**TABLET = Child Interactive World**: original Pico character, native 2D scenes, locally owned gameplay, video, movement and feedback.
 
 ```text
-Phone parent dashboard ----> Windows Node relay :18080 <---- Tablet child world
-       compact journal          compact sync only             raw local journal
+Phone parent controls <-> Windows Node demo relay <-> Tablet child world
+compact local journal       compact sync only         detailed local journal
 ```
 
-## Build and run on Windows
+Detailed events remain Tablet-local. The relay is a development/demo Phone-Tablet transport, not production HarmonyOS distributed-device technology. See [architecture](docs/ARCHITECTURE.md) and [Phone navigation](docs/PARENT_PHONE_UI.md).
 
-The backend requires Node.js 22+ (tested with 24.21). The build script discovers DevEco's bundled Node/Java/Hvigor/SDK without changing project SDK or signing settings.
+## Core Experience
+
+- **WATCH:** native built-in storybook video; optional adult-reviewed AI/imported content.
+- **PLAY:** draggable Dino Bridge/Rocket, Robot Memory, Animal Rescue and Star Collector.
+- **MOVE:** Copy Pico and Number Move; gentle child-confirmed movement, no camera verification.
+- **CREATE:** freely place colored flowers in Creative Garden.
+- **CALM:** comfortable cloud interaction and a bounded ending.
+
+Daily Adventure uses protected learning/movement/creative/calm allocations. Short missions may finish before the maximum 15/30/45/60-minute foreground window. Completing all missions rewards a persistent daily garden gift; skipping does not fake completion. No endless auto-start, purchases or streak punishment.
+
+## Requirements
+
+- Windows 64-bit, PowerShell, Git.
+- DevEco Studio **6.0.1.251** and installed HarmonyOS SDK **6.0.1.112 / API 21** (tested configuration).
+- Both products declare minimum compatible and target **6.0.1(21)**, runtimeOS **HarmonyOS**. `compileSdkVersion` is not explicitly set; the effective build uses the installed API 21 SDK. This is not an API 20 compatibility claim.
+- DevEco's bundled Node/Java/Hvigor/OHPM build tools; build helper discovers installation via Windows registry.
+- System **Node.js >=22**, npm for the relay (tested Node 24.21.0). DevEco's older bundled Node is for native builds, not the backend.
+- Phone and Tablet **API 21+** emulators; tested Mate70Pro and MatePadPro11 API 21. Untested higher versions are not certified.
+- Python is **not required** to build/run; it was used during development. Optional video re-authoring needs local FFmpeg; committed original assets are sufficient for normal builds.
+
+No cloud credentials, Conductor or DevEco CLI installation is required for the existing build scripts. The official newer starter setup is a recommendation; this existing compatible toolchain is retained.
+
+## Repository Structure
+
+| Path | Purpose |
+|---|---|
+| entry/ | Native Phone app, product default |
+| tventry/ | Native Tablet app, product tablet; legacy Tv filenames retained |
+| shared/ | Local native HAR, pure gameplay/protocol/HTTP components |
+| backend/ | Node provider adapters, review/import routes and Windows demo relay |
+| scripts/ | Native builds, actual-source host tests, deployment and hygiene scan |
+| docs/ | Architecture, evidence, privacy, demo and submission audit |
+| AI_WORKFLOW.md | Actual AI-assisted development disclosure |
+
+## Setup
+
+1. Clone this repository and open its root in DevEco Studio. Complete initial setup, install SDK API 21 through SDK Manager and allow project dependency synchronization. Keep the existing products/configuration.
+2. For command-line dependency restoration, run the following from the repository root. The tool path below is the default Windows installation; if you installed elsewhere, set `$studio` to that installation directory. The build helper itself discovers that path automatically.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -RunChecks
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module tventry
-cd backend
-npm ci
-npm test
-npm start
+$studio = Join-Path $env:ProgramFiles 'Huawei\DevEco Studio'
+& "$studio\tools\ohpm\bin\ohpm.bat" install --all
 ```
 
-Keep the backend terminal open. With both API 21 emulators already running, a separate terminal at the project root can install and launch the built packages:
+3. Install backend dependencies using system Node >=22:
+
+```powershell
+cd backend
+npm.cmd ci
+npm.cmd run build
+cd ..
+```
+
+No `.env` is needed for the offline demonstration. `backend/.env.example` has blank key fields; real keys belong only in an ignored backend environment, never in HAPs or Git. Do not import private family media for the judging recording.
+
+## Build
+
+From the repository root, using the existing DevEco SDK:
+
+Phone:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Clean -RunChecks
+```
+
+Tablet:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Clean -Module tventry
+```
+
+`-Clean` regenerates packages; omit it for incremental builds. `-RunChecks` runs 87 host checks against actual ArkTS logic/services, with platform/cloud mocks explicitly separated from runtime evidence. Scripts change environment variables only for their process. They need normal write access to DevEco/Hvigor's user caches. They do not configure signing or change persistent execution policy.
+
+Backend checks:
+
+```powershell
+cd backend
+npm.cmd test
+cd ..
+node scripts/audit-repository.cjs
+```
+
+The backend has 23 tests. The hygiene scan reports paths/rule names without printing secret values; it is a pattern-based check, not proof that every possible secret or personal datum is absent.
+
+## Run
+
+Create/start one Phone and one Tablet API 21 emulator in DevEco's Device Manager. No need to recreate already running devices. Use HDC `list targets` to identify their IDs; default tested IDs are `127.0.0.1:5555` and `127.0.0.1:5557` (HDC IDs, not app relay endpoints).
+
+Start the Windows relay in one terminal:
+
+```powershell
+cd backend
+npm.cmd start
+```
+
+In a separate terminal at the repository root, install and launch both built HAPs:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-emulator-demo.ps1
 ```
 
-The helper preserves an existing healthy listener. After changing backend source, restart the owned `npm start` process so new routes take effect. Start Child Mode on Phone, then Start Session. For independent exploration, the Tablet also has Open Pico world locally.
+For different device IDs pass `-Phone <hdc-id> -Tablet <hdc-id>`. The helper checks API/device profiles and preserves a healthy existing backend. It needs system Node >=22. Neither successful installation nor launch alone proves the control connection; check Home's Tablet Connected state and exercise a command.
 
-In DevEco Studio, open this repository, select `entry` / product `default` / Phone API 21 and Run. For the child app, select `tventry` / product `tablet` / Tablet API 21 and Run. Do not convert the project or select a TV API 19 target. Start the Windows backend separately for two-device control; local Tablet exploration and Phone fallback do not require cloud credentials.
+In DevEco Studio select **entry / product default / Phone** and Run; select **tventry / product tablet / Tablet** and Run for the child app. Tablet **Open Pico world locally** and optional Phone activities work offline; two-device remote controls need the relay. Do not select the obsolete TV API 19 target.
 
-## Artifacts and verification
+The tested emulators accept unsigned development HAPs. For devices requiring signing, use **File > Project Structure > Project > Signing Configs** and configure the applicable automatic/manual signing. Account access, device registration and release signing are not completed by this project; keep signing credentials outside Git. Other emulator images may reject unsigned packages.
+
+## Demo Configuration
+
+Both guest applications use **http://10.0.2.2:18080**, session **family-demo**. Windows relay listens on **127.0.0.1:18080**. Guest 127.0.0.1 is the guest itself and cannot connect different emulators. No HDC reverse tunnel is needed in the tested DevEco emulator setup. Other networking environments are unverified.
+
+Phone Parent: choose memory **2 lights**, then Home select **Balanced / 15 min** for a finite five-mission recording. Fresh installs default to 30 minutes; saved choices are preserved. Exit Child Mode in Parent if needed, then Home > Start Child Mode > Start Session. Child may choose Dino Forest before the first learning interaction. Follow [75-90 second demo](docs/DEMO_SCRIPT.md); label time edits and development history honestly.
+
+## Generated HAP Files
 
 - Phone: `entry/build/default/outputs/default/entry-default-unsigned.hap`
 - Tablet: `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`
 
-Signing configuration is still empty. These are unsigned development HAPs accepted by the two tested API 21 emulators, not signed physical-device/release packages. In DevEco, use **File > Project Structure > Project > Signing Configs** to configure Automatic Signing/login if needed for your device. Keep credentials and generated signing files outside Git.
+Both paths are checked after the current audit build; hashes and generation/runtime evidence are recorded in [TESTING](docs/TESTING.md). HAPs and logs are ignored rather than committed. These are development artifacts, not signed physical-device releases.
 
-Both native builds and 110 automated checks passed. The six core games were actually played on Tablet API 21; remote controls, a finite five-mission Daily Adventure, background pause, restart, evidence and relay-loss recovery were observed. See [TESTING](docs/TESTING.md) for exact evidence and limits. Build success is never described as physical-device testing. Widget hosting, real cloud credentials, physical-device signing, large-font/accessibility speech and full real-time 15/30/45/60-minute windows remain outside the verified scope. Current emulator journals contain development test interactions, not research with children.
+## Platform Capabilities
 
-## Submission materials
+Verified native ArkUI interaction, HAP/device profiles, lifecycle recovery, Preferences persistence and native Video are documented in [PLATFORM_CAPABILITIES](docs/PLATFORM_CAPABILITIES.md). Earlier actual Phone NotificationKit/system media picker evidence is separately dated in TESTING. Widget code is compiled but hosting is unverified. The application-level relay is not represented as a production distributed API.
 
-[Architecture](docs/ARCHITECTURE.md), [Child Mode](docs/CHILD_MODE.md), [Interactive activities](docs/INTERACTIVE_ACTIVITIES.md), [Insights](docs/ACTIVITY_INSIGHTS.md), [Demo script](docs/DEMO_SCRIPT.md), [Score readiness](docs/SCORE_READINESS.md), [Submission checklist](docs/SUBMISSION_CHECKLIST.md), [Third party](docs/THIRD_PARTY.md), [AI workflow](AI_WORKFLOW.md).
+## AI Usage
 
-No competition RULES/CRITERIA file was available in this workspace. These materials describe implementation and evidence, not verified eligibility, judging compliance or a guaranteed score. Recording is still a human deliverable; follow the concrete steps in DEMO_SCRIPT.
+[AI_WORKFLOW](AI_WORKFLOW.md) discloses actual Codex-assisted requirements, implementation, debugging, review and validation. [AI architecture](docs/AI_ARCHITECTURE.md) and [AI service](docs/AI_SERVICE.md) document optional inference/data handling. Built-in activity/video is **FALLBACK**; cloud provider tests are **MOCKED / SIMULATED**; credentialed Gemini/Veo and Huawei MaaS generation is **NOT VERIFIED**. No product cloud path is marked REAL API VERIFIED. Local deterministic summary recommendations are rules, not model inference.
+
+## Testing
+
+See [executed test matrices](docs/TESTING.md) and [demo claim evidence](docs/DEMO_CLAIMS.md). Source-only archive reproduction restores OHPM/npm dependencies and builds both modules without project caches/local.properties; it still uses the installed vendor SDK and user tool caches. This is not a fresh-OS setup or bit-for-bit reproducible-package claim. Emulator test history contains development interactions, not child research.
+
+## Known Limitations
+
+API 20 runtime compatibility; release signing/physical devices; widget hosting; live cloud generation; authenticated/encrypted production transport; full long-window/age/preset combinations; accessibility/usability and educational effectiveness remain unverified. There is no OS kiosk lock or reliable background reminder. Project-wide license/inherited starter-asset rights require owner review. Recorded demo and final competition-platform upload are not yet done.
+
+## Privacy / Safety
+
+Raw child interaction events stay locally on Tablet; compact results reach the Windows relay and Phone. No child camera/microphone monitoring, location, emotion recognition or diagnosis. Movement is child-confirmed; an adult supervises indoor gentle activities. Optional imported/generated media has a separate network/review flow. See [PRIVACY_AND_SAFETY](docs/PRIVACY_AND_SAFETY.md).
+
+## Challenge Alignment
+
+Primary: **Human-Centric Technology**, through responsible family activity, education and bounded screen use. Secondary: **Intelligent Experiences**, limited to explainable rule personalization and optional unverified AI adapters. No 3D/spatial or clinical claim.
+
+The [official challenge](https://github.com/onirodeveloper/hackyeah2026-challenge/blob/main/hackathon_challenge.md) and [setup guide](https://github.com/onirodeveloper/hackyeah2026-challenge/blob/main/README.md) were read for this audit. [COMPLIANCE_MATRIX](docs/COMPLIANCE_MATRIX.md), [SCORE_READINESS](docs/SCORE_READINESS.md) and [SUBMISSION_CHECKLIST](docs/SUBMISSION_CHECKLIST.md) distinguish satisfied, partial, missing and unverified items. No numeric self-score or full compliance assertion.

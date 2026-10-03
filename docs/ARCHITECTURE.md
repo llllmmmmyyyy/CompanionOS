@@ -1,6 +1,6 @@
 # Actual architecture
 
-CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet is the child's interactive learning world, while the Phone acts as the parent's control and insight dashboard.
+CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet provides an engaging interactive world for the child, while the Phone acts as the parent's control and insight dashboard.
 
 ## Native modules
 
@@ -40,3 +40,24 @@ Existing notifications use real NotificationKit authorization/publish for Phone 
 ParentDashboard aggregates actual summaries by BUILDING, MEMORY, SORTING, COUNTING, EXPLORING, CREATING, MOVEMENT and WATCHING. Evidence exposes per-mission outcome, attempts, retries, duration and optional feedback. Preference recommendations require at least three recent outcomes of the relevant game and explicit feedback weighting. Repeated explicit tricky memory feedback can reduce sequence length to two. No diagnostic/ability/personality inference occurs.
 
 BehaviorInsightEngine remains the Phone fallback's descriptive raw-event engine with Today/7/30-day windows and sample safeguards. The two data sources are labelled rather than falsely treating remote summaries as individually observed raw answer events. Adult supervision and safety constraints apply to both.
+
+## Explicit insight data flows
+
+```mermaid
+flowchart TD
+  Phone[Phone Parent Controller / Dashboard] -->|High-level commands via Windows demo relay| Tablet[Tablet Child Mode / 2D World]
+  Tablet --> Games[Games / Video / Movement / Child Feedback]
+  Games --> Events[Local WorldEvent journal]
+  Events --> Engine[WorldEngine terminal outcome]
+  Engine --> Summary[Compact WorldResult]
+  Summary -->|Development demo transport| Aggregation[Phone ParentDashboard summary aggregation]
+  Aggregation --> Insight[Explainable Parent Insights / evidence]
+  Fallback[Separate Phone fallback gameplay] --> ChildEvent[ChildInteractionEvent]
+  ChildEvent --> BehaviorStore[Local BehaviorStore]
+  BehaviorStore --> BehaviorEngine[BehaviorInsightEngine]
+  BehaviorEngine --> LegacyInsights[Separate fallback Activity Insights]
+```
+
+The conceptual interaction-to-insight pipeline has two actual implementations. Tablet raw events are `WorldEvent`, not falsely renamed `ChildInteractionEvent`, and they are not shipped into BehaviorInsightEngine. ParentDashboard aggregates the actual compact WorldResult summaries; BehaviorInsightEngine consumes local Phone fallback ChildInteractionEvent records. Retaining this distinction preserves state ownership, event semantics and existing history. Both expose descriptive evidence; neither performs diagnosis.
+
+The four Phone root views now group Home status/contextual actions, Activities content, Insights evidence/history and Parent advanced/profile/technical configuration. Legacy internal routes remain reachable. Read PARENT_PHONE_UI.md for exact state/action precedence. Production authentication/encryption, widget hosting and background scheduling are not added by this documentation audit.

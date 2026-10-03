@@ -1,4 +1,4 @@
-param([switch]$RunChecks, [string]$ProjectDirectory = '', [ValidateSet('entry', 'tventry')][string]$Module = 'entry')
+param([switch]$RunChecks, [switch]$Clean, [string]$ProjectDirectory = '', [ValidateSet('entry', 'tventry')][string]$Module = 'entry')
 $ErrorActionPreference = 'Stop'
 if ($ProjectDirectory) { $projectRoot = (Resolve-Path -LiteralPath $ProjectDirectory).Path }
 elseif ($PSScriptRoot) { $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
@@ -44,7 +44,9 @@ try {
   # Windows PowerShell represents native stderr warnings as ErrorRecords; use the actual exit code.
   $ErrorActionPreference = 'Continue'
   $product = if ($Module -eq 'tventry') { 'tablet' } else { 'default' }
-  & $node $hvigor --mode module -p "product=$product" -p "module=$Module@default" -p buildMode=debug assembleHap --no-daemon 2>&1 |
+  [string[]]$buildTasks = @('assembleHap')
+  if ($Clean) { $buildTasks = @('clean', 'assembleHap') }
+  & $node $hvigor --mode module -p "product=$product" -p "module=$Module@default" -p buildMode=debug @buildTasks --no-daemon 2>&1 |
     Tee-Object -FilePath (Join-Path $artifactRoot "build-$Module.txt")
   $ErrorActionPreference = 'Stop'
   if ($LASTEXITCODE -ne 0) { throw "HAP build failed with exit code $LASTEXITCODE" }

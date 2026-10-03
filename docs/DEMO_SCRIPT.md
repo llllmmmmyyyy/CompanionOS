@@ -1,27 +1,30 @@
-# Two-minute English demonstration
+# 75-90 second English demonstration
 
-Use the real Phone and Tablet API 21 emulators and the Windows relay. Keep an adult nearby. Current emulator history contains test interactions; do not describe it as data from real children. Record actual interactions, not screenshots presented as gameplay.
+**Core message:** "The tablet engages the child. The phone helps the parent understand the child."
 
 ## Preparation
 
-1. Build both native HAPs and start `npm start` inside backend. Run `scripts/run-emulator-demo.ps1` from the project root to install/launch both already-running emulators.
-2. Phone Home is the parent dashboard. Check Tablet Connected; use Start Child Mode. The Tablet should show Pico's world without endpoint/provider/debug menus.
-3. Choose Balanced and 30 min, memory 2 lights, then Start Tablet session. To fit a live two-minute recording, use a 15-minute **maximum window**, or record the complete 30-minute-budget mission chain and edit with an explicit Edited for time caption. Never imply thirty real minutes elapsed.
-4. Verify camera/recording software captures both emulator windows and actual touch feedback. No cloud key is needed. Leave the Windows relay terminal running.
+Build both current HAPs, restore backend dependencies/build and start `npm.cmd start` in backend. Launch Phone/Tablet with the deployment helper in README. Phone Parent: memory 2 lights; Home: Balanced / 15 min. This is a maximum foreground window, not fifteen measured minutes of engagement. Choose Dino Forest before the first learning interaction if recommendation selected a different mission. Exit Child Mode in Parent before recording, so activation can be shown from Home. Confirm relay Connected; use built-in content, no private imported video or provider credentials.
 
-## Spoken script and on-screen actions
+The finite five-mission sequence is Bridge, Memory, Move, Garden and the allocated built-in video when Dino Forest is chosen. Actual mission ordering can follow the retained story adapter/recommendation; rehearse the current saved configuration. Do not alter gameplay or substitute Skip/Next for genuine completion. If a daily gift is already earned, show retained world progress rather than claiming a second gift that date.
 
-| Time | Say | Do |
+## 90-second target
+
+| Time | Demo step / actual action | English narration |
 |---|---|---|
-| 0:00-0:15 | "CompanionOS helps parents understand their child through natural play. The Phone is the parent's dashboard; the Tablet is the child's world." | Show Phone Connected, activate Child Mode, tap Pico on Tablet |
-| 0:15-0:40 | "Pico and Dino need a bridge. The child repairs the world by moving real objects, not answering a worksheet." | Start balanced session; make one invalid stone drop, retry, drag three matching stones; show crossing and child feedback |
-| 0:40-1:00 | "Robot lights become a short memory mission. A friendly retry keeps the experience safe and playful." | Continue to Robot, watch Blue/Red signals, tap sequence; show powered-up Robot |
-| 1:00-1:20 | "Movement, creativity and video remain part of the adventure. Movement is child-confirmed, not monitored by a camera." | Continue to Copy Pico, wait its real ten seconds, Done; place a garden flower; open/finish allocated native storybook video |
-| 1:20-1:35 | "The parent can pause, resume or end from the Phone. Each adventure has a healthy ending." | Show Phone Pause and Tablet overlay, Resume; finish remaining actual missions; show Today's Adventure Complete and garden gift |
-| 1:35-2:00 | "The Tablet keeps detailed interactions locally. The Phone receives summaries and explains what it noticed, with evidence and sample limits?not a diagnosis." | Open Tablet history, Parent Insights and Why am I seeing this; show actual attempts/retries/feedback and sparse-data notice |
+| 0:00-0:08 | 1-2: Phone Home, Tablet Connected | "CompanionOS separates parent control from the child's world." |
+| 0:08-0:15 | 3-4: Start Child Mode; animated Tablet world, tap Pico | "The tablet engages the child. The phone helps the parent understand the child." |
+| 0:15-0:23 | 5: Start Balanced session; select Dino Forest if needed | "The parent starts a bounded adventure with learning, movement, creativity and calm." |
+| 0:23-0:37 | 6-9: Bridge; one wrong drop, Try again, three matched drags, crossing | "Dino needs a bridge. A gentle retry helps the child repair the environment." |
+| 0:37-0:49 | 10: Continue; watch and repeat Robot's real two-light sequence | "A short memory mission restores Robot's lights." |
+| 0:49-1:01 | 11: Continue; actual ten-second Copy Pico, Done | "Movement is child-confirmed, without camera monitoring. An adult stays nearby." |
+| 1:01-1:08 | 12: Place Garden flower, Done/Continue; built-in native video | "Creative play and a short reviewed story are part of the same adventure." |
+| 1:08-1:15 | 13-15: Phone Pause during mission/video, Tablet paused; Resume | "The parent can pause and resume from the phone." |
+| 1:15-1:20 | 16-17: Let video finish, Continue; genuine 5/5 ending and saved garden progress | "The adventure has an ending, and progress stays for another day." |
+| 1:20-1:30 | 18-20: View Summary; What We Noticed; Why am I seeing this? | "These are descriptive activity patterns with evidence and sample limits, never a diagnosis." |
 
-If the mission chain is longer than the recording target, use clearly labelled cuts, preserve the genuine ten-second movement/sequence behavior and show results from the same real session. Never use Next/Skip to imply all missions were completed. No generated-video/provider-success claim without an actually reviewed live result.
+This is a recording/editing plan, not an executed timed 90-second demo. Record the full real chain first. If actual actions exceed the target, use **Edited for time** captions and clearly visible cuts. Preserve the real movement wait and memory preview; do not suggest a complete 15/30-minute window elapsed. Existing development results are not evidence from real children. Native fallback video is not AI-generated.
 
-## Recording steps
+## Record and review
 
-Keep both emulator windows side by side on Windows. The installed Windows Snipping Tool package was detected (Microsoft.ScreenSketch 11.2607.23.0); its recording UI was not driven by this run. Press **Win+Shift+R**, select a rectangle covering both emulator windows, click **Start**, perform the script and click **Stop**, then save the MP4. Alternatively open Snipping Tool from Start and select its video/Record control. Review playback for readable Phone text, actual Tablet drag/motion, the pause overlay and evidence view. Exclude terminals with credentials, private imported videos and account screens. Upload the recording manually to the competition platform after checking its actual format/length rules. No recording has been produced by this coding run.
+Arrange both already-running emulator windows side by side. Windows Snipping Tool was previously detected; no recording has been produced. Use **Win+Shift+R**, select both windows, Start, perform the real sequence, Stop and save MP4; alternatively open Snipping Tool's video recording control. Review the saved file for readable Phone labels, real drag/retry, Tablet pause/resume, same-session 5/5 ending and evidence. Exclude credentials/account screens/private media. Submit through the official competition channel after confirming its actual upload rules. The challenge requires a brief recording; this 75-90 second target is our presentation choice, not an asserted official duration limit.

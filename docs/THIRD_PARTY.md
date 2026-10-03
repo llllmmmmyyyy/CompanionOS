@@ -31,3 +31,7 @@ Pico, scene map/cloud/plant/backpack/book/energy/flower objects and native game 
 The original `counting.mp4` is a short counting scene encoded from programmatic System.Drawing frames using the already installed local FFmpeg tool described above. `scripts/create-counting-video.ps1` contains reproducible authoring steps; temporary frames/encoder binaries are ignored. The small authored MP4 is intentionally included in both native modules. Existing cloud fallback media remains unchanged. An OS font was used to draw frame numerals, without distributing a font file. No project-wide license or inherited starter-art rights are inferred.
 
 No new runtime package dependency was added for the world. HarmonyOS SDK terms and existing backend development dependency licenses remain as inventoried above.
+
+## Official submission audit - 2026-10-04
+
+No new runtime dependency, art, media, font or provider SDK was added in this audit. The clean-build flag and hygiene scan use PowerShell/Node built-ins. Public challenge/setup documentation was consulted and linked, not vendored as project assets. Existing package licenses/asset boundaries above are retained; the project owner still needs to decide the project license and verify inherited starter-art rights. An official compliance/readiness matrix does not resolve those rights automatically.

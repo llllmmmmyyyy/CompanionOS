@@ -1,3 +1,5 @@
+> Scope: this is the retained legacy reviewed-video / Phone fallback transport, not the primary Tablet ChildWorld. The primary child-world authority and compact commands/results are documented in [ARCHITECTURE](ARCHITECTURE.md). No production distributed-device claim.
+
 <!-- Internal TV/protocol identifiers retained; current companion is Tablet API 21. -->
 # Protocol version 1
 

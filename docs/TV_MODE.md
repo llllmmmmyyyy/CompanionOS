@@ -1,3 +1,5 @@
+> Scope: this is the retained legacy reviewed-video / Phone fallback transport, not the primary Tablet ChildWorld. The primary child-world authority and compact commands/results are documented in [ARCHITECTURE](ARCHITECTURE.md). No production distributed-device claim.
+
 # Large-Screen Companion (Tablet API 21)
 
 This replaces the former API 19 TV target. Filename and internal TvAbility/TvReceiver/TvMessage identifiers are retained to avoid breaking imports/protocols. Historical TV testing remains labelled in TESTING.md, not part of the current formal target.

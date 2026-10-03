@@ -1,3 +1,69 @@
+# Official submission audit validation - 2026-10-04
+
+This audit adds documentation and build/hygiene tooling, not product features. App source, Tablet gameplay, protocol and persistence schemas are unchanged. Older statements about unavailable competition rules describe their original sessions; the official challenge/README have now been read and mapped in COMPLIANCE_MATRIX.
+
+## Fresh builds and source-only reproducibility
+
+Source-only `git archive` at **b699764** was expanded to an ignored isolated directory. Before restoration it had no oh_modules, node_modules, build outputs or local.properties. DevEco OHPM `install --all` restored native dependencies; system Node `npm ci` restored backend dependencies. Both source-only HAP builds succeeded; 87 native host checks and 23 backend tests passed. This uses existing installed DevEco/SDK/registry/user tool caches, not a fresh Windows/SDK installation. Byte-identical packages were not asserted; generated metadata/path differences are possible.
+
+The current working project was then built with the new optional **-Clean** flag for both modules; both reported BUILD SUCCESSFUL and new output file timestamps. Compiler exception-handling/signing warnings remain nonfatal. No SDK/signing configuration was changed. Current 87 native checks passed again; count 87+23 = **110 distinct automated checks**, not a doubled count for repeated runs.
+
+| Artifact | Current checked output | SHA256 |
+|---|---|---|
+| Phone unsigned HAP | entry/build/default/outputs/default/entry-default-unsigned.hap | 64FE75CE3EE5D8C2FFC09D4FAC34A9BCF4D737C5B6F4520B8956E509D9F42822 |
+| Tablet unsigned HAP | tventry/build/tablet/outputs/default/tventry-default-unsigned.hap | 17C1408B310651A0B7F784A4143BB7B1E2154A99AE1AA15211ED7A22BC26E962 |
+
+Final incremental-command verification exposed a PowerShell single-element splat issue in the new helper. It was corrected with an explicit string[] task array; Phone and Tablet incremental scripts then both returned exit code 0 and BUILD SUCCESSFUL. Those builds repackaged unchanged app sources; the final hashes above replace the earlier clean-build hashes (Phone 29BEE49B..., Tablet 2D6E047B...). The final packages were reinstalled and launch/connection/start/pause/resume/next/end smoke was repeated. Full Bridge/Memory/control/disconnect evidence below was executed on the preceding clean packages of identical app source, not claimed as a second gameplay replay.
+
+Both freshly generated packages were actually installed and launched through HDC on API 21 Phone 127.0.0.1:5555 and Tablet 127.0.0.1:5557. These are HDC IDs, not relay endpoints. Runtime uses guest gateway http://10.0.2.2:18080, family-demo and the existing Windows backend. No signed release/physical-device installation is claimed.
+
+## Required-path evidence matrix
+
+PASS is scoped to executed current or explicitly historical tests. All gameplay source is unchanged by this audit; historical evidence is retained rather than claimed as replayed today.
+
+| Test | Target | API | Steps / evidence scope | Expected | Actual | Status |
+|---|---|---|---|---|---|---|
+| Phone launch | Phone | 21 | Current fresh HAP install, force-stop/start, layout | Parent dashboard loads | Connected dashboard and saved insight counts | PASS |
+| Tablet launch / Child Mode | Tablet | 21 | Current fresh HAP install/start; Phone mode toggle | Native world visible | Pico hub/scene, saved discoveries and garden gift | PASS |
+| Tablet connection | Both | 21 | Existing relay, inspect Phone and Tablet | Real Connected state | Phone Connected, Tablet Parent connected | PASS |
+| Start / Exit Child Mode | Both | 21 | Current Parent Exit; Home Start; wait actual state | Correct inactive/active world status | Ready/Start Child Mode -> Active/Start Session | PASS |
+| Start Session | Both | 21 | Current Home Start Session, saved 30-minute balanced settings | Tablet receives planned session | Bridge mission, 30 min maximum, 0/9 | PASS |
+| Pause | Both | 21 | Current Phone Pause | Tablet pause overlay and Resume-only context | Both showed Adventure paused | PASS |
+| Resume | Both | 21 | Current Phone Resume | Tablet resumes; contextual controls return | Pause/Next/End returned | PASS |
+| Next | Both | 21 | Current Phone Next after two genuine completed games | Advance with skipped outcome | Copy Pico -> Garden; count stayed 2/9 | PASS |
+| End | Both | 21 | Current End Session | Safe ending, not all-completed claim | Session ended, 2/9; Summary/New Session | PASS |
+| Parent Insights / evidence | Phone | 21 | Current View Summary and Why am I seeing this? | Actual outcome/retry/feedback evidence | Bridge/Memory rows and recorded per-result evidence visible | PASS |
+| Session/activity history | Phone | 21 | Current saved summaries/legacy record view; prior history scroll | Preserve separate histories | Actual compact counts; old parent journal total 20/today 14 retained | PASS |
+| Pico/world interaction | Tablet | 21 | Prior recorded world test below | Tap reaction/original scene | Actual reaction and screenshots recorded; not rerun in this audit | PASS (prior scope) |
+| Dino Bridge Builder | Tablet | 21 | Current invalid stone-to-Pico drag, Try again, three correct drags | Retry then environmental success | Native retry, crossing/completion, Loved it; one new outcome | PASS |
+| Robot Memory Repair | Tablet | 21 | Current preview, Blue then Red, Continue | Restore robot and save outcome | Completed; Phone reached 2/9 | PASS (two signals) |
+| Animal Rescue | Tablet | 21 | Prior actual wrong/correct habitat sequence below | Correct placement after retry | Native three-animal completion after hit-test fix; not rerun here | PASS (prior scope) |
+| Movement | Tablet | 21 | Prior full Copy Pico/Number Move; current Copy Pico open | Timer/child confirmation, no surveillance | Prior true Done completion; current timer displayed then intentionally skipped by Next | PASS (prior completion; current open/skip) |
+| Educational/native video | Tablet | 21 | Prior finite adventure and counting clip tests below | Video plays and returns on finish | Actual playback/onFinish recorded; not rerun here | PASS (prior scope) |
+| Child feedback | Tablet / Phone | 21 | Current Loved it after Bridge, then sync | Optional feedback attached to same outcome | Phone evidence showed liked, attempts=4/retries=1 | PASS |
+| Daily Adventure complete | Both | 21 | Previous UI refinement's genuine five-mission chain | Natural 5/5 and persistent reward | 5/5 recorded; today's smoke intentionally ended 2/9, not a completion pass | PASS (prior scope) |
+| Progress persistence | Both | 21 | Current app restart; inspect summaries/gift; prior settings/custom restart | Existing journal survives | Tablet discoveries/gift and Phone insights/20 old completions retained | PASS within observed data |
+| Phone -> Tablet commands | Both | 21 | Current seven controls above | Actual Tablet acknowledgement | Mode/mission/pause/ending matched | PASS |
+| Tablet -> Phone results | Both | 21 | Current Bridge/Memory complete | Compact counts update | Phone 2/9; actual feedback/evidence updated | PASS |
+| Disconnect | Both | 21 | Current force-stop Tablet, wait heartbeat expiry | Phone shows disconnected | Reconnect-only state; no stale session controls | PASS |
+| Reconnect | Both | 21 | Current Tablet relaunch, wait status | Connected and saved results restored | Connected, retained ended session | PASS |
+| Duplicate completion prevention | Both / host | 21 | Current periodic sync/relaunch; prior repeat-click and host checks | Stable IDs/counts | 36 results/36 unique before and after relaunch; no extra records | PASS in tested scope |
+| Phone HAP | Build | 21 | Current -Clean -RunChecks | Fresh package and checks | BUILD SUCCESSFUL, 87 host checks | PASS |
+| Tablet HAP | Build | 21 | Current -Clean -Module tventry | Fresh package | BUILD SUCCESSFUL | PASS |
+| Runtime crash signatures | Phone | 21 | Current app-PID hilog after paths | No uncaught failures | Zero Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured log |
+| API 20 / physical signing / live AI / widget hosting / full long windows / accessibility study | Untested targets | 20 or physical | Not performed | Requires additional environment/review | No evidence produced | NOT RUN |
+| Recorded submission demonstration | Windows | N/A | Script prepared, no recording UI driven | Saved/reviewed video | Not produced | NOT RUN |
+
+Evidence stays ignored under artifacts/: compliance-phone/tablet-final.txt, clean-audit-*-build logs, clean-audit-source backend restoration/tests, compliance-deploy.txt, compliance-*.json/jpeg layouts/screens and compliance-phone-runtime.txt. At the disconnect/reconnect check there were 36 bounded outcomes, including intentional skips (the later final-package smoke added further intentional test skips); these are not real child-study data. The actual 30-minute maximum window was not allowed to fully elapse.
+
+## Repository/reproduction review
+
+Unauthenticated GitHub metadata returned private=false for the source repository. `.gitignore` excludes keys/env/signing files, local config, dependencies, artifacts/caches and HAPs; committed blank backend/.env.example and required authored demo assets remain. The tracked-file scan prints only paths/rule names and currently finds no recognized secrets/user-specific absolute paths/forbidden outputs. This is not an exhaustive history/security or personal-data audit.
+
+README referenced source paths, four navigation entry points, dependencies, build/install/start commands and actual HAP paths were checked. Vendor tool installation and physical signing are documented prerequisites, not hidden configuration. Missing submission recording, rights/license decisions and final platform upload remain visible in SUBMISSION_CHECKLIST.
+
+---
+
 # Parent Phone UI verification - 2026-10-04
 
 This iteration changed only Phone UI/navigation. Tablet sources, backend protocol, persisted schemas and balance/insight engines were not modified. Actual HDC UITest touch input, UI layouts, screenshots and live relay state were used on the already running API 21 Phone and Tablet emulators. This is executed emulator runtime verification, not a human usability study.

@@ -1,3 +1,49 @@
+# Official submission disclosure audit - 2026-10-04
+
+This summary is current; historical entries below retain their original dates and narrower verification scope. Source: the official HackYeah challenge and participant README, read directly for this audit. No artificial project history or human review is invented.
+
+## Actual development tools
+
+OpenAI Codex directly operated shell/file/build/HDC tools and read public official documentation with the available browser tool. The exact underlying model version is not captured in the project history and is not guessed. Separate ChatGPT sessions, Gemini or Huawei coding agents, external MCP servers and Conductor execution are not evidenced in this development run. Gemini/Veo and Huawei MaaS are optional product adapters, not development-agent usage. No image generator was used for the authored vector assets.
+
+The user named conductor-dev, ohos-app-dev, hmos-arkui-develop-skill, hmos-arkui-scenario-development, hmos-arkui-mvvm-pattern and hmos-arkts-knowledge-retriever. No matching installed SKILL.md was found in the checked Codex/agents/Claude/OpenCode/Gemini skill roots; no applicable project/ancestor AGENTS.md exists. They were not used or retroactively attributed. Some broader user-directory listing was denied by sandbox; named candidate skill roots were still checked. The existing build works without those optional agent tools. No fresh scaffold, framework conversion or Conductor migration was performed.
+
+## Workflow and representative prompt patterns
+
+| Stage | Actual instruction pattern / work | Output and review/validation |
+|---|---|---|
+| Ideation / requirements | "Preserve the existing project; offline family activities; Phone parent / Tablet child; no diagnosis" | Product scope translated into native states and bounded sessions; no user-study evidence claimed |
+| Architecture | "Keep detailed inputs on Tablet; send compact commands/results; preserve existing history" | Local WorldEngine/WorldStore and separate summary insights, existing fallback engine retained; code/protocol reviewed by Codex |
+| Implementation | "Edit files directly, keep SDK/template, do not expose keys" | ArkTS UI/models/stores, original SVGs and English materials; generated code compiled, not accepted solely from model output |
+| Debugging | "Use actual SDK/HDC; fix compile/runtime errors" | Notification enum/compiler fixes, persistence chunking, gesture hit-test fix, emulator gateway correction; failed attempts recorded historically |
+| Testing | "Do not treat Preview/build as device verification" | Actual-source host tests plus explicitly mocked platform/cloud services; real HDC emulator touch/pan/layout/log checks separately labelled |
+| Review | "Only stage related files; keep user work; check secrets and limitations" | Diff/path/secret-pattern review by Codex; no independent human source/child-suitability review asserted |
+| Validation | "Build both HAPs; verify actual output; commit/push only after checks" | Real native artifacts and emulator installs; source-only OHPM/npm restoration and rebuild; documented remaining gaps |
+| Current audit | "Use official requirements; evidence matrix; no major new features" | COMPLIANCE_MATRIX, capability/demo/privacy/readiness docs; optional clean-build flag and tracked-file hygiene tool |
+
+Human/manual review remaining: source suitability, actual rights/license, parental/child usability, accessibility, signing and the saved final recording. User-provided environment/login confirmations are not substitutes for those reviews.
+
+## Product AI status
+
+| Component | Status | Inference/data flow and evidence |
+|---|---|---|
+| Cloud Gemini/Veo generation | NOT VERIFIED | Configured backend REST adapters; parent constraints/goal -> provider -> schema/safety validation -> generated-video review/cache -> child playback; no credentialed success |
+| Huawei MaaS generation | NOT VERIFIED | Same bounded/reviewed flow; configured model/download host must match real account access; no live account test |
+| Provider HTTP handling / malformed output | MOCKED / SIMULATED | Host/backend tests inject HTTP responses for errors/timeouts/parsing/review; not model quality evidence |
+| Built-in activities/video and no-key failure recovery | FALLBACK | Curated local native games/clips remain available; actual fallback/local backend evidence exists |
+| Local mission recommendation / Parent Insights | Deterministic rules, not model inference | Compact observed outcome/feedback aggregation; no raw world events sent to providers, no clinical score |
+| REAL API VERIFIED cloud product path | None | Real local Node HTTP transport was tested; it is not proof of real AI inference |
+
+Representative configuration is backend/.env.example with blank keys. Do not publish private endpoints, real imported videos, prompts containing identities or credentials. Vendor retention/terms and generated-content safety require real deployment review. See AI_ARCHITECTURE.md, AI_SERVICE.md and PRIVACY_AND_SAFETY.md.
+
+## Failures, limitations and lessons
+
+Actual unsuccessful approaches included guest loopback for cross-emulator transport, an SDK notification enum mismatch, a placed-animal hit target, temporary UITest coordinate/lock-screen problems and shell encoding of UI punctuation. Corrected builds/runtime checks followed; those failed attempts are not reported as PASS. This audit's source archive was created before attempting to use it as a working directory after the initial nonexistent-directory invocation failed; final restoration/build succeeded. A final incremental-build check exposed single-element PowerShell splatting in the new clean-build helper; an explicit string[] array fixed it, and both incremental commands were rerun successfully. A tracked-file scan initially misread blank example keys across newlines; limiting whitespace to spaces/tabs corrected that false positive.
+
+Lessons: inspect installed SDK declarations before selecting APIs; use the host gateway for guest communication; keep child authority and journals local; treat callback/HTTP success separately from actual device acknowledgement; preserve explicit sample limits; document generated output, mocks and genuine runtime evidence separately. No guarantee of complete secret detection, educational benefit, cloud correctness, API 20 or production release readiness follows from these tests.
+
+---
+
 # Parent Phone UI refinement - 2026-10-04
 
 Codex directly refactored only Phone presentation/navigation. The user asked to remove Home clutter, retain existing functionality, use Home / Activities / Insights / Parent and show only actions matching real Tablet state. No additional coding agents or art models were used.
