@@ -1,5 +1,37 @@
 # Testing evidence
 
+## Companion TV extension — 2026-10-03
+
+Final API 21 build succeeded with `scripts/build.ps1 -RunChecks`; **33 host checks passed** (13 domain, 13 mocked services, 7 TV/AI checks). The exact unsigned HAP SHA-256 is `918BF1F0A7AC741F3BC192917EDE9FE16317BA49DB97E024675413C4C3A36810`, at `entry/build/default/outputs/default/entry-default-unsigned.hap`. Signing remains unconfigured. HDC installed this HAP successfully on the existing `127.0.0.1:5555` emulator; its API property returned 21. Another emulator was visible at 5557 but was not used.
+
+| Test | Result / evidence |
+|---|---|
+| Existing settings and history after update | Passed on emulator: age 6–8, 5 minutes, original three completions preserved |
+| Demo TV connection / mock selection | Passed on emulator: Connected, locally labelled Demo; MOVE, CALM and LEARN selected |
+| Normal phone countdown and pause | Passed on emulator for 5-minute start: 04:59 froze while paused; elapsed wall time did not exhaust it |
+| Landscape TV pause and placeholder | Passed on emulator: 2832×1316 screenshot inspected; Paused, 04:59, Step 1/3, local video-unavailable illustration visible |
+| Return to controller, resume, next step | Passed on emulator: restored portrait controls, countdown continued, Step 2/3 instruction appeared |
+| Disconnect fallback / cancel | Passed on emulator: phone continued at 04:56 after disconnect; cancellation confirmed; count stayed 3 |
+| Ten-second Demo and TV expiry celebration | Passed on emulator: LEARN reached Time is up; local player showed star celebration, 00:00 and parent-confirmation prompt |
+| Parent confirmation / double click | Passed on emulator: confirmation box required; injected doubleClick saved one Space Counting Mission record; total/today became 4 |
+| Restart restore | Passed on emulator: force-stop/relaunch restored age/duration and total 4; new mock record and old Penguin Walk record visible |
+| Runtime crash review | No app JS exception/fatal signature found in captured process hilog; AceScrollable HandleCrashTop/Bottom are scroll diagnostics, not evidence of an application crash |
+| Four mock categories / all durations / malformed plans | Passed in host checks: deterministic MOVE/LEARN/IMAGINE/CALM, 3/5/10 duration sums, absent-video fallback metadata, invalid request/URL rejected |
+| Transport command forwarding | Passed in host checks: local events and real adapter delegation using an injected mock channel; no real remote transport tested |
+| Old stored records migration / duplicates | Existing service/domain checks passed; version-1 TV and old records coexist after serialization; emulator retained old data |
+| Full three-minute countdown | Existing version was actually tested below; this extension's pause-aware 3-minute behavior passed simulated-clock host checks. A full wall-clock three-minute run was not repeated this round |
+| Real TV, streaming video, provider failure, Gemini/Veo | Not verified / not implemented end to end: no TV receiver/channel, live provider or streamed media in this version |
+| Real notification regression this round | Existing emulator verification is documented below; not separately rechecked in this TV extension round |
+
+The local Demo is real ArkUI running on the Phone emulator, not a test on actual TV hardware. Local placeholder rendering was verified; this does not constitute a streamed-video error test. Host mocks are not platform/device evidence. Permission-denied/unavailable discovery is handled in code; real nearby-device discovery remains unverified. Earlier sections describe earlier versions and their own results.
+
+### Remaining manual checks
+
+- Select IMAGINE in Demo TV Mode and review the story with an adult for age suitability.
+- Run a complete normal three-minute activity in this version; pause, wait and resume before confirming.
+- Check notification permission grant/denial and notification center again for the TV flow.
+- With compatible TV hardware and a implemented receiver/channel, verify pairing, ordered commands, real disconnection/reconnect and video failure. These cannot be tested by the local phone Demo.
+
 ## Actual emulator follow-up — 2026-10-03
 
 HDC connected to `127.0.0.1:5555` using DevEco's installed SDK toolchain. `param get const.ohos.apiversion` returned **21**, matching both the project's target and compatible API. The device software property reported `emulator 6.0.0.112(SP3DEVC00E112R4P11)`; this is the actual returned value, rather than an assumed marketing version. UI layout bounds were 1316×2832.

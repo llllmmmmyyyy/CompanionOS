@@ -1,5 +1,6 @@
 {
   "string": [
+    { "name": "tv_permission_reason", "value": "Find authorized nearby devices when a parent searches for a TV." },
     { "name": "widget_name", "value": "Today together" },
     { "name": "widget_description", "value": "Today's family activity and completion count" },
     {

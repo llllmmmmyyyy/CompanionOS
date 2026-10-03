@@ -6,6 +6,13 @@ export class ParentSettings {
 }
 
 export class Activity {
+  category: string = 'MOVE';
+  duration: number = 3;
+  theme: string = 'Family animals';
+  educationalGoal: string = 'Take turns together';
+  activitySteps: ActivityStep[] = [];
+  videoSegments: string[] = [];
+  generatedByAI: boolean = false;
   id: string;
   title: string;
   interest: string;
@@ -15,7 +22,17 @@ export class Activity {
     this.title = title;
     this.interest = interest;
     this.steps = steps;
+    this.activitySteps = steps.map((instruction: string) => new ActivityStep(instruction));
   }
+}
+
+export class ActivityStep {
+  instruction: string;
+  durationSeconds: number = 60;
+  learningGoal: string = 'Practice together';
+  videoUrl: string = '';
+  fallbackVisual: string = 'Together';
+  constructor(instruction: string) { this.instruction = instruction; }
 }
 
 export const ACTIVITIES: Activity[] = [
@@ -116,6 +133,7 @@ export function addCompletion(data: Snapshot, record: Completion): Snapshot {
 }
 
 export class ActivitySession {
+  private pausedMilliseconds: number = 0;
   id: string = '';
   deadline: number = 0;
   phase: string = 'idle';
@@ -133,7 +151,20 @@ export class ActivitySession {
   }
 
   remaining(now: number): number {
+    if (this.phase === 'paused') { return Math.ceil(this.pausedMilliseconds / 1000); }
     return this.phase === 'running' ? Math.max(0, Math.ceil((this.deadline - now) / 1000)) : 0;
+  }
+
+  pause(now: number): void {
+    if (this.phase !== 'running' || now >= this.deadline) { return; }
+    this.pausedMilliseconds = this.deadline - now;
+    this.phase = 'paused';
+  }
+
+  continueActivity(now: number): void {
+    if (this.phase !== 'paused') { return; }
+    this.deadline = now + this.pausedMilliseconds;
+    this.phase = 'running';
   }
 
   tick(now: number, foreground: boolean): boolean {

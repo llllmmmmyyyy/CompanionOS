@@ -6,6 +6,8 @@ CompanionOS is a native HarmonyOS phone MVP for short, adult-accompanied family 
 
 ## Implemented experience
 
+- **Companion TV Mode:** phone-owned countdown and pause/resume/step controls, local landscape Demo TV player, four mock adventures, disconnect fallback. Demo TV runs on the phone; real TV channel/receiver and Gemini/Veo are future integration work. See [TV mode](docs/TV_MODE.md) and [AI architecture](docs/AI_ARCHITECTURE.md).
+
 - **Home:** Penguin Walk, Animal Sounds, Butterfly Stretch, today's completion count, interest matches, settings and progress.
 - **Parent Settings:** ages 4–5 or 6–8, Movement / Sounds / Nature interests, 3 / 5 / 10 minutes, persistent local settings.
 - **Activity:** age guidance, curated steps, adult accompaniment, start, countdown, cancellation and parent confirmation. Normal mode uses the selected duration; clearly labelled Demo Mode uses ten seconds.

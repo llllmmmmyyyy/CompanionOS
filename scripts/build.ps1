@@ -54,6 +54,9 @@ try {
     & $node (Join-Path $scriptRoot 'test-services.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Mocked-service checks failed' }
+    & $node (Join-Path $scriptRoot 'test-tv.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'TV/AI host checks failed' }
   }
   $hap = Join-Path $projectRoot 'entry\build\default\outputs\default\entry-default-unsigned.hap'
   if (-not (Test-Path -LiteralPath $hap)) { throw 'Expected unsigned HAP was not produced.' }

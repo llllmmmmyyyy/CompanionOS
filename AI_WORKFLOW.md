@@ -1,5 +1,9 @@
 # AI development workflow
 
+## Companion TV extension — 2026-10-03
+
+The user supplied a detailed Companion TV Mode prompt requesting minimal API 21 changes, local and distributed transport boundaries, four activity categories, mock AI plans, future Gemini/Veo design, build checks and a Git upload. OpenAI Codex implemented the changes directly, inspected installed SDK declarations, built with DevEco tools, executed actual-model host checks and operated the existing emulator via HDC. No Gemini/Veo request or provider credential was used. Documentation separates working Local Demo from the unimplemented real TV channel/receiver. Human review remains necessary for child suitability, real TV hardware and future generated media.
+
 ## Scope of this development run
 
 The user asked the OpenAI Codex assistant to operate directly on the existing HarmonyOS project, complete an offline parent-child activity MVP, keep the Phone/API 20+ template, validate available builds, document actual evidence in English, and commit/push meaningful stages. The user authorized repository uploads and supplied a Git identity in an earlier turn. No API key was requested.

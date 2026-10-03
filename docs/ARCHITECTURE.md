@@ -2,7 +2,7 @@
 
 ## Native structure
 
-CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. There are four clear page states in one ArkUI entry page; there is no Flutter or web runtime.
+CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. Home, Settings, Activity, Progress, TV Connection and the landscape local TV Player are clear states in one entry page; there is no Flutter or web runtime. The phone owns the session; a transport projects frames into the local TV view. The real distributed channel remains an extension point. See [TV architecture](TV_MODE.md) and [AI architecture](AI_ARCHITECTURE.md).
 
 | Module | Responsibility |
 |---|---|

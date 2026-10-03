@@ -5,10 +5,21 @@ import { LocalStore } from '../services/LocalStore';
 import { Notifications } from '../services/Notifications';
 import { AiService } from '../services/AiService';
 import { Widgets } from '../services/Widgets';
+import { window } from '@kit.ArkUI';
+import { ActivityPlanRequest, MockAiActivityService, TV_CATEGORIES, TV_TITLES, activityFromPlan } from '../services/AiActivityService';
+import { LocalDemoTvTransport, TvSessionTransport, TvFrame } from '../services/TvSessionTransport';
+import { NearbyTv } from '../services/NearbyTv';
 
 @Entry
 @Component
 struct Index {
+  @State tvConnection: string = 'Not connected';
+  @State nearby: string = 'Search for authorized HarmonyOS devices.';
+  @State tvFrame: TvFrame = new TvFrame();
+  @State stepIndex: number = 0;
+  @State planLoading: boolean = false;
+  private transport: TvSessionTransport | undefined = undefined;
+  private previousOrientation: window.Orientation = window.Orientation.UNSPECIFIED;
   @State screen: string = 'home';
   @State data: Snapshot = new Snapshot();
   @State draft: ParentSettings = new ParentSettings();
@@ -46,7 +57,7 @@ struct Index {
     this.startTimer();
   }
 
-  aboutToDisappear(): void { clearInterval(this.timer); }
+  aboutToDisappear(): void { clearInterval(this.timer); this.transport?.disconnect(); }
   onPageShow(): void { this.foregroundChanged(); }
   onPageHide(): void { clearInterval(this.timer); }
 
@@ -73,6 +84,99 @@ struct Index {
     }
     this.phase = this.session.phase;
     this.remaining = this.session.remaining(Date.now());
+    this.syncTv();
+  }
+
+  private frame(): TvFrame {
+    const frame = new TvFrame();
+    frame.sessionId = this.session.id;
+    frame.title = this.selected.title;
+    frame.phase = this.session.phase;
+    frame.remaining = this.session.remaining(Date.now());
+    frame.steps = this.selected.activitySteps.length;
+    frame.step = this.stepIndex;
+    const step = this.selected.activitySteps[this.stepIndex];
+    frame.instruction = step ? step.instruction : 'Play gently together.';
+    frame.visual = step ? step.fallbackVisual : this.selected.theme;
+    return frame;
+  }
+
+  private syncTv(): void { this.transport?.synchronize(this.frame()); }
+
+  private async connectDemoTv(): Promise<void> {
+    if (this.tvConnection === 'Connecting') { return; }
+    this.tvConnection = 'Connecting';
+    this.transport?.disconnect();
+    this.transport = new LocalDemoTvTransport((event: string, frame: TvFrame) => {
+      if (event === 'connected') { this.tvConnection = 'Connected'; }
+      else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
+      else if (event === 'error') { this.notice = 'TV unavailable. Continue on your phone.'; }
+      else { this.tvFrame = frame; }
+    });
+    await this.transport.connect();
+    this.syncTv();
+    this.notice = 'Demo TV connected locally. No real TV connection.';
+  }
+
+  private disconnectTv(): void {
+    this.transport?.disconnect(); this.transport = undefined;
+    this.notice = 'TV disconnected. Your phone activity and saved history are safe.';
+    if (this.screen === 'tv') { this.leaveTv(); }
+  }
+
+  private async searchTv(): Promise<void> {
+    this.tvConnection = 'Searching';
+    // Yield a frame so the searching status is visible before the synchronous SDK query.
+    await new Promise<void>((resolve: () => void) => { setTimeout(resolve, 100); });
+    this.nearby = await NearbyTv.search(this.getUIContext().getHostContext() as common.UIAbilityContext);
+    this.tvConnection = this.transport ? 'Connected' : 'Not connected';
+  }
+
+  private async generatePlan(category: string): Promise<void> {
+    if (this.planLoading) { return; }
+    this.planLoading = true;
+    try {
+      const request = new ActivityPlanRequest();
+      request.childAge = this.data.settings.age;
+      request.interest = this.data.settings.interests[0];
+      request.category = category;
+      request.durationMinutes = this.data.settings.minutes;
+      request.educationalGoal = category === 'LEARN' ? 'Count five objects together' : 'Practice gentle turn taking';
+      const plan = await new MockAiActivityService().generateActivityPlan(request);
+      this.openActivity(activityFromPlan(plan, request));
+      this.notice = 'Mock activity plan — deterministic local content, not real AI output.';
+    } catch { this.notice = 'Plan unavailable. The original offline activities remain ready.'; }
+    finally { this.planLoading = false; }
+  }
+
+  private pauseActivity(): void {
+    this.session.pause(Date.now()); this.updateClock(); this.transport?.pauseActivity(this.frame());
+  }
+
+  private resumeActivity(): void {
+    this.session.continueActivity(Date.now()); this.updateClock(); this.transport?.resumeActivity(this.frame());
+  }
+
+  private nextStep(): void {
+    this.stepIndex = Math.min(this.stepIndex + 1, this.selected.activitySteps.length - 1);
+    this.transport?.nextStep(this.frame());
+  }
+
+  private async showTv(): Promise<void> {
+    if (this.tvConnection !== 'Connected') { this.navigate('connect'); return; }
+    this.syncTv();
+    try {
+      const appWindow = await window.getLastWindow(this.getUIContext().getHostContext() as common.UIAbilityContext);
+      this.previousOrientation = appWindow.getPreferredOrientation();
+      await appWindow.setPreferredOrientation(window.Orientation.LANDSCAPE);
+    } catch { this.notice = 'Landscape orientation unavailable; the local player still works.'; }
+    this.navigate('tv');
+  }
+
+  private leaveTv(): void {
+    this.navigate('activity');
+    window.getLastWindow(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      .then((appWindow: window.Window) => appWindow.setPreferredOrientation(this.previousOrientation)).catch(() => {});
   }
 
   private async publishEndNotification(): Promise<void> {
@@ -116,27 +220,30 @@ struct Index {
     this.phase = 'idle';
     this.confirmed = false;
     this.demo = false;
+    this.stepIndex = 0;
     if (this.storageReady) { this.notice = ''; }
     this.navigate('activity');
   }
 
   private startActivity(): void {
-    if (this.busy || this.phase === 'running' || this.phase === 'ready') { return; }
+    if (this.busy || this.phase === 'running' || this.phase === 'paused' || this.phase === 'ready') { return; }
     this.session.start(Date.now(), this.data.settings.minutes, this.demo);
     this.confirmed = false;
     this.notice = '';
     this.updateClock();
+    this.transport?.startActivity(this.selected, this.frame());
   }
 
   private cancelActivity(): void {
     if (this.busy) { return; }
-    if (this.phase === 'running' || this.phase === 'ready') {
+    if (this.phase === 'running' || this.phase === 'paused' || this.phase === 'ready') {
       this.getUIContext().showAlertDialog({
         title: 'Cancel this activity?',
         message: 'No completion will be recorded.',
         primaryButton: { value: 'Keep playing', action: () => {} },
         secondaryButton: { value: 'Cancel activity', action: () => {
           this.session.cancel(); this.phase = 'cancelled'; this.confirmed = false;
+          this.transport?.cancelActivity(this.frame());
           this.notice = 'Activity cancelled. No completion was recorded.';
           this.navigate('home');
         } }
@@ -146,7 +253,8 @@ struct Index {
 
   onBackPress(): boolean {
     if (this.screen === 'home') { return false; }
-    if (this.screen === 'activity') { this.cancelActivity(); }
+    if (this.screen === 'tv') { this.leaveTv(); }
+    else if (this.screen === 'activity') { this.cancelActivity(); }
     else if (!this.busy) { this.navigate('home'); }
     return true;
   }
@@ -168,6 +276,7 @@ struct Index {
       this.session.phase = 'completed';
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.phase = 'completed';
+      this.syncTv();
       this.confirmed = false;
       this.today = countToday(updated, Date.now());
       this.notice = `${record.title} completed. Well done, together!`;
@@ -262,6 +371,7 @@ struct Index {
       }, (activity: Activity) => activity.id)
       Button('Parent settings').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.openSettings())
       Button('Progress').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.navigate('progress'))
+      Button('Play on TV').width('100%').backgroundColor('#28745E').fontColor(Color.White).onClick(() => this.navigate('connect'))
     }.width('100%')
   }
 
@@ -308,6 +418,11 @@ struct Index {
   activityContent() {
     Column({ space: 16 }) {
       this.heading(this.selected.title)
+      if (this.selected.id.startsWith('tv-')) {
+        Text(`${this.selected.category} • Mock plan • ${this.selected.theme}`).fontSize(16).fontColor('#28745E')
+      }
+      Text(`TV: ${this.tvConnection}`).fontSize(16).fontColor('#52645C')
+      Button('Play on TV').width('100%').onClick(() => { this.showTv(); })
       Text('Offline activity').fontSize(14).fontColor('#28745E').width('100%')
       Text(`Suitable for ages 4–5 and 6–8 • Your age group: ${this.data.settings.age}`)
         .fontSize(16).fontColor('#52645C').width('100%')
@@ -335,6 +450,16 @@ struct Index {
         Text(this.session.demo ? 'DEMO MODE • 10 seconds' : `NORMAL MODE • ${this.session.minutes} minutes`)
           .fontSize(14).fontColor('#52645C').width('100%')
         Text(this.phase === 'ready' ? 'Time is up!' : this.clockLabel()).fontSize(42).fontWeight(FontWeight.Bold).fontColor('#203C31')
+        if (this.phase === 'running') { Button('Pause activity').onClick(() => this.pauseActivity()) }
+        if (this.phase === 'paused') {
+          Text('Paused — take a comfortable break.').fontSize(22).fontColor('#28745E')
+          Button('Resume activity').onClick(() => this.resumeActivity())
+        }
+        Text(`Step ${this.stepIndex + 1} / ${this.selected.activitySteps.length}`).fontSize(20)
+        Text(this.selected.steps[this.stepIndex]).fontSize(18)
+        Button('Next step').enabled(this.phase !== 'ready' && this.stepIndex < this.selected.activitySteps.length - 1)
+          .onClick(() => this.nextStep())
+        if (this.tvConnection === 'Connected') { Button('Disconnect TV').onClick(() => this.disconnectTv()) }
         Text('If you leave the app, the deadline is checked when you return. Background reminders are not guaranteed.')
           .fontSize(14).fontColor('#52645C').width('100%')
         if (this.phase === 'ready') {
@@ -350,6 +475,57 @@ struct Index {
           .enabled(!this.busy).onClick(() => this.cancelActivity())
       }
     }.width('100%')
+  }
+
+  @Builder
+  connectionContent() {
+    Column({ space: 16 }) {
+      this.heading('Connect to TV')
+      Text(`Connection: ${this.tvConnection}`).fontSize(22).fontColor('#28745E')
+      Text('Nearby devices').fontSize(22).fontWeight(FontWeight.Bold)
+      Text(this.nearby).fontSize(16)
+      Button('Search nearby devices').enabled(this.tvConnection !== 'Searching').onClick(() => { this.searchTv(); })
+      Text('Real TV requires a compatible distributed receiver. Local Demo works without TV hardware or network.').fontSize(16)
+      Button('Demo TV Mode').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectDemoTv(); })
+      if (this.tvConnection === 'Connected') {
+        Text('Connected • Local Demo TV').fontSize(20)
+        Button('View Demo TV').onClick(() => { this.showTv(); })
+        Button('Disconnect TV').onClick(() => this.disconnectTv())
+      }
+      Text('Choose a mock adventure').fontSize(22).fontWeight(FontWeight.Bold)
+      ForEach(TV_CATEGORIES, (category: string, index: number) => {
+        Button(`${category}: ${TV_TITLES[index]}`).width('100%').enabled(!this.planLoading)
+          .onClick(() => { this.generatePlan(category); })
+      })
+      Text('Mock plans are preset local content. No Gemini or Veo connection.').fontSize(14)
+    }.width('100%')
+  }
+
+  @Builder
+  tvContent() {
+    Column({ space: 10 }) {
+      Row({ space: 12 }) {
+        Text(this.tvFrame.title || 'Companion TV').fontSize(28).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('LOCAL DEMO TV').fontSize(14)
+        Button('Phone controller').onClick(() => this.leaveTv())
+      }.width('100%')
+      Row({ space: 20 }) {
+        Column({ space: 12 }) {
+          Text(this.tvFrame.phase === 'ready' || this.tvFrame.phase === 'completed' ? '★ Together!' :
+            this.tvFrame.phase === 'paused' ? '☁ Rest time' : this.tvFrame.visual).fontSize(36).fontWeight(FontWeight.Bold)
+          Text('Local illustration • Video unavailable').fontSize(15)
+          Text('Gentle play. An adult stays beside you.').fontSize(18)
+        }.layoutWeight(1).height('100%').backgroundColor('#DCEBDD').borderRadius(24).padding(20)
+        Column({ space: 12 }) {
+          Text(this.tvFrame.phase === 'paused' ? 'Paused' : this.tvFrame.phase === 'ready' ? 'Great play! Ask your parent to confirm.' :
+            this.tvFrame.phase === 'completed' ? 'Completed together!' : this.tvFrame.instruction).fontSize(25).fontWeight(FontWeight.Bold)
+          Text(this.clockLabel()).fontSize(40).fontWeight(FontWeight.Bold)
+          Text(`Step ${this.tvFrame.step + 1} / ${this.tvFrame.steps}`).fontSize(22)
+          Progress({ value: this.tvFrame.step + 1, total: this.tvFrame.steps, type: ProgressType.Linear }).width('100%')
+          Text('Your phone controls play. Take breaks whenever you need.').fontSize(16)
+        }.layoutWeight(1)
+      }.layoutWeight(1).width('100%')
+    }.padding(20).width('100%').height('100%').backgroundColor('#F4F7F0')
   }
 
   @Builder
@@ -379,11 +555,13 @@ struct Index {
   }
 
   build() {
+    if (this.screen === 'tv') { this.tvContent() }
+    else {
     Column() {
       Row({ space: 12 }) {
         if (this.screen !== 'home') {
           Button('Back').fontSize(14).backgroundColor('#E0EEE5').fontColor('#203C31').enabled(!this.busy)
-            .onClick(() => { if (this.screen === 'activity') { this.cancelActivity(); } else { this.navigate('home'); } })
+            .onClick(() => { this.onBackPress(); })
         }
         Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31')
         Blank()
@@ -397,10 +575,12 @@ struct Index {
           if (this.screen === 'home') { this.homeContent() }
           else if (this.screen === 'settings') { this.settingsContent() }
           else if (this.screen === 'progress') { this.progressContent() }
+          else if (this.screen === 'connect') { this.connectionContent() }
           else { this.activityContent() }
           Text('Made for moments together • HackYeah MVP').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
         }.width('100%').padding({ left: 20, right: 20, top: 8 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
     }.height('100%').width('100%').backgroundColor('#F4F7F0')
+    }
   }
 }

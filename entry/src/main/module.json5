@@ -11,7 +11,9 @@
     "installationFree": false,
     "pages": "$profile:main_pages",
     "requestPermissions": [
-      { "name": "ohos.permission.INTERNET" }
+      { "name": "ohos.permission.INTERNET" },
+      { "name": "ohos.permission.DISTRIBUTED_DATASYNC", "reason": "$string:tv_permission_reason",
+        "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } }
     ],
     "abilities": [
       {
