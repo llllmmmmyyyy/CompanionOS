@@ -1,3 +1,9 @@
+# Evidence-backed Parent Insight Summary - 2026-10-04
+
+Codex read the user's attached request and added ParentInsightSummaryEngine above the retained BehaviorInsightEngine. It maps stable Tablet mission outcomes to existing completion/skip metrics and generates bounded local templates, source evidence and an optional category-preserving suggestion. Home and Insights now lead with plain language; structured metrics remain accessible. No cloud model, key, new dependency or child-study data was introduced.
+
+Actual verification: 14 new deterministic edge-case/evidence/wording/window/balance checks and 17 existing work/behavior checks, API 21 Phone builds, final HAP install/relaunch, real saved 45-outcome journal comparison, Home/full summary/evidence/metrics and time-window touches, screenshot review and runtime log inspection. A sparse all-completed fallback was corrected after review and rebuilt. Native empty-journal testing and human comprehension/accessibility review remain pending; the existing journal was preserved. See docs/TESTING.md for results and package hash.
+
 # Safe Daily Adventure return - 2026-10-04
 
 Codex directly implemented the user's request for Back to World at the bounded Tablet ending. The guarded navigation transition preserves completion/session metadata and rewards, persists and synchronizes the hub scene, and prevents completed-session portals from clearing the ended flag. No new activity, replay CTA, dependency, asset or continuation pressure was added. Existing parent controls remain available.

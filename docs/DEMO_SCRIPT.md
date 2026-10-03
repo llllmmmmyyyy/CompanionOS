@@ -21,10 +21,14 @@ The finite five-mission sequence is Bridge, Memory, Move, Garden and the allocat
 | 1:01-1:08 | 12: Place Garden flower, Done/Continue; built-in native video | "Creative play and a short reviewed story are part of the same adventure." |
 | 1:08-1:15 | 13-15: Phone Pause during mission/video, Tablet paused; Resume | "The parent can pause and resume from the phone." |
 | 1:15-1:20 | 16-17: Let video finish, Continue; genuine 5/5 ending and saved garden progress | "The adventure has an ending, and progress stays for another day." |
-| 1:20-1:30 | 18-20: View Summary; What We Noticed; Why am I seeing this? | "These are descriptive activity patterns with evidence and sample limits, never a diagnosis." |
+| 1:20-1:30 | 18-20: View Summary; read the plain-language summary and balanced suggestion; expand Why am I seeing this? | "These are descriptive activity patterns with evidence and sample limits, never a diagnosis." |
 
 This is a recording/editing plan, not an executed timed 90-second demo. Record the full real chain first. If actual actions exceed the target, use **Edited for time** captions and clearly visible cuts. Preserve the real movement wait and memory preview; do not suggest a complete 15/30-minute window elapsed. Existing development results are not evidence from real children. Native fallback video is not AI-generated.
 
 ## Record and review
 
 Arrange both already-running emulator windows side by side. Windows Snipping Tool was previously detected; no recording has been produced. Use **Win+Shift+R**, select both windows, Start, perform the real sequence, Stop and save MP4; alternatively open Snipping Tool's video recording control. Review the saved file for readable Phone labels, real drag/retry, Tablet pause/resume, same-session 5/5 ending and evidence. Exclude credentials/account screens/private media. Submit through the official competition channel after confirming its actual upload rules. The challenge requires a brief recording; this 75-90 second target is our presentation choice, not an asserted official duration limit.
+
+## Parent summary close-up
+
+Use the real saved demo journal; do not inject study records. Open Home → View Insights (default 7 days). Say: "CompanionOS turns recorded activity outcomes into a short local summary. It does not label the child." Read the sentences actually displayed; current evidence supports completed Storybook activities and positive building feedback, not a building-completion advantage. Tap Why am I seeing this? and show matching titles, dates, outcomes and threshold explanation. Say: "Each observation and next-session suggestion has evidence. The suggestion keeps learning, movement, creating and calm time." Hide evidence, switch Today/30 days, return to 7 days. Open Recent patterns only if detailed metrics are needed. These are development/demo interactions, not evidence from a child study. Summary is deterministic, local, descriptive, non-clinical and evidence-backed; no cloud key is required.

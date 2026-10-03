@@ -57,6 +57,9 @@ try {
     & $node (Join-Path $scriptRoot 'test-work.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Work-session checks failed' }
+    & $node (Join-Path $scriptRoot 'test-parent-summary.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Parent summary checks failed' }
     & $node (Join-Path $scriptRoot 'test-games.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Interactive game checks failed' }

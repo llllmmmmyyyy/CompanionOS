@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { WorldStatus, WorldEnvelope, WorldCommand, WorldResult, WorldSlot, validWorldResult, worldSlots, recommendedWorld, backendRequest, connectionError, EMULATOR_RELAY_ENDPOINT } from '@companion/protocol';
 import { BalanceRules, BALANCE_PRESETS, presetRules, validRules, SessionBalanceEngine } from '../model/SessionBalanceEngine';
+import { ParentInsightSummaryEngine, ParentInsightSummary, SummaryEvidence } from '../model/ParentInsightSummaryEngine';
 import { ParentSettings } from '../model/Companion';
 import { ParentWorldStore, ParentWorldData } from '../services/ParentWorldStore';
 @Component
@@ -14,6 +15,9 @@ export struct ParentDashboard {
   @State data: ParentWorldData = new ParentWorldData();
   @State view: string = 'dashboard';
   @State evidence: string = '';
+  @State insightDays: number = 7;
+  @State showSummaryEvidence: boolean = false;
+  @State showMetrics: boolean = false;
   @State sending: boolean = false;
   @State rules: BalanceRules = new BalanceRules();
   private store: ParentWorldStore | undefined = undefined;
@@ -45,7 +49,8 @@ export struct ParentDashboard {
     try { console.info(`[CompanionParent] endpoint=${EMULATOR_RELAY_ENDPOINT} room=family-demo command=${type}`); await backendRequest(`${EMULATOR_RELAY_ENDPOINT}/world/rooms/family-demo/command`, 'POST', JSON.stringify(command)); this.detail = 'Command sent. Waiting for Tablet acknowledgement...'; this.save(); await this.poll(); }
     catch { this.detail = 'Command failed. The Tablet did not acknowledge this request.'; } finally { this.sending = false; }
   }
-  private recent(): WorldResult[] { return this.data.results.filter((r: WorldResult) => r.timestamp <= Date.now() && r.timestamp >= Date.now() - 7 * 86400000); }
+  private recent(): WorldResult[] { return ParentInsightSummaryEngine.window(this.data.results, this.insightDays, Date.now()); }
+  private summary(): ParentInsightSummary { return ParentInsightSummaryEngine.summarize(this.data.results, this.insightDays, Date.now()); }
   private styleEvidence(style: string): string { const rows = this.recent().filter((r: WorldResult) => r.style === style); return rows.map((r: WorldResult) => `${r.title}: ${r.completed ? 'completed' : 'skipped'}, ${r.attempts} attempts, ${r.retries} retries, ${r.duration}s, ${r.feedback || 'no feedback'}`).join('\n'); }
   private uiState(): string {
     if (!this.connected) { return 'DISCONNECTED'; }
@@ -56,10 +61,7 @@ export struct ParentDashboard {
     return 'CHILD_MODE_READY';
   }
   private today(): WorldResult[] { return this.data.results.filter((r: WorldResult) => new Date(r.timestamp).toDateString() === new Date().toDateString() && r.timestamp <= Date.now()); }
-  private quickInsight(): string {
-    const rows = this.recent().filter((r: WorldResult) => r.style === 'BUILDING');
-    return rows.length >= 3 ? `Building activities: ${rows.filter((r: WorldResult) => r.completed).length} of ${rows.length} completed this week.` : 'Complete a few adventures to start seeing activity patterns.';
-  }
+  private quickInsight(): string { return ParentInsightSummaryEngine.summarize(this.data.results, 7, Date.now()).primaryObservation; }
   @Builder
   controls() {
     if (this.uiState() === 'DISCONNECTED') { Button('Reconnect').width('100%').backgroundColor('#335E49').onClick(() => this.poll()) }
@@ -82,8 +84,24 @@ export struct ParentDashboard {
   @Builder
   insights() {
     Text('What We Noticed').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
-    Text('Last 7 days | Observable activities, never personality or clinical labels').fontSize(14).fontColor('#536D61')
-    if (this.recent().length < 3) { Text('Not enough data yet. Explore a few activities before drawing patterns.').fontSize(16) }
+    Row({ space: 6 }) { ForEach([1, 7, 30], (days: number) => {
+      Button(days === 1 ? 'Today' : `${days} days`).layoutWeight(1).height(36).backgroundColor(this.insightDays === days ? '#335E49' : '#E8EDE8').fontColor(this.insightDays === days ? '#FFFFFF' : '#335248').onClick(() => { this.insightDays = days; this.showSummaryEvidence = false; })
+    }) }
+    Text(`${this.summary().timeWindow} · ${this.summary().confidenceLabel}`).fontSize(13).fontColor('#536D61')
+    Text(this.summary().primaryObservation).fontSize(19).fontWeight(FontWeight.Medium).width('100%')
+    if (this.summary().secondaryObservation) { Text(this.summary().secondaryObservation).fontSize(17).width('100%') }
+    if (this.summary().challengeObservation) { Text(this.summary().challengeObservation).fontSize(17).width('100%') }
+    if (this.summary().nextSessionSuggestion) {
+      Text('Why this may matter for the next session').fontSize(18).fontWeight(FontWeight.Bold).width('100%')
+      Text(this.summary().nextSessionSuggestion).fontSize(16).width('100%')
+    }
+    Text('Local observations, not an assessment. Suggestions keep the existing balanced session plan.').fontSize(13).fontColor('#536D61')
+    if (this.summary().evidenceItems.length > 0) {
+      Button(this.showSummaryEvidence ? 'Hide summary evidence' : 'Why am I seeing this?').backgroundColor('#E1EAE3').fontColor('#335248').onClick(() => { this.showSummaryEvidence = !this.showSummaryEvidence; })
+      if (this.showSummaryEvidence) { ForEach(this.summary().evidenceItems, (item: SummaryEvidence) => { Text(ParentInsightSummaryEngine.evidenceText(item)).fontSize(14).width('100%').padding(12).backgroundColor('#FFF9E8').borderRadius(12) }) }
+    }
+    Button(this.showMetrics ? 'Hide recent patterns' : 'Recent patterns >').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => { this.showMetrics = !this.showMetrics; })
+    if (this.showMetrics) {
     ForEach(['BUILDING', 'MEMORY', 'SORTING', 'COUNTING', 'CREATING', 'MOVEMENT', 'WATCHING', 'EXPLORING'], (style: string) => {
       if (this.recent().some((r: WorldResult) => r.style === style)) {
         Column({ space: 5 }) {
@@ -96,6 +114,7 @@ export struct ParentDashboard {
     })
     Text(`Play: ${this.recent().filter((r: WorldResult) => !['WATCHING', 'MOVEMENT'].includes(r.style)).length} | Watch: ${this.recent().filter((r: WorldResult) => r.style === 'WATCHING').length} | Move: ${this.recent().filter((r: WorldResult) => r.style === 'MOVEMENT').length}`).fontSize(16)
     Text('These are activity counts, not a ratio of choices offered. No attention or ability score is inferred. Movement is child-confirmed.').fontSize(13).fontColor('#536D61')
+    }
     if (this.evidence) { Text(this.evidence).fontSize(15).width('100%').padding(12).backgroundColor('#FFF9E8') }
   }
   @Builder
@@ -139,7 +158,7 @@ export struct ParentDashboard {
         Column({ space: 6 }) {
           Text('What We Noticed').fontSize(19).fontWeight(FontWeight.Bold).width('100%')
           Text(this.quickInsight()).fontSize(15).width('100%')
-          Text('View Activity Insights >').fontSize(14).fontColor('#335E49').width('100%').onClick(() => this.openPage('parent-insights'))
+          Text('View Insights >').fontSize(14).fontColor('#335E49').width('100%').onClick(() => this.openPage('parent-insights'))
         }.width('100%').padding(12).backgroundColor('#FFFFFF').borderRadius(16)
         Column({ space: 6 }) {
           Text("Today's Activity").fontSize(18).fontWeight(FontWeight.Bold).width('100%')
@@ -162,7 +181,7 @@ export struct ParentDashboard {
           Text('Why am I seeing this?').fontSize(20).fontWeight(FontWeight.Bold)
           Text(this.evidence).fontSize(15).width('100%').padding(12).backgroundColor('#FFF9E8')
           Button('Back to insights').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => { this.view = 'insights'; this.evidence = ''; })
-        } else { this.insights(); this.history() }
+        } else { this.insights(); if (this.showMetrics) { this.history() } }
         Button('Phone fallback Activity Insights').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('insights'))
         Button('Parent-confirmed records').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('progress'))
       } else {

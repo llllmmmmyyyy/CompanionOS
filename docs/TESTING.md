@@ -1,3 +1,27 @@
+# Local Parent Insight Summary verification - 2026-10-04
+
+ParentInsightSummaryEngine is a new read-only deterministic layer on the retained BehaviorInsightEngine metrics. It summarizes validated, deduplicated saved Tablet outcomes; temporary mission-level metric adapter events are neither persisted nor uploaded. Home shows one seven-day sentence; Insights offers up to three observations, one balanced suggestion, Today/7/30 controls, expandable evidence and optional structured metrics/history.
+
+Final Phone build: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module entry`, BUILD SUCCESSFUL, exit 0, API 21. Output `entry/build/default/outputs/default/entry-default-unsigned.hap`, SHA256 `5F4F8175E0452A854CE67221438DD3D4ED7C9478C6C31834179EC0D42B8FC64A`. Final HAP was installed and launched on the existing Phone API 21 without deleting data. Existing warning/signing limitations remain; this is an unsigned emulator development package. Tablet was unchanged and not rebuilt in this stage.
+
+| Check | Actual verification | Status |
+|---|---|---|
+| Summary rules | 14 new SDK-transpiled host tests: building, memory retries, format comparison without selection claim, insufficient data, conflicting signals, sparse all-completed groups, no completions, one category, movement, positive feedback, exact source/evidence matching, prohibited language, balance protection, windows/deduplication | PASS |
+| Existing BehaviorInsightEngine / balance regression | `scripts/test-work.cjs`: all 17 existing work/behavior/balance checks passed; original engine unchanged | PASS |
+| Home summary | Actual Phone API 21 layout shows one Story completion observation and View Insights, without raw metrics in What We Noticed | PASS |
+| Summary-first Insights | Final HAP real screenshot/layout shows Story observation, building Loved it observation, balanced suggestion and evidence button above optional Recent patterns | PASS |
+| Actual evidence | Real saved emulator journal has 45 outcomes. Storybook 4/4 completed; building 4 Loved it out of 5 explicit responses (overall building completion 7/16). The engine and Phone correctly report Story completion and building feedback, not a fabricated building-completion advantage | PASS |
+| Expand/collapse | Real taps on Why am I seeing this? and Hide summary evidence reveal matching Story titles/dates/mission IDs and 4/4 count, scroll to building feedback and suggestion evidence, then return to compact summary; explicit feedback denominator is displayed separately | PASS |
+| Time windows | Real Today / 30 days / 7 days taps change the selected window label. Synthetic boundary tests separately prove older/future records are excluded; this current demo journal shares the same day | PASS |
+| Optional structured metrics | Recent patterns tap reveals retained per-style counts and evidence links after the summary | PASS |
+| No duplicate or changed outcomes | Full serialized relay outcome array remained identical before/after summary navigation and final HAP reinstall; 45 records, completed session still 5/5 | PASS |
+| Local/no cloud dependency | Source inspection: summarizer imports only local metric model and existing protocol types/validation; no HTTP/provider calls, keys, mutable store or command API. Host engine runs with unavailable Network mock. Existing local Windows compact relay is unchanged | PASS by code/host verification; not a packet-capture claim |
+| Runtime log | Final Phone process log had no Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured scope |
+| Insufficient-data UI on cleared device | Engine output tested with fewer than three outcomes (no suggestion/evidence); saved emulator history was deliberately preserved, so empty-journal native UI was not exercised | NOT RUN on device |
+| Physical-device accessibility / five-second comprehension | No physical device or parent usability study was run | NOT RUN |
+
+Evidence remains ignored in artifacts/parent-summary-* (source snapshot, host output, layouts, screenshots, build/log files). Test fixtures are synthetic unit inputs; the on-device journal is real development/demo interaction history, not a recruited child study. New tests are included in `scripts/build.ps1 -RunChecks`. Broader unrelated backend/game tests were not rerun. Actual rules/limitations are in ACTIVITY_INSIGHTS.md; historical results below retain their original scope.
+
 # Tablet Daily Adventure return verification - 2026-10-04
 
 The bounded ending now includes an immediately available **Back to World** button. Returning changes the scene to Home Base and saves/syncs it; it retains ended/session identity, slots, results, daily completion and decorations. Completed-session portal taps cannot restart the zero-budget adventure. A parent can explicitly start a separate session through the existing controls.

@@ -61,3 +61,9 @@ flowchart TD
 The conceptual interaction-to-insight pipeline has two actual implementations. Tablet raw events are `WorldEvent`, not falsely renamed `ChildInteractionEvent`, and they are not shipped into BehaviorInsightEngine. ParentDashboard aggregates the actual compact WorldResult summaries; BehaviorInsightEngine consumes local Phone fallback ChildInteractionEvent records. Retaining this distinction preserves state ownership, event semantics and existing history. Both expose descriptive evidence; neither performs diagnosis.
 
 The four Phone root views now group Home status/contextual actions, Activities content, Insights evidence/history and Parent advanced/profile/technical configuration. Legacy internal routes remain reachable. Read PARENT_PHONE_UI.md for exact state/action precedence. Production authentication/encryption, widget hosting and background scheduling are not added by this documentation audit.
+
+## Local parent summary pipeline
+
+ParentWorldStore compact outcomes → ParentInsightSummaryEngine validated/deduplicated time window → transient mission-ID metric adapter → existing BehaviorInsightEngine.metrics → bounded deterministic summary → ParentDashboard Home/Insights → expandable evidence. No synthetic adapter events are written to BehaviorStore. The independent Phone fallback event pipeline remains intact.
+
+Summary generation is a read-only local operation. It makes no HTTP/provider calls and never changes outcomes, completion counts, session state, saved configuration or balanced slots. Insights uses summary-first layout, Today/7/30 windows, one optional balanced suggestion, evidence toggle and optional detailed metrics. Home uses exactly one seven-day summary sentence. Rules and input limitations are documented in ACTIVITY_INSIGHTS.md.
