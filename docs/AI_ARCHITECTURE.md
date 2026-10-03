@@ -6,6 +6,8 @@ AI is an optional source within parent work sessions and quick activities, not t
 
 Work activities use five-minute category requests with the child's age, interests and learning goal. Age adapts counting instructions; local difficulty adjusts safe creative templates. Safety preferences never relax existing AI validation or adult-support requirements; the cloud adapters keep their stricter existing safety contract. The app does not claim that these preference flags are remotely enforced as additional provider parameters. Keys and media review policy remain backend-only.
 
+Current evaluation evidence: live provider success remains NOT VERIFIED; injected provider HTTP is MOCKED, actual local no-key fallback is emulator tested. UI offers an understandable Built-in continuation and manual alternate-provider selection. See SCORE_READINESS.md.
+
 ## Four content sources
 
 Activity offers **Choose Activity Content**: Gemini AI, Huawei AI, Built-in Video, My Video. Shared `ActivityContentSource` and `VideoSource` describe origin. Activity/session retain source, video/private path and provider/generation identity; history retains source. Old version-1 records without source default to BUILT_IN without losing existing records.
@@ -14,15 +16,15 @@ Activity offers **Choose Activity Content**: Gemini AI, Huawei AI, Built-in Vide
 
 The normalized public plan uses title, theme, educationalGoal, and steps with id, instruction, durationSeconds, learningGoal, videoUrl and videoPrompt. The original internal `veoPrompt` compatibility field stays behind the backend boundary. Source labels reflect validated AI plans; failed/unavailable providers return explicitly labelled built-in content. Generated video availability remains separate.
 
-Built-in keeps original activities and the bundled MP4 unchanged, with zero AI calls. My Video invokes PhotoViewPicker for one video, validates MP4/40 MiB, obtains duration through AVMetadataExtractor, and saves one private copy plus Preferences metadata. No broad gallery, camera or microphone permission is requested. An adult chooses and reviews the content. Missing files offer Built-in. Phone can play privately offline; separate TV receives a cached `/videos/:hash` URI via bounded binary POST /media/import. No private path is transmitted. If caching fails, TV uses explicitly labelled Built-in fallback. Thumbnails and full library management are absent.
+Built-in keeps original activities and the bundled MP4 unchanged, with zero AI calls. My Video invokes PhotoViewPicker for one video, validates MP4/40 MiB, obtains duration through AVMetadataExtractor, and saves one private copy plus Preferences metadata. No broad gallery, camera or microphone permission is requested. An adult chooses and reviews the content. Missing files offer Built-in. Phone can play privately offline; separate Large Screen receives a cached `/videos/:hash` URI via bounded binary POST /media/import. No private path is transmitted. If caching fails, Large Screen uses explicitly labelled Built-in fallback. Thumbnails and full library management are absent.
 
-TV consumes only VideoSource through common transport/player, with no provider API or response parsing. All controls remain Phone-owned. Both keys are blank in `.env.example`; `.env`, generated media and dependencies are ignored.
+Large Screen consumes only VideoSource through common transport/player, with no provider API or response parsing. All controls remain Phone-owned. Both keys are blank in `.env.example`; `.env`, generated media and dependencies are ignored.
 
 Huawei prerequisites: enabled chat/video models and trusted output-storage hosts. No live Huawei/Gemini/Veo generation was verified. Contracts checked: [MaaS V2 chat](https://support.huaweicloud.com/model-call-maas/model-call-019.html), [Wan text-to-video](https://support.huaweicloud.com/model-call-maas/model-call-070.html), [task polling](https://support.huaweicloud.com/model-call-maas/model-call-025.html). Mocked REST tests do not prove account/model availability.
 
 ## Implemented versus verified
 
-Node.js 22+ / TypeScript uses built-in HTTP and fetch; no Express or provider SDK. Real Google REST paths are implemented with configurable defaults `gemini-2.5-flash` and `veo-3.1-generate-preview`. No key was configured, so no live Gemini/Veo request was attempted. Provider tests inject mocked HTTP. The real backend, Phone and independent TV were exercised with honest no-key fallback and a bundled non-AI MP4.
+Node.js 22+ / TypeScript uses built-in HTTP and fetch; no Express or provider SDK. Real Google REST paths are implemented with configurable defaults `gemini-2.5-flash` and `veo-3.1-generate-preview`. No key was configured, so no live Gemini/Veo request was attempted. Provider tests inject mocked HTTP. The real backend, Phone and independent Large Screen were exercised with honest no-key fallback and a bundled non-AI MP4.
 
 ## Flow
 
@@ -30,7 +32,7 @@ Phone POSTs age group, interests, category, learning goal and duration. Backend 
 
 An AI plan queues one eight-second 16:9 720p Veo clip per step. States: QUEUED, GENERATING, READY, FAILED. Operations poll every ten seconds with a twelve-minute deadline; downloads are bounded to 40 MiB. Segments generate sequentially, permitting PLAYABLE after the first clip or safe fallback while later generation continues. Phone polls asynchronously and keeps checking late readiness/review for its active AI plan. Ungenerated/failed/unreviewed steps use fallback without freezing the activity.
 
-TV receives approved URLs plus Phone snapshots, never provider secrets. Clips loop for the step duration; scheduled/manual next and previous switch the surface. Fallback is an original bundled calm cloud MP4, visibly Not AI generated; playback error uses a static safe visual. Video end never writes completion.
+Large Screen receives approved URLs plus Phone snapshots, never provider secrets. Clips loop for the step duration; scheduled/manual next and previous switch the surface. Fallback is an original bundled calm cloud MP4, visibly Not AI generated; playback error uses a static safe visual. Video end never writes completion.
 
 ## Endpoints
 
@@ -42,7 +44,7 @@ TV receives approved URLs plus Phone snapshots, never provider secrets. Clips lo
 | GET /activities/:id | Same complete job representation |
 | GET /videos/:videoId | Approved stored MP4 with byte ranges |
 | POST /tv/rooms/:room/phone | Validated authoritative command/full state |
-| GET /tv/rooms/:room/state | Snapshot/heartbeats; receiver=true registers TV |
+| GET /tv/rooms/:room/state | Snapshot/heartbeats; receiver=true registers Large Screen |
 | POST /tv/rooms/:room/feedback | VIDEO_READY/VIDEO_BUFFERING/VIDEO_FAILED feedback |
 | POST /tv/rooms/:room/disconnect | Explicit disconnect |
 

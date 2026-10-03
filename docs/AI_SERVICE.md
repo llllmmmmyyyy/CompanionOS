@@ -1,6 +1,6 @@
 # Optional AI recommendation service
 
-Status: client adapter implemented; backend and live AI integration **not available or verified**. Leave the Parent Settings service URL empty for offline operation.
+Status: legacy optional catalog-recommendation client implemented; no real endpoint for this contract is verified. The separate activity/video backend is implemented; see AI_ARCHITECTURE.md. Live cloud success remains unverified. Leave the Parent Settings service URL empty for offline operation.
 
 ## Request contract
 

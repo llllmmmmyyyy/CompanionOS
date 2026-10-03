@@ -14,7 +14,7 @@ export function validMessage(m: unknown): m is TvMessage {
     ['FALLBACK', 'LOCAL', 'REMOTE_CACHED', 'REMOTE_STREAM'].includes(v.videoSource) && typeof v.videoUrl === 'string' && v.videoUrl.length <= 1000 &&
     (v.videoUrl === '' || /^http:\/\/(10\.0\.2\.2|127\.0\.0\.1):18080\/videos\/[a-f0-9]+$/.test(v.videoUrl) || /^https:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[a-zA-Z0-9/_?.=&%-]+$/.test(v.videoUrl));
 }
-export function waitingMessage(): TvMessage { return { protocolVersion: 1, type: 'STATE_SYNC', sessionId: '', activityId: '', title: 'CompanionOS TV',
+export function waitingMessage(): TvMessage { return { protocolVersion: 1, type: 'STATE_SYNC', sessionId: '', activityId: '', title: 'CompanionOS Large Screen',
   instruction: 'Waiting for phone...', stepIndex: 0, totalSteps: 1, videoUrl: '', videoSource: 'FALLBACK', visual: 'Together', phase: 'idle', remaining: 0 }; }
 interface Room { message: TvMessage; revision: number; phoneAt: number; receiverAt: number; videoStatus: string; }
 export class Relay {

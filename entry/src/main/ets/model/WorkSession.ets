@@ -24,12 +24,16 @@ export class WorkState {
   finishedAt: number = 0;
 }
 export function planWork(minutes: number, settings: ParentSettings): WorkState {
+  minutes = [15, 30, 45, 60].includes(minutes) ? minutes : 30;
   const state = new WorkState();
   state.id = `work-${Date.now()}`; state.minutes = minutes; state.phase = 'active';
   const types = WORK_TYPES.filter((type: string) => settings.preferredActivityTypes.includes(type));
+  const balanced: string[] = ['MOVE', 'LEARN', 'LEARN', 'CREATE', 'CREATE', 'CALM'];
   const count = Math.max(2, Math.floor(minutes / 5));
   state.entries = Array.from({ length: count }, (_value: number, index: number) => {
-    const entry = new WorkEntry(); entry.category = types[index % types.length] || 'CALM'; return entry;
+    const entry = new WorkEntry();
+    entry.category = minutes === 30 && types.length === 4 ? balanced[index] : types[index % types.length] || 'CALM';
+    return entry;
   });
   return state;
 }

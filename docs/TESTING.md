@@ -1,5 +1,51 @@
 # Testing evidence
 
+## Current API 21 Tablet companion - 2026-10-03
+
+**Targets:** primary Phone entry/default remains compatible/target API 21; secondary tventry/tablet is compatible/target API 21 and deviceTypes tablet. Shared HAR supports phone/tablet. No current product requires API 19. HDC queried Phone API 21/phone and MatePad Pro 11 API 21/tablet; Windows emulator process arguments identify MatePad Pro 11. The Tablet system reports generic model emulator; the emulator profile, not a physical device, supplies the model name.
+
+**Build/checks passed:** final native Phone and Tablet unsigned HAPs built and installed. 47 ArkTS checks and 18 backend tests passed (65 total); cloud HTTP remains mocked. Phone SHA-256 `6799EA6EB10AF5ECB5FFD8D5754738E03DF493AD9D42E4361E0F2AAF2A9F17D9`; Tablet SHA-256 `3C1B434D5CDAAED0EB43E9183E460C014AD98209289FE8B8AAE263E11ECF80F0`. Outputs: entry/build/default/outputs/default/entry-default-unsigned.hap and tventry/build/tablet/outputs/default/tventry-default-unsigned.hap. No signing or physical-device validation.
+
+| Actual current emulator check | Result |
+|---|---|
+| Phone launch/work plan/activity | Passed: Home -> thirty-minute six-entry plan -> Penguin Walk -> normal 05:00 child view. |
+| Tablet launch/connect | Passed: updated helper installs/launches both; Tablet connects to Windows relay at 10.0.2.2:18080 / family-demo, then Phone connects to Emulator Tablet; both report Connected. |
+| START | Passed: Tablet native bundled content, Penguin Walk/instruction, Step 1/3 and Video PLAYING observed. |
+| PAUSE/RESUME | Passed: Phone commands switch actual Tablet state/video PLAYING -> PAUSED -> PLAYING with synchronized remaining time. |
+| NEXT | Passed: Tablet becomes Step 2/3, displaying gentle flipper instruction while video remains PLAYING. |
+| CANCEL / end | Passed: final Phone End Session produced actual Tablet CANCELLED / 0:00; Phone summary showed 0 confirmed and 6 skipped. |
+| Reconnect / journal | Passed: restarted Tablet and explicit Phone reconnect restored CONNECTED, native LEARN video PLAYING and Step 2; after end, journal retained total 11 and prior Demo/non-Demo records. No new completion was recorded by cancel/skip. |
+| Change/skip | Passed: first entry is skipped and next LEARN preview opens; receiver becomes WAITING for the new reviewed activity, not a false completion. |
+| Landscape content/layout | Passed for observed 2560x1600 emulator screenshot: native content, title, two-line instruction and progress fit without major clipping. Portrait/larger text not tested. |
+| Tablet unavailable | Passed: force-stopped Tablet while Phone normal LEARN activity continued at 04:52 with local video/instructions. |
+| Phone restart recovery | Passed: force-stop/relaunch then final-HAP installation retains work checkpoint; explicit restored notice, Paused status and 25 remaining planned minutes / 0 confirmed. Resume returns to native child view. |
+
+Captured Phone/Tablet app logs contained no Uncaught/JsError/Error-name/FATAL signatures; receiver logs showed actual disconnect/heartbeat expiry and later CONNECTED. This is bounded captured-log evidence. Final HAP manifests were inspected for minimum/target/device values.
+
+**Automation findings:** several navigation attempts searched for a Home button after recovery had already opened the work-status screen. These attempts were aborted; actual layout inspection identified the correct Resume/Open child view route. They are not reported as successful tests. Root npm test failed because this native project has no root package.json; backend npm.cmd test then passed from backend. Build reports absent signing and platform throw warnings. Initial product-switch build also reported local HAR metadata warning; both compilations completed and the final Phone rebuild did not repeat that warning.
+
+**Preserved historical evidence:** old API 19 TV tests below are deprecated target evidence only, not proof of current Tablet support. Earlier actual My Video import, profile/history restore, no-key AI fallback and notifications were not all repeated in this focused target conversion. Interrupted prior refinement's Demo confirmation and pause/resume/early-end checks remain documented in its own section.
+
+**Not verified:** physical Phone/Tablet, live cloud generation, production distributed-device deployment, full elapsed work windows, widget hosting, portrait/formal accessibility and recording. Validated on HarmonyOS Phone and Tablet emulators. The relay is a development/demo HTTP transport with explicit Phone fallback. API target adjustment is not a full competition compliance certificate.
+
+
+## Historical pre-Tablet evaluation refinement - 2026-10-03
+
+This section distinguishes checks performed in this refinement from historical sections below. The user supplied evaluation weights; the public organizer tasks page returned a loading placeholder, so official partner criteria/compliance remain unverified.
+
+**Passed builds:** Phone and TV native unsigned HAPs rebuilt with existing DevEco SDK/API configuration. Phone SHA-256 `75D102345949D92B53313A9BB16C76763CC662B6F19027F7896568EED63F9A68`; TV SHA-256 `2EC037E6F20B8B606C594052DA22268FFFBD3FE8EF1AC405CF85DB810919846D`. Both installed successfully on the existing Phone API 21 / TV API 19 emulators. Warnings about potentially throwing platform APIs and absent signing remain; no physical device was used.
+
+**Passed host checks:** all 47 ArkTS checks (14 domain, 7 work/profile, 13 mocked services, 7 TV, 6 emulator/protocol) and 18 backend checks passed, total 65. The new work check verifies the exact default thirty-minute category sequence, invalid-duration normalization and restricted preferred types. Cloud tests use injected HTTP, not live provider success.
+
+**Actual Phone observations this iteration:** Home displays the new proposition. Thirty-minute setup renders MOVE 5 / LEARN 10 / CREATE 10 / CALM 5; a screenshot was visually inspected. Preparation starts Penguin Walk with Why this activity and age/adult notices. Labelled ten-second Demo start reached the child player and foreground expiry reported a submitted system notification. Parent confirmation advanced to Animal Number Adventure / LEARN; force-stop/relaunch retained the active work plan and exposed Return to work session. The notification center was not reinspected at this point. Recovered work view showed 25 planned minutes and 1/6 confirmed. The second entry normal timer paused at 04:55 and resumed at 04:54; early end showed one confirmed Demo and five skipped. No thirty-minute real-time completion claim.
+
+**Audit:** tracked-file scan found no common API/private-key token patterns, tracked secret env files/signing/generated packages/dependency directories, or broken local Markdown links. This bounded scan is not proof that arbitrary secret formats cannot exist. Only blank-key backend/.env.example is tracked. Existing .gitignore already covers env/signing/local paths, artifacts, dependencies and build output; no unrelated change was needed.
+
+**Historical emulator evidence retained, not repeated wholesale:** native My Video picker/private persistence, Gemini/Huawei no-key fallbacks, actual TV controls/outage continuation, profile restore, notification-center inspection and full normal five-minute activity are documented below. Current TV HAP installation/launch is a smoke check, not a repetition of every transport case.
+
+**Not verified:** physical devices, live cloud success, complete elapsed work windows, widget hosting, formal accessibility, actual recording and final organizer eligibility/submission. No new third-party assets/dependencies. The 90-second script explicitly captions an edited completed-Demo summary; a continuously filmed early end is labelled Work Session Ended.
+
+
 ## Parent work sessions and visual refinement - 2026-10-03
 
 This section covers the current product refinement. The emulator's local record clock crossed into 2026-10-04 during testing; dates shown in device records are retained as observed. Later sections are historical evidence, not a blanket claim that every old test was repeated.
@@ -31,7 +77,7 @@ This section covers the current product refinement. The emulator's local record 
 
 **Still unverified:** full 15/30/45/60 elapsed work windows; all multi-step source-preference combinations; live Gemini/Huawei accounts; signed physical devices; larger system text, smaller Phone widths, landscape and formal accessibility audit; widget hosting; recording and complete competition compliance. Imported/generated content still requires adult review. Built-in activities remain indoor/gentle/jump-free regardless of relaxed preference flags. Work restart restores paused Built-in content, not arbitrary unreviewed AI/video replay. Uninstall/clear-data deletes local state.
 
-**Minimal human review:** use the new home on the existing emulator; try a complete normal work window with an adult nearby, review the independent-activity wording for your child's needs, inspect larger-font layout, and record the two-minute script in DEMO_SCRIPT.md. Live keys/signing are separate and do not block local use.
+**Minimal human review:** use the new home on the existing emulator; try a complete normal work window with an adult nearby, review the independent-activity wording for your child's needs, inspect larger-font layout, and record the 90-second script in DEMO_SCRIPT.md. Live keys/signing are separate and do not block local use.
 
 Scoped captured Phone logs contained no Uncaught/FATAL/JsError/Error-name crash signatures. Intentional connection failures remain diagnostic evidence, not hidden successes. Local screenshots/layout/logs are ignored under artifacts/work-*. They are actual local evidence and are not uploaded as user/device data.
 

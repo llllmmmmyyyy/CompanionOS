@@ -19,3 +19,7 @@ The existing Hypium/hamock template test files were retained; their original sam
 Official references consulted for API usage include [basic notifications](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V2/text-notification-0000001478340981-V2), [widget lifecycle](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V5/arkts-ui-widget-lifecycle-V5), and the actual installed API 21 declarations and DevEco widget templates. Documentation references are not claims of code or asset licensing.
 
 The parent-work hero and six category/activity SVG illustrations were authored from original vector shapes during this refinement. No stock asset or external font was downloaded. The Phone fallback.mp4 is an unchanged copy of the existing original TV asset (same SHA-256); no additional video tool was used. No project-wide license is invented for these assets.
+
+## Final refinement inventory
+
+This iteration adds no dependencies, external fonts, downloaded media or third-party artwork. It reuses the existing original SVG system and bundled clip. Codex authored the plan/UI/documentation changes; no separate ChatGPT, Gemini or Huawei coding agent was used. Historical dependency/asset inventories above retain their original verification limits.

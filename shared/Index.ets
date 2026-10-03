@@ -37,7 +37,7 @@ export class TvMessage {
   type: string = 'STATE_SYNC';
   sessionId: string = '';
   activityId: string = '';
-  title: string = 'CompanionOS TV';
+  title: string = 'CompanionOS Large Screen';
   stepIndex: number = 0;
   totalSteps: number = 1;
   instruction: string = 'Waiting for phone...';

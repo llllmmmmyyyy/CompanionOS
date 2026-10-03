@@ -43,7 +43,7 @@ try {
   $env:Path = "$(Join-Path $studioRoot 'jbr\bin');$(Join-Path $studioRoot 'tools\node');$(Join-Path $studioRoot 'tools\ohpm\bin');$originalPath"
   # Windows PowerShell represents native stderr warnings as ErrorRecords; use the actual exit code.
   $ErrorActionPreference = 'Continue'
-  $product = if ($Module -eq 'tventry') { 'tv' } else { 'default' }
+  $product = if ($Module -eq 'tventry') { 'tablet' } else { 'default' }
   & $node $hvigor --mode module -p "product=$product" -p "module=$Module@default" -p buildMode=debug assembleHap --no-daemon 2>&1 |
     Tee-Object -FilePath (Join-Path $artifactRoot "build-$Module.txt")
   $ErrorActionPreference = 'Stop'

@@ -17,6 +17,15 @@ const { ParentSettings, Snapshot, restoreSnapshot, validSettings, addCompletion,
 const { WorkState, planWork, settleEntry, endWork, parseWork, categoryMinutes, remainingWork, workActivity } = load('WorkSession');
 let passed = 0;
 function test(name, run) { run(); passed++; console.log('PASS ' + name); }
+test('balanced default thirty-minute plan and invalid duration recovery', () => {
+  const settings = new ParentSettings();
+  const state = planWork(30, settings);
+  assert.equal(state.entries.map(entry => entry.category).join(','), 'MOVE,LEARN,LEARN,CREATE,CREATE,CALM');
+  assert.equal(remainingWork(state), 30);
+  assert.equal(planWork(NaN, settings).minutes, 30);
+  settings.preferredActivityTypes = ['CALM'];
+  assert.ok(planWork(30, settings).entries.every(entry => entry.category === 'CALM'));
+});
 test('legacy profile migrates without dropping history; expanded profile survives restart', () => {
   const old = new Snapshot(); for (const field of ['preferredActivityTypes', 'sessionDuration', 'activityDifficulty', 'indoorOnly', 'noJumping', 'lowIntensity']) delete old.settings[field];
   const restored = restoreSnapshot(JSON.stringify(old)); assert.equal(restored.settings.sessionDuration, 30); assert.equal(restored.settings.noJumping, true);

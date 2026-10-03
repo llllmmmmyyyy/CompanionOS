@@ -1,16 +1,28 @@
-# Two-minute parent work-session demo
+# 90-second demonstration
 
-Use the installed Phone build. TV and AI are optional. Label the accelerated ten-second activity as Demo Mode, not a real five-minute completion.
+Use Phone first. Before recording select all four preferred types and a thirty-minute preference in Parent. Built-in needs no backend; an adult stays available.
 
-| Time | Action and English narration |
-|---|---|
-| 0:00-0:20 | Show the illustrated home and four category tiles. "Busy parents cannot constantly entertain their children. CompanionOS turns passive screen time into short, structured indoor activities while adults remain nearby and in control." |
-| 0:20-0:40 | Open Parent, show age/interests/types and safety defaults. "We prepare a clear space and choose what fits our child. The app does not replace appropriate adult supervision or monitor children." |
-| 0:40-1:00 | Start Parent Work Session, choose 15 or 30 minutes and Recommended. "This prepares a sequence of short activities. Breaks and review are welcome; it is not a strict uninterrupted schedule." |
-| 1:00-1:25 | Show Why this activity, enable Demo Mode and start. Show the clean child view. "Built-in works without a network. Parents may also choose reviewed videos or optional AI preparation." Open parent controls and briefly pause/resume. |
-| 1:25-1:45 | Let the demo expire, confirm as parent, show the next activity and parent work view. "Only parent confirmation records completion. We can change an activity or end the session without adding false records." |
-| 1:45-2:00 | End Session and show summary/journal. "These are planned durations, with skipped and demo activities identified. Phone works on its own; a larger screen is an optional extension." |
+| Time | Exact actions | English narration |
+|---|---|---|
+| 0-10s | Show illustrated Home. | "I need thirty minutes to work. My child needs meaningful activity. Don't just limit screen time. Transform it." |
+| 10-20s | Tap Start Parent Work Session; select 30 min. | "CompanionOS prepares structured activity time while parents focus, with an adult nearby and available." |
+| 20-35s | Show MOVE 5, LEARN 10, CREATE 10, CALM 5 preview. Keep Recommended; scroll to Prepare work session and tap. | "Six short activities mix movement, learning, imagination and calm. Parents review every activity; breaks are welcome." |
+| 35-50s | Show Why this activity? and adult notice. Enable Demo Mode; tap Start activity. | "Built-in works offline. This is a clearly labelled ten-second demo, not a full five-minute timer." |
+| 50-65s | Parent controls -> I am the parent -> Pause activity -> Resume activity. On expiry check parent confirmation and Mark as completed. | "Parents can pause and resume. Only their confirmation records completion and advances to the next activity." |
+| 65-75s | On next preview show Play on Large Screen; if not connected select Continue on phone or Back. | "A larger screen is optional. Large Screen failure never blocks the Phone experience." |
+| 75-90s | Show separately recorded completed Demo summary and Today's Progress, with visible edited-segment caption. | "The summary distinguishes confirmed, skipped and demo activities. CompanionOS. Don't just limit screen time. Transform it." |
 
-For a complete summary demo, finish all three 15-minute-plan activities in clearly labelled Demo Mode beforehand. Do not call this fifteen elapsed minutes. If showcasing cloud sources without keys, explain the real fallback; do not claim live AI generation.
+## Honest completed-summary segment
 
-Record with Windows Snipping Tool: Win+Shift+R, select the Phone emulator window, Start, follow this sequence, Stop and review the saved MP4. Include TV only for the optional variation. Store recordings outside tracked source, for example artifacts. No recording has been produced automatically. Signed physical hardware, live cloud calls and a real family usability review remain separate checks.
+The latest work summary is replaced when a new session starts. Record the ending segment BEFORE the main segment: complete all six entries of a thirty-minute plan in Demo Mode, with parent confirmation for each, then capture Work Session Complete and the journal. Join with a visible caption "Completed Demo session - accelerated timers". Never imply thirty elapsed minutes or a continuous real-time completion. For a single uninterrupted recording, end the current session and show Work Session Ended instead; narrate that unfinished activities were skipped.
+
+Pause/resume must occur before the ten-second deadline; rehearse first. Next activity means parent-confirmed advance; Change Activity is a skip, not completion. If showing cloud sources without keys say "AI is unavailable; Built-in is ready". Do not hide content-source labels.
+
+## Record
+
+1. Rehearse the installed Phone flow and clear transient notices by returning to Home.
+2. Press Win+Shift+R, select only the emulator window, Start, perform actions, Stop.
+3. Add the explicitly captioned summary segment if desired; review audio, readability and privacy.
+4. Export MP4 outside tracked source, for example ignored artifacts. Submit through the actual organizer channel.
+
+No recording or competition submission has been produced automatically. Physical-device testing, live cloud generation and production deployment are not claimed.

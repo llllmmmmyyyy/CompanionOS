@@ -177,12 +177,12 @@ struct Index {
     this.transport = new LocalDemoTvTransport((event: string, frame: TvFrame) => {
       if (event === 'connected') { this.tvConnection = 'Connected'; }
       else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
-      else if (event === 'error') { this.notice = 'TV unavailable. Continue on your phone.'; }
+      else if (event === 'error') { this.notice = 'Large Screen unavailable. Continue on your phone.'; }
       else { this.tvFrame = frame; }
     });
     await this.transport.connect();
     this.syncTv();
-    this.notice = 'Demo TV connected locally. No real TV connection.';
+    this.notice = 'Demo Large Screen connected locally. No real Large Screen connection.';
   }
 
   private async connectEmulatorTv(): Promise<void> {
@@ -192,11 +192,11 @@ struct Index {
     const transport = new EmulatorTvTransport(this.backendUrl.trim(), this.roomCode.trim(), (event: string) => {
       if (event === 'connected') { this.tvConnection = 'Connected'; }
       else if (event === 'disconnected') { this.tvConnection = 'Disconnected'; }
-      else if (event === 'videoFallback') { this.notice = 'TV video unavailable. Safe fallback visual is playing.'; }
+      else if (event === 'videoFallback') { this.notice = 'Large Screen video unavailable. Safe fallback visual is playing.'; }
     });
     try {
       await transport.connect(); this.transport = transport; this.syncTv();
-      this.notice = 'Connected to Emulator TV. Your phone controls the separate TV application.';
+      this.notice = 'Connected to Emulator Tablet. Your phone controls the separate Large Screen application.';
     } catch (error) {
       this.tvConnection = 'Disconnected';
       this.notice = `Connection failed: ${connectionError(error as Error)}. Check the Windows relay and matching room.`;
@@ -249,7 +249,7 @@ struct Index {
 
   private disconnectTv(): void {
     this.transport?.disconnect(); this.transport = undefined;
-    this.notice = 'TV disconnected. Your phone activity and saved history are safe.';
+    this.notice = 'Large Screen disconnected. Your phone activity and saved history are safe.';
     if (this.screen === 'tv') { this.leaveTv(); }
     else if (this.screen === 'connect' && ['running', 'paused', 'ready'].includes(this.phase)) { this.navigate('activity'); }
   }
@@ -311,7 +311,7 @@ struct Index {
     if (this.tvConnection !== 'Connected') { this.navigate('connect'); return; }
     this.syncTv();
     if (this.transportMode === 'emulator') {
-      this.notice = 'Play on the separate TV. Start, pause and change steps on this phone.'; return;
+      this.notice = 'Play on the separate Large Screen. Start, pause and change steps on this phone.'; return;
     }
     try {
       const appWindow = await window.getLastWindow(this.getUIContext().getHostContext() as common.UIAbilityContext);
@@ -486,7 +486,7 @@ struct Index {
       activity.contentSource = ActivityContentSource.USER_VIDEO; activity.localVideoPath = value.path; activity.videoUrl = url;
       activity.activitySteps.forEach((step) => { step.videoUrl = url; });
       this.openActivity(activity); this.activitySource = 'My Video';
-      this.notice = `My Video • ${Math.ceil(value.durationSeconds)} seconds • Not AI generated. Plays muted and loops during the activity.${url === '' ? ' Offline phone video; TV uses Built-in fallback until the backend is available.' : ''}`;
+      this.notice = `My Video • ${Math.ceil(value.durationSeconds)} seconds • Not AI generated. Plays muted and loops during the activity.${url === '' ? ' Offline phone video; Large Screen uses Built-in fallback until the backend is available.' : ''}`;
     } catch { this.notice = 'Saved video could not be sent to the player. Start the local backend, retry, or choose Built-in Video.'; }
     finally { this.importingVideo = false; }
   }
@@ -637,7 +637,7 @@ struct Index {
         Text(`${this.data.settings.sessionDuration} min`).fontSize(13).fontColor('#355B49').padding(8).backgroundColor('#FFFFFF').borderRadius(16)
       }.width('100%')
       Text('A little adventure.\nA little room to focus.').fontSize(29).fontWeight(FontWeight.Bold).fontColor('#223D32').width('100%')
-      Text('Keep them engaged while you focus.').fontSize(16).fontColor('#466454').width('100%')
+      Text("Don't just limit screen time. Transform it.").fontSize(16).fontColor('#466454').width('100%')
       Button(this.work.phase === 'active' ? 'Return to work session' : 'Start Parent Work Session')
         .width('100%').height(52).backgroundColor('#294E3D').fontColor('#FFFFFF')
         .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
@@ -748,6 +748,15 @@ struct Index {
         })
       }.width('100%')
       Text('How should CompanionOS prepare activities?').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+      Row({ space: 6 }) {
+        ForEach(WORK_TYPES.filter((type: string) => this.data.settings.preferredActivityTypes.includes(type)), (type: string) => {
+          Column({ space: 4 }) {
+            Image($rawfile(`${type}.svg`)).width(46).height(46).objectFit(ImageFit.Contain)
+            Text(type).fontSize(11).fontWeight(FontWeight.Bold)
+            Text(`${planWork(this.workMinutes, this.data.settings).entries.filter((entry) => entry.category === type).length * 5} min`).fontSize(13)
+          }.layoutWeight(1).padding(8).backgroundColor(this.typeColor(type)).borderRadius(16)
+        })
+      }.width('100%')
       ForEach(PREPARATIONS, (source: string) => {
         Button(`${this.preparation === source ? 'Selected: ' : ''}${source}`).width('100%').height(46)
           .backgroundColor(this.preparation === source ? '#294E3D' : '#FFFFFF').fontColor(this.preparation === source ? '#FFFFFF' : '#294E3D')
@@ -905,7 +914,7 @@ struct Index {
         }
         Button('Start activity').width('100%').height(54).backgroundColor('#294E3D')
           .enabled(!this.backendLoading && !this.importingVideo).onClick(() => this.startActivity())
-        Button('Play on a larger screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
+        Button('Play on Large Screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
         Text('CompanionOS supports independent activity but does not replace appropriate adult supervision.').fontSize(13).fontColor('#59695F')
       }.width('100%')
     }
@@ -958,7 +967,7 @@ struct Index {
             .enabled(this.confirmed && !this.busy && this.storageReady).onClick(() => { this.completeActivity(); })
         }
         if (this.work.phase === 'active') { Button('Parent work view').width('100%').onClick(() => this.navigate('work-status')) }
-        Button('Play on a larger screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
+        Button('Play on Large Screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
         Button(this.work.phase === 'active' ? 'Change Activity' : 'Cancel activity').width('100%').backgroundColor('#EEE9DE').fontColor('#694B3B')
           .enabled(!this.busy).onClick(() => { if (this.work.phase === 'active') { this.skipWorkEntry(); } else { this.cancelActivity(); } })
       }
@@ -996,25 +1005,25 @@ struct Index {
   @Builder
   connectionContent() {
     Column({ space: 16 }) {
-      this.heading('Play on a larger screen')
+      this.heading('Play on Large Screen')
       Button('Continue on phone').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
         .onClick(() => this.navigate('activity'))
       Text(`Connection: ${this.tvConnection}`).fontSize(22).fontColor('#28745E')
       Text('Nearby devices').fontSize(22).fontWeight(FontWeight.Bold)
       Text(this.nearby).fontSize(16)
       Button('Search nearby devices').enabled(this.tvConnection !== 'Searching').onClick(() => { this.searchTv(); })
-      Text('Real TV requires a compatible distributed receiver. Local Demo works without TV hardware or network.').fontSize(16)
-      Button('Demo TV Mode').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectDemoTv(); })
-      Text('Emulator TV + AI backend').fontSize(22).fontWeight(FontWeight.Bold)
+      Text('Nearby discovery needs a compatible receiver. Connect to Emulator Tablet below for the relay demo, or use Local Demo without another device.').fontSize(16)
+      Button('Demo Large Screen Mode').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectDemoTv(); })
+      Text('Emulator Tablet + AI backend').fontSize(22).fontWeight(FontWeight.Bold)
       TextInput({ text: this.backendUrl, placeholder: 'Backend base URL' }).onChange((value: string) => { this.backendUrl = value; })
       TextInput({ text: this.roomCode, placeholder: 'Room code' }).maxLength(32).onChange((value: string) => { this.roomCode = value; })
-      Button('Connect to Emulator TV').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectEmulatorTv(); })
+      Button('Connect to Emulator Tablet').enabled(this.tvConnection !== 'Connecting').onClick(() => { this.connectEmulatorTv(); })
       if (this.tvConnection === 'Connected') {
-        Text(this.transportMode === 'demo' ? 'Connected • Local Demo TV' : 'Connected • Separate Emulator TV').fontSize(20)
-        Button(this.transportMode === 'demo' ? 'View Demo TV' : 'Phone controller').onClick(() => {
+        Text(this.transportMode === 'demo' ? 'Connected • Local Demo Large Screen' : 'Connected • Separate Emulator Tablet').fontSize(20)
+        Button(this.transportMode === 'demo' ? 'View Demo Large Screen' : 'Phone controller').onClick(() => {
           if (this.transportMode === 'demo') { this.showTv(); } else { this.navigate('activity'); }
         })
-        Button('Disconnect TV').onClick(() => this.disconnectTv())
+        Button('Disconnect Large Screen').onClick(() => this.disconnectTv())
       }
       Text('Choose a mock adventure').fontSize(22).fontWeight(FontWeight.Bold)
       ForEach(TV_CATEGORIES, (category: string, index: number) => {
@@ -1049,8 +1058,8 @@ struct Index {
   tvContent() {
     Column({ space: 10 }) {
       Row({ space: 12 }) {
-        Text(this.tvFrame.title || 'Companion TV').fontSize(28).fontWeight(FontWeight.Bold).layoutWeight(1)
-        Text('LOCAL DEMO TV').fontSize(14)
+        Text(this.tvFrame.title || 'Companion Large Screen').fontSize(28).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('LOCAL DEMO LARGE SCREEN').fontSize(14)
         Button('Phone controller').onClick(() => this.leaveTv())
       }.width('100%')
       Row({ space: 20 }) {

@@ -10,15 +10,17 @@ Flow: parent profile -> work duration/source preference -> short category plan -
 
 Original SVGs in entry/rawfile form a semantic MOVE/LEARN/CREATE/CALM illustration system; the hero shows a working parent and a child indoors. The existing fallback MP4 is copied unchanged into Phone for offline native Video playback. No new UI framework is used.
 
-Content origin is shared enum ActivityContentSource. VideoSource carries source/URI/title/activity/provider from Phone to TV; private paths stay on Phone. Provider-independent ActivityJobs retains common validation, retry, review/cache and fallbacks for Gemini and Huawei adapters. System-imported My Video stores one MP4 privately plus Preferences metadata, optionally publishes it to the loopback cache for separate-TV playback, and uses the same session/confirmation/history flow. Old records without source default to Built-in. See AI_ARCHITECTURE.md for exact cloud contracts and verification limits.
+Content origin is shared enum ActivityContentSource. VideoSource carries source/URI/title/activity/provider from Phone to Large Screen; private paths stay on Phone. Provider-independent ActivityJobs retains common validation, retry, review/cache and fallbacks for Gemini and Huawei adapters. System-imported My Video stores one MP4 privately plus Preferences metadata, optionally publishes it to the loopback cache for separate-Large Screen playback, and uses the same session/confirmation/history flow. Old records without source default to Built-in. See AI_ARCHITECTURE.md for exact cloud contracts and verification limits.
+
+With all four preferred types, the thirty-minute plan is MOVE, LEARN, LEARN, CREATE, CREATE, CALM (six five-minute entries). Other durations or restricted type selections retain short cyclic plans. Unsupported requested work durations safely normalize to thirty minutes. The setup renders planned category totals before starting.
 
 ## Integrated system
 
-`entry` remains Phone controller/storage owner. `tventry` is an independent TV entry HAP with minimum API 19. `shared` is a local protocol/HTTP HAR. `backend` handles activity jobs, provider calls, local media cache and transient relay rooms. Phone snapshots control playback; only parent-confirmed Phone storage updates counts. See [TV](TV_MODE.md), [protocol](TV_PROTOCOL.md), [backend/AI](AI_ARCHITECTURE.md). Earlier core details below describe preserved Phone behavior.
+`entry` remains Phone controller/storage owner. `tventry` is an independent Large Screen entry HAP with minimum API 21. `shared` is a local protocol/HTTP HAR. `backend` handles activity jobs, provider calls, local media cache and transient relay rooms. Phone snapshots control playback; only parent-confirmed Phone storage updates counts. See [Large Screen](TV_MODE.md), [protocol](TV_PROTOCOL.md), [backend/AI](AI_ARCHITECTURE.md). Earlier core details below describe preserved Phone behavior.
 
 ## Native structure
 
-CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. Home, Settings, Activity, Progress, TV Connection and the landscape local TV Player are clear states in one entry page; there is no Flutter or web runtime. The phone owns the session; a transport projects frames into the local TV view. The real distributed channel remains an extension point. See [TV architecture](TV_MODE.md) and [AI architecture](AI_ARCHITECTURE.md).
+CompanionOS uses the existing HarmonyOS Stage-mode `entry` Phone module and ArkUI V1 state components, targeting/compatible with API 21. `EntryAbility` loads `pages/Index` and publishes foreground state through AppStorage. Home, Settings, Activity, Progress, Large Screen Connection and the landscape local Large Screen Player are clear states in one entry page; there is no Flutter or web runtime. The phone owns the session; a transport projects frames into the local Large Screen view. The real distributed channel remains an extension point. See [Large Screen architecture](TV_MODE.md) and [AI architecture](AI_ARCHITECTURE.md).
 
 | Module | Responsibility |
 |---|---|
@@ -77,4 +79,4 @@ flowchart LR
 
 Notification rejection or failure changes messaging, not completion eligibility. Publishing is checked against the still-active foreground session. Widget pushes are best effort and failure-isolated. The form registration profile and LocalStorage bindings are compiled into the HAP.
 
-There is no backend implementation in this repository. The client sends only age group, interests, duration and allowed catalog IDs after explicit parent request. It never renders arbitrary server-generated activity instructions. Provider secrets must remain on a separately operated backend; see `AI_SERVICE.md`.
+The original catalog-recommendation adapter is separate from the current backend activity/video pipeline. See AI_ARCHITECTURE.md for the implemented optional backend. The client sends only age group, interests, duration and allowed catalog IDs after explicit parent request. It never renders arbitrary server-generated activity instructions. Provider secrets must remain on a separately operated backend; see `AI_SERVICE.md`.

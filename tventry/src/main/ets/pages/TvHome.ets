@@ -72,12 +72,14 @@ struct TvHome {
   build() {
     Column({ space: 12 }) {
       Row({ space: 20 }) {
-        Text('CompanionOS TV').fontSize(24).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
         Text(this.frame.title).fontSize(22).fontColor('#D9EFE3').layoutWeight(1)
         Text(this.connection).fontSize(18).fontColor('#BCE5D0')
       }.width('100%')
-      Text(`${this.connectionDetail} • Endpoint: ${this.endpoint} • Room: ${this.room}`)
-        .fontSize(17).fontColor('#D9EFE3').width('100%').maxLines(2)
+      if (this.frame.phase === 'idle' || this.connection !== 'CONNECTED') {
+        Text(`Large Screen | ${this.connectionDetail} | Endpoint: ${this.endpoint} | Room: ${this.room}`)
+          .fontSize(15).fontColor('#D9EFE3').width('100%').maxLines(2)
+      }
       Stack({ alignContent: Alignment.Center }) {
         if (this.frame.content.uri !== this.failedUrl &&
           ['running', 'paused'].includes(this.frame.phase)) {
@@ -94,12 +96,12 @@ struct TvHome {
           Column({ space: 20 }) {
             Text(this.frame.phase === 'completed' ? '★ Wonderful moments together ★' :
               this.frame.phase === 'ready' ? '★ Great play! ★' : this.frame.phase === 'idle' || this.frame.phase === 'cancelled' ?
-                'Waiting for phone...' : this.frame.visual).fontSize(52).fontWeight(FontWeight.Bold).fontColor('#203C31')
+                'Waiting for phone...' : this.frame.visual).fontSize(36).maxLines(2).textAlign(TextAlign.Center).fontWeight(FontWeight.Bold).fontColor('#203C31')
             Text(this.frame.phase === 'completed' ? 'Your parent saved this shared moment.' :
               this.frame.phase === 'ready' ? 'Ask your parent to confirm on the phone.' :
                 'Safe local visual • No AI video available').fontSize(25).fontColor('#36584A')
             Text('An adult stays beside you. Take breaks whenever you need.').fontSize(23).fontColor('#36584A')
-          }.width('100%').height('100%').justifyContent(FlexAlign.Center).padding(32).backgroundColor('#DDEEE3')
+          }.width('100%').height('100%').justifyContent(FlexAlign.Center).padding(20).backgroundColor('#DDEEE3')
         }
         if (this.frame.phase === 'paused' || this.connection === 'DISCONNECTED') {
           Text(this.connection === 'DISCONNECTED' ? 'Connection lost' : 'Paused — rest together')
@@ -111,7 +113,7 @@ struct TvHome {
       }.layoutWeight(1).width('100%').borderRadius(24).clip(true)
       Text(this.frame.phase === 'idle' || this.frame.phase === 'cancelled' ? 'Choose and start an adventure on your phone.' :
         this.frame.instruction).fontSize(30).fontWeight(FontWeight.Medium).fontColor('#FFFFFF').textAlign(TextAlign.Center)
-        .maxLines(2).width('100%')
+        .maxLines(3).width('100%')
       Row({ space: 20 }) {
         Text(`Step ${this.frame.stepIndex + 1} / ${this.frame.totalSteps}`).fontSize(20).fontColor('#D9EFE3')
         Progress({ value: this.frame.phase === 'completed' ? this.frame.totalSteps : this.frame.stepIndex + 1,
@@ -125,9 +127,9 @@ struct TvHome {
         Row({ space: 12 }) {
           TextInput({ text: this.endpoint, placeholder: 'Backend URL' }).layoutWeight(2).onChange((value: string) => { this.endpoint = value; })
           TextInput({ text: this.room, placeholder: 'Room' }).layoutWeight(1).onChange((value: string) => { this.room = value; })
-          Button('Connect').enabled(this.connection !== 'CONNECTING').onClick(() => this.connect())
+          Button('Connect').height(48).enabled(this.connection !== 'CONNECTING').onClick(() => this.connect())
         }.width('100%')
       }
-    }.width('100%').height('100%').padding({ left: 40, right: 40, top: 28, bottom: 28 }).backgroundColor('#101D26')
+    }.width('100%').height('100%').padding({ left: 24, right: 24, top: 16, bottom: 16 }).backgroundColor('#101D26')
   }
 }

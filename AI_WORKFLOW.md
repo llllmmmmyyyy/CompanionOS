@@ -1,5 +1,21 @@
 # AI development workflow
 
+## API 21 Tablet companion adaptation - 2026-10-03
+
+User prompt: replace the API 19 TV-focused secondary target with a MatePad Pro 11 API 21 Large-Screen companion, preserve Phone API 21 and existing media/session/relay architecture, validate actual devices and document limits. Codex inspected actual product/module declarations and HDC properties, reused tventry/TvAbility/TvReceiver, renamed only the secondary build product to tablet and changed minimum/device declarations. Internal protocol names/routes remain compatible. No extra coding agents, assets, dependencies or cloud credentials.
+
+The prior interrupted evaluation refinement is retained in the same worktree. Its actual pause/resume and early-end checks also finished: thirty-minute plan, one confirmed Demo activity and five skipped; normal second entry paused/resumed before early end. New Tablet results belong to the latest TESTING section, not old TV evidence. A misplaced root npm test command failed (no root package.json); rerunning inside backend passed. No persistent execution policy, Phone SDK, signing configuration or transport topology was changed.
+
+## Final evaluation refinement - 2026-10-03
+
+IMPLEMENTED: Codex directly refined the existing native UI/model, added a balanced default thirty-minute plan with illustrated category totals, normalized invalid duration inputs and updated English submission materials. Prompt: optimize originality, usefulness, reliability, HarmonyOS evidence, 90-second demonstration and reproducibility without unrelated features or architecture replacement.
+
+ACTUALLY TESTED: current results are recorded in the top section of TESTING.md. MOCKED: provider HTTP and platform service injections in host tests. NOT VERIFIED: live Gemini/Huawei success, physical devices, full work windows and official partner rule compliance. OPTIONAL: backend AI, My Video and TV; Built-in Phone works without them.
+
+AI tools: OpenAI Codex was the coding assistant. No separate ChatGPT session, Gemini coding agent or Huawei coding tool was used. Gemini/Huawei application adapters were preserved, not claimed as successful live generation. SVG assets are prior original Codex-authored graphics; no new raster generation or third-party assets were introduced.
+
+Workflow: inspect clean Git/SDK and preserved implementation; improve bounded plan/model and UI; rerun native builds and all host tests; install on connected emulators; capture layout evidence; audit tracked files/docs; commit and push. A direct PowerShell helper import was blocked by execution policy; loading its trusted local contents as a scriptblock avoided persistent policy changes. Public organizer tasks returned a loading placeholder, so supplied weights remain attributed to the user brief. A 90-second completed-summary demonstration uses a visibly labelled separately recorded accelerated segment rather than falsely implying real-time completion.
+
 ## Parent work sessions and visual redesign - 2026-10-03
 
 The user requested a substantial visual/product refinement of the existing native app: busy parents, structured indoor activities, optional content sources and optional TV. The Codex coding assistant directly edited ArkTS models, persistence and UI, authored original SVG illustrations, reused the existing bundled video unchanged, and added host checks for planning/migration/recovery. No external artwork, new dependencies, extra agents or live cloud credentials were used. Existing history, notification adapters, providers, picker and relay were retained. Actual build/device outcomes and remaining human checks are in docs/TESTING.md.
@@ -55,10 +71,10 @@ Main user instructions were to preserve existing work and SDK configuration, kee
 
 ## In-app AI status
 
-There is no reusable backend in this workspace. The app defaults to curated **Offline activity** content. A parent can configure a trusted HTTPS recommendation service. Only a validated response labelled `source: "ai"` is displayed as an AI service recommendation. The client cannot independently prove which model a server used. No real endpoint, provider call, model quality or real recommendation has been verified. Mock responses used in tests are not production AI output.
+Historical initial stage: no reusable backend existed then. The current repository includes the optional multi-provider backend described above. The app defaults to curated **Offline activity** content. A parent can configure a trusted HTTPS recommendation service. Only a validated response labelled `source: "ai"` is displayed as an AI service recommendation. The client cannot independently prove which model a server used. No real endpoint, provider call, model quality or real recommendation has been verified. Mock responses used in tests are not production AI output.
 
 ## Human verification still required
 
 A later user-triggered follow-up connected to an actual API 21 phone emulator over HDC, rebuilt/installed/launched the unsigned HAP and used system UI injection plus layout dumps to verify Home/details, settings/records after force-stop, Demo completion, cancellation, double-click protection, notification denial/actual notification-center delivery, and background expiry/resume. App-PID logs and a screenshot were reviewed. The exact tested variants and remaining gaps are in `docs/TESTING.md`; this is emulator evidence, not a physical-phone or live AI pass.
 
-Complete the remaining checklist in `docs/TESTING.md`, especially full 5/10-minute expiry variants, desktop widget launch/update, alternate layouts and physical-phone behavior when needed. The follow-up also ran and confirmed a full three-minute normal activity, with its normal record, total 3 and Together Team badge restored after restart. Record the two-minute walkthrough using `docs/DEMO_SCRIPT.md`. Obtain actual competition rules, review asset rights and sign the final distribution artifact before submission. Corrupted-data behavior is still host-tested only; use a disposable installation for device fault injection.
+Complete the remaining checklist in `docs/TESTING.md`, especially full ten-minute expiry and complete work-window variants, desktop widget launch/update, alternate layouts and physical-phone behavior when needed. The follow-up also ran and confirmed a full three-minute normal activity, with its normal record, total 3 and Together Team badge restored after restart. Record the current 90-second Phone/Tablet walkthrough using `docs/DEMO_SCRIPT.md`. Obtain actual competition rules, review asset rights and sign the final distribution artifact before submission. Corrupted-data behavior is still host-tested only; use a disposable installation for device fault injection.

@@ -24,7 +24,7 @@ export class EmulatorTvTransport implements TvSessionTransport {
     console.info(`[CompanionPhoneTV] connection attempt endpoint=${this.endpoint} room=${this.room}`);
     if (!validBackendUrl(this.endpoint) || !/^[a-zA-Z0-9_-]{4,32}$/.test(this.room)) { throw new Error('Invalid backend or room'); }
     const state = JSON.parse(await backendRequest(`${this.endpoint}/tv/rooms/${this.room}/state`)) as RelayStatus;
-    if (state.receiverConnected !== true) { throw new Error('TV receiver is not online'); }
+    if (state.receiverConnected !== true) { throw new Error('Large Screen receiver is not online'); }
     this.active = true; this.connected = true; this.generation++;
     this.listener('connected', new TvFrame());
     console.info(`[CompanionPhoneTV] Connected endpoint=${this.endpoint} room=${this.room}`);

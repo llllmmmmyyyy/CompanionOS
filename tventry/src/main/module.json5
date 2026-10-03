@@ -1,7 +1,7 @@
 {
   "module": {
     "name": "tventry", "type": "entry", "mainElement": "TvAbility",
-    "deviceTypes": ["tv"], "deliveryWithInstall": true, "installationFree": false,
+    "deviceTypes": ["tablet"], "deliveryWithInstall": true, "installationFree": false,
     "pages": "$profile:main_pages",
     "requestPermissions": [{ "name": "ohos.permission.INTERNET" }],
     "abilities": [{

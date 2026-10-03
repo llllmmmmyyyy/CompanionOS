@@ -16,9 +16,9 @@
         }
       }
       ,{
-        "name": "tv",
+        "name": "tablet",
         "targetSdkVersion": "6.0.1(21)",
-        "compatibleSdkVersion": "5.1.1(19)",
+        "compatibleSdkVersion": "6.0.1(21)",
         "runtimeOS": "HarmonyOS",
         "buildOption": { "strictMode": { "caseSensitiveCheck": true, "useNormalizedOHMUrl": true } }
       }
@@ -33,8 +33,8 @@
     ]
   },
   "modules": [
-    { "name": "shared", "srcPath": "./shared", "targets": [{ "name": "default", "applyToProducts": ["default", "tv"] }] },
-    { "name": "tventry", "srcPath": "./tventry", "targets": [{ "name": "default", "applyToProducts": ["tv"] }] },
+    { "name": "shared", "srcPath": "./shared", "targets": [{ "name": "default", "applyToProducts": ["default", "tablet"] }] },
+    { "name": "tventry", "srcPath": "./tventry", "targets": [{ "name": "default", "applyToProducts": ["tablet"] }] },
     {
       "name": "entry",
       "srcPath": "./entry",

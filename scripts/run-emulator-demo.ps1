@@ -1,4 +1,4 @@
-param([string]$Phone = '127.0.0.1:5555', [string]$Tv = '127.0.0.1:5557', [switch]$Build)
+param([string]$Phone = '127.0.0.1:5555', [Alias('Tv')][string]$Tablet = '127.0.0.1:5557', [switch]$Build)
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $studioRoot = $null
@@ -11,12 +11,12 @@ if (-not $studioRoot) { throw 'DevEco Studio installation was not found.' }
 $hdc = Join-Path $studioRoot 'sdk\default\openharmony\toolchains\hdc.exe'
 $node = (Get-Command node.exe).Source
 if ([int]((& $node --version).TrimStart('v').Split('.')[0]) -lt 22) { throw 'Backend requires Node.js 22 or newer.' }
-foreach ($device in @($Phone, $Tv)) {
+foreach ($device in @($Phone, $Tablet)) {
   $api = (& $hdc -t $device shell param get const.ohos.apiversion).Trim()
   if ($LASTEXITCODE -ne 0 -or $api -notmatch '^\d+$') { throw "Cannot contact emulator $device" }
   $deviceType = (& $hdc -t $device shell param get const.product.devicetype).Trim()
-  if ($device -eq $Phone -and ([int]$api -lt 21 -or $deviceType -eq 'tv')) { throw 'Phone must use API 21+ and must not be the TV target.' }
-  if ($device -eq $Tv -and ([int]$api -lt 19 -or $deviceType -ne 'tv')) { throw 'TV target must be a TV device using API 19+.' }
+  if ($device -eq $Phone -and ([int]$api -lt 21 -or $deviceType -ne 'phone')) { throw 'Phone target must be a phone using API 21+.' }
+  if ($device -eq $Tablet -and ([int]$api -lt 21 -or $deviceType -ne 'tablet')) { throw 'Large Screen target must be a tablet using API 21+.' }
 }
 Push-Location $projectRoot
 try {
@@ -45,15 +45,15 @@ try {
     if (-not $healthy) { throw "Backend did not start. Inspect the console with npm start in backend. Process $($backendProcess.Id)." }
   }
   Write-Output 'Windows relay is listening on port 18080. Both guests use http://10.0.2.2:18080, room family-demo. No HDC reverse tunnel is required.'
-  $tvHap = Join-Path $projectRoot 'tventry\build\tv\outputs\default\tventry-default-unsigned.hap'
+  $tvHap = Join-Path $projectRoot 'tventry\build\tablet\outputs\default\tventry-default-unsigned.hap'
   $phoneHap = Join-Path $projectRoot 'entry\build\default\outputs\default\entry-default-unsigned.hap'
   foreach ($hap in @($tvHap, $phoneHap)) { if (-not (Test-Path -LiteralPath $hap)) { throw "HAP missing: $hap. Run again with -Build." } }
-  $tvInstall = (& $hdc -t $Tv install $tvHap) -join "`n"
+  $tvInstall = (& $hdc -t $Tablet install $tvHap) -join "`n"
   $phoneInstall = (& $hdc -t $Phone install $phoneHap) -join "`n"
   if ($tvInstall -notmatch 'install bundle successfully' -or $phoneInstall -notmatch 'install bundle successfully') { throw "Installation failed: $tvInstall $phoneInstall" }
   # HDC can print a failure while returning zero; require actual launch success below.
-  $tvResult = & $hdc -t $Tv shell aa start -a TvAbility -b com.example.companionos
+  $tvResult = & $hdc -t $Tablet shell aa start -a TvAbility -b com.example.companionos
   $phoneResult = & $hdc -t $Phone shell aa start -a EntryAbility -b com.example.companionos
   if (($tvResult -join "`n") -notmatch 'start ability successfully' -or ($phoneResult -join "`n") -notmatch 'start ability successfully') { throw "Launch failed: $tvResult $phoneResult" }
-  Write-Output 'Both applications launched; this is not yet a connection test. TV: Connect. Phone: Play on TV > Connect to Emulator TV. Endpoint http://10.0.2.2:18080, room family-demo.'
+  Write-Output 'Both applications launched; this is not yet a connection test. Tablet: Connect. Phone: Play on Large Screen > Connect to Emulator Tablet. Endpoint http://10.0.2.2:18080, room family-demo.'
 } finally { Pop-Location }

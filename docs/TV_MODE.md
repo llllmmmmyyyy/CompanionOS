@@ -1,39 +1,25 @@
-# CompanionOS Phone + TV
+# Large-Screen Companion (Tablet API 21)
 
-## Optional larger-screen extension
+This replaces the former API 19 TV target. Filename and internal TvAbility/TvReceiver/TvMessage identifiers are retained to avoid breaking imports/protocols. Historical TV testing remains labelled in TESTING.md, not part of the current formal target.
 
-The primary product is now a Phone-only parent work session or quick activity. TV is presented as "Play on a larger screen" inside activity/parent controls. It is not a primary tab or home headline. Existing transport, independent TV module, same-phone Demo TV and native video player remain intact. Phone owns the timer, confirmation and journal; a work activity uses the same full snapshots. TV failure leaves Phone playing and never blocks a work session. The verified gateway endpoint remains http://10.0.2.2:18080 with room family-demo.
+## Targets
 
-## Content selection
+Primary Phone: entry / product default / compatible and target API 21 / phone. Optional companion: tventry / product tablet / compatible and target API 21 / tablet. Shared HAR supports phone/tablet. Reused Hvigor module tasks remain stage-mode; no new project or media/transport framework.
 
-Phone offers Gemini AI, Huawei AI, Built-in Video and My Video before start. Shared VideoSource carries URI/title/source through the existing protocol; the player uses only its URI regardless of origin. Older messages are converted to Built-in metadata. The original bundled MP4 is unchanged. My Video uses backend caching for separate TV, private offline playback on Phone, and explicit TV fallback when the cache is unavailable. Choosing a provider does not imply successful AI generation.
+## Data and control
 
-The former HDC reverse-tunnel setup was lost between runs. It is replaced by direct emulator host-gateway networking: both apps use http://10.0.2.2:18080. HDC is used only for installation/device control, not relay communication.
+Phone owns settings, timers, parent confirmation and journal. START/PAUSE/RESUME/NEXT/CANCEL use the unchanged validated shared protocol, transient Windows backend relay and family-demo room. Both emulator guests connect to http://10.0.2.2:18080. TV-style wire routes/feedback fields remain internal compatibility names. Connection errors are visible; Phone offers Continue on phone. Native distributed-device deployment is not claimed.
 
-One repository contains `entry` (Phone), `tventry` (independent TV entry HAP), `shared` (local protocol HAR) and `backend` (Node/TypeScript relay and generation service). The existing Phone module was extended, not moved or replaced. Phone `default` minimum/target API remains 21; TV product `tv` minimum is API 19 and target/compiler SDK is 21. The TV HAP actually installed and launched on the API 19 TV. API 19 SDK is not claimed to be installed.
+## UI
 
-## Two experiences
+TvHome remains native ArkUI/Video with VideoController. Landscape is requested through the existing Window API. Video/content fills the flexible central area; title, instruction and progress stay readable. Connection endpoint/room are shown for setup/failure rather than dominating active playback. Reduced margins and bounded text improve Tablet fit; Connect has a 48vp touch target. Portrait/formal accessibility require separate verification.
 
-**Demo TV Mode** is the existing landscape simulated receiver inside the Phone, using LocalDemoTvTransport without a backend. **Emulator TV Mode** launches TvAbility in tventry independently and uses EmulatorTvTransport through HTTP. It plays real video with ArkUI Video, or the small original bundled cloud clip when generated URLs are unavailable. That clip is labelled Not AI generated.
+## Build/run
 
-Phone owns timer, automatic steps, manual next/previous, pause, cancellation, parent-confirmed completion and Preferences history. TV has no history writes or independent completion timer. Expiry is ready, not completed; COMPLETE follows successful Phone storage. Phone process restart restores settings/history, but does not resurrect an unfinished session. TV restart restores the surviving Phone session from STATE_SYNC.
+From repository root use scripts/build.ps1 -Module tventry through the scriptblock command in README. Output: tventry/build/tablet/outputs/default/tventry-default-unsigned.hap. Select tablet / tventry / MatePad Pro 11 API 21 in DevEco. Launch retained TvAbility. Connect receiver, then on Phone select Play on Large Screen -> Connect to Emulator Tablet. Same-phone Demo Large Screen is separate from the actual Tablet.
 
-## Communication
+Backend: cd backend; npm.cmd ci; npm.cmd run build; npm.cmd start. Node 22+ required, no key needed for relay/Built-in. Guest loopback is not used to reach Windows. scripts/run-emulator-demo.ps1 -Tablet <target> automates setup and preserves -Tv alias for old scripts.
 
-Both emulator NetworkKit clients reach the same Windows relay over HTTP through gateway 10.0.2.2. Phone POSTs bounded full snapshots/commands; TV polls every 500 ms. Requests do not overlap, pending snapshots are coalesced and queues bounded. Relay revisions prevent reapplying unchanged state; the latest snapshot repairs missed intermediate commands. Polling is not frame-accurate video synchronization.
+## Evidence and limits
 
-Windows backend: `127.0.0.1:18080`; both guests use `http://10.0.2.2:18080`, verified through real app requests, not assumed from Android behavior. Both guest route tables reported gateway 10.0.2.2; guest addresses 10.0.2.15 belong to isolated networks and are not used to address each other. Room `family-demo` is a local demo identifier, not authentication. Observed targets: Phone 5555 / API 21, TV 5557 / API 19 / type tv. Start from backend with `npm.cmd run build` then `npm.cmd start`; defaults are PORT=18080, HOST=127.0.0.1. No firewall changes or reverse tunnels are needed for this verified configuration.
-
-TV displays Connecting..., Connected to Windows relay / Waiting for Phone, Connected / Phone online, or Connection failed with native error code/message. Endpoint and room are always visible; failed/disconnected states retain editable settings and Connect. Phone reports the failure reason. Console/hilog tags CompanionTV, CompanionPhoneTV and CompanionRelay identify endpoint, room, connection attempts, successful connections and HTTP/native errors. Logs never contain provider credentials.
-
-Six-second heartbeat expiry marks disconnection. TV loss leaves Phone running/history intact. Phone loss pauses video, overlays Connection lost and retains last safe state without completing it. Reconnection restores title, phase, step and media from full state. Foreground polling restarts on foreground; reliable background delivery is not promised.
-
-## TV playback
-
-The 16:9 screen has safe margins, a dominant video surface, large instruction, step progress and small timer. Sources are approved cached HTTPS/backend URLs or the bundled rawfile. Session/step/source changes recreate the surface. PAUSE/RESUME call VideoController; NEXT/PREVIOUS switch clips; CANCEL/COMPLETE stop activity playback. Short clips loop for the step duration. Video failure switches to a static safe visual and reports VIDEO_FAILED; history remains on Phone. Video: PLAYING/PAUSED reflects actual player callbacks.
-
-Connection states: OFFLINE, WAITING, CONNECTING, CONNECTED, DISCONNECTED, ERROR. Presentation covers waiting, buffering, playing, paused, parent-confirmation ready, completed, cancelled and disconnected. No camera, microphone or emotion monitoring.
-
-HarmonyDistributedTvTransport remains a future physical-channel boundary. NearbyTv performs authorized DeviceManager lookup/permission handling; physical pairing and distributed TV communication remain unimplemented/unverified. Working emulator transport does not use distributed APIs.
-
-See [protocol](TV_PROTOCOL.md), [AI architecture](AI_ARCHITECTURE.md) and [test evidence](TESTING.md).
+See the latest TESTING.md section for actual current build/device results. Historical API 19 TV success does not prove Tablet success. Unsigned development HAPs, emulators, optional media review and foreground notifications are not a physical-device/production claim. No live cloud success is implied.
