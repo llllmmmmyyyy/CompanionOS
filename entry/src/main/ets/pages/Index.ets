@@ -13,10 +13,20 @@ import { EmulatorTvTransport } from '../services/EmulatorTvTransport';
 import { BackendActivityService, backendActivity } from '../services/BackendActivityService';
 import { ActivityContentSource, VideoSource, contentLabel, EMULATOR_RELAY_ENDPOINT, connectionError } from '@companion/protocol';
 import { UserVideo, UserVideoStore } from '../services/UserVideoStore';
+import { WorkState, WORK_TYPES, PREPARATIONS, planWork, settleEntry, endWork, remainingWork, categoryMinutes, workActivity } from '../model/WorkSession';
+import { WorkStore } from '../services/WorkStore';
 
 @Entry
 @Component
 struct Index {
+  @State work: WorkState = new WorkState();
+  @State workMinutes: number = 30;
+  @State preparation: string = 'Recommended';
+  @State filter: string = 'ALL';
+  @State parentControls: boolean = false;
+  @State pressedCard: string = '';
+  private workStore: WorkStore | undefined = undefined;
+  private workSavedAt: number = 0;
   @State selectedProvider: string = 'GEMINI';
   @State userVideo: UserVideo | undefined = undefined;
   @State videoTitle: string = 'My family video';
@@ -73,6 +83,23 @@ struct Index {
       this.store = new LocalStore(context);
       this.videos = new UserVideoStore(context); this.userVideo = this.videos.load();
       this.data = this.store.load();
+      this.workStore = new WorkStore(context); this.work = this.workStore.load();
+      this.workMinutes = this.data.settings.sessionDuration;
+      if (this.work.phase === 'active') {
+        this.selected = workActivity(this.work.entries[this.work.index].category, this.data.settings);
+        this.preparation = this.work.preparation;
+        if (['running', 'paused', 'ready'].includes(this.work.activityPhase)) {
+          this.demo = this.work.activityDemo;
+          this.session.start(Date.now(), this.work.entries[this.work.index].minutes, this.demo);
+          this.session.id = `${this.work.id}-${this.work.index}`;
+          this.session.deadline = Date.now() + this.work.remaining * 1000;
+          if (this.work.remaining > 0) { this.session.pause(Date.now()); }
+          else { this.session.phase = 'ready'; }
+          this.stepIndex = this.work.step; this.screen = 'work-status';
+          this.stepBoundary = (this.demo ? 10 : this.session.minutes * 60) - (this.stepIndex + 1) * this.stepSeconds();
+          this.notice = 'Work session restored safely. Resume when ready; content returns to Built-in after restart.';
+        }
+      }
       this.storageReady = true;
       Widgets.update(context, this.data);
       if (this.store.recovered) { this.notice = 'Some local data was unreadable. Safe defaults have been restored.'; }
@@ -83,7 +110,7 @@ struct Index {
     this.startTimer();
   }
 
-  aboutToDisappear(): void { clearInterval(this.timer); this.generationToken++; this.transport?.disconnect(); }
+  aboutToDisappear(): void { this.persistWork(); clearInterval(this.timer); this.generationToken++; this.transport?.disconnect(); }
   onPageShow(): void { this.foregroundChanged(); }
   onPageHide(): void { clearInterval(this.timer); }
 
@@ -100,7 +127,7 @@ struct Index {
       this.updateClock();
       this.startTimer();
       if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} }
-    } else { try { this.phoneVideoController.pause(); } catch {} }
+    } else { this.persistWork(); try { this.phoneVideoController.pause(); } catch {} }
   }
 
   private updateClock(): void {
@@ -117,6 +144,7 @@ struct Index {
     }
     if (this.activeJobId !== '' && Date.now() >= this.videoPollAt) { this.refreshVideos(); }
     this.syncTv();
+    if (this.work.phase === 'active' && Date.now() - this.workSavedAt > 2000) { this.persistWork(); }
   }
 
   private frame(): TvFrame {
@@ -184,7 +212,7 @@ struct Index {
     const token = ++this.generationToken;
     const request = new ActivityPlanRequest(); request.childAge = this.data.settings.age;
     request.interest = this.data.settings.interests[0]; request.category = this.generationCategory;
-    request.durationMinutes = this.data.settings.minutes; request.educationalGoal = this.learningGoal.trim();
+    request.durationMinutes = this.work.phase === 'active' ? 5 : this.data.settings.minutes; request.educationalGoal = this.learningGoal.trim();
     const endpoint = this.backendUrl.trim();
     try {
       const job = await BackendActivityService.create(endpoint, request, this.data.settings.interests,
@@ -223,6 +251,7 @@ struct Index {
     this.transport?.disconnect(); this.transport = undefined;
     this.notice = 'TV disconnected. Your phone activity and saved history are safe.';
     if (this.screen === 'tv') { this.leaveTv(); }
+    else if (this.screen === 'connect' && ['running', 'paused', 'ready'].includes(this.phase)) { this.navigate('activity'); }
   }
 
   private async searchTv(): Promise<void> {
@@ -241,7 +270,7 @@ struct Index {
       request.childAge = this.data.settings.age;
       request.interest = this.data.settings.interests[0];
       request.category = category;
-      request.durationMinutes = this.data.settings.minutes;
+      request.durationMinutes = this.work.phase === 'active' ? 5 : this.data.settings.minutes;
       request.educationalGoal = category === 'LEARN' ? 'Count five objects together' : 'Practice gentle turn taking';
       const plan = await new MockAiActivityService().generateActivityPlan(request);
       this.openActivity(activityFromPlan(plan, request));
@@ -329,13 +358,88 @@ struct Index {
   }
 
   private navigate(screen: string): void {
+    if (screen === 'home') { this.filter = 'ALL'; }
     this.screen = screen;
     this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+  }
+
+  private persistWork(): void {
+    if (!this.workStore) { return; }
+    if (this.work.phase === 'active') {
+      this.work.remaining = this.session.remaining(Date.now()); this.work.activityPhase = this.session.phase;
+      this.work.step = Math.min(2, this.stepIndex); this.work.activityId = this.selected.id;
+      this.work.activityDemo = this.demo;
+    }
+    try { this.workStore.save(this.work); this.workSavedAt = Date.now(); }
+    catch { this.notice = 'Work session could not be saved. Keep the app open and retry.'; }
+  }
+
+  private startWork(): void {
+    if (!this.storageReady || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
+    this.work = planWork(this.workMinutes, this.data.settings); this.work.preparation = this.preparation;
+    this.openWorkEntry(); this.persistWork();
+  }
+
+  private openWorkEntry(): void {
+    this.session = new ActivitySession(); this.phase = 'idle';
+    const activity = workActivity(this.work.entries[this.work.index].category, this.data.settings);
+    this.generationCategory = activity.category; this.learningGoal = activity.educationalGoal;
+    this.openActivity(activity); this.parentControls = false;
+    this.notice = 'Review this short activity before starting. Take breaks between activities.';
+    this.persistWork();
+    if (this.work.preparation === 'Huawei AI' || this.work.preparation === 'Gemini AI') {
+      this.createAdventure(this.work.preparation === 'Huawei AI' ? 'HUAWEI' : 'GEMINI');
+    } else if (this.work.preparation === 'My Videos') {
+      if (this.userVideo) { this.useMyVideo(); }
+      else { this.notice = 'Import and review your video below, or start with safe Built-in content.'; }
+    }
+  }
+
+  private skipWorkEntry(): void {
+    if (this.busy || this.work.phase !== 'active') { return; }
+    this.getUIContext().showAlertDialog({ title: 'Change activity?', message: 'This activity will be marked skipped, not completed.',
+      primaryButton: { value: 'Keep activity', action: () => {} },
+      secondaryButton: { value: 'Skip activity', action: () => {
+        this.session.cancel(); this.transport?.cancelActivity(this.frame());
+        this.work = settleEntry(this.work, 'skipped', this.demo); this.persistWork();
+        if (this.work.phase === 'active') { this.openWorkEntry(); } else { this.navigate('work-summary'); }
+      } }
+    });
+  }
+
+  private finishWork(): void {
+    if (this.busy) { return; }
+    this.getUIContext().showAlertDialog({ title: 'End work session?', message: 'Unfinished activities will be skipped. Saved completions remain.',
+      primaryButton: { value: 'Keep session', action: () => {} },
+      secondaryButton: { value: 'End Session', action: () => {
+        this.session.cancel(); this.phase = 'cancelled'; this.transport?.cancelActivity(this.frame());
+        this.work = endWork(this.work); this.persistWork(); this.navigate('work-summary');
+      } }
+    });
+  }
+
+  private typeColor(type: string): string {
+    return type === 'MOVE' ? '#F7E0CA' : type === 'LEARN' ? '#DDECF2' : type === 'CREATE' ? '#ECE3F4' : '#DDEBE2';
+  }
+  private activityArt(activity: Activity): string {
+    return activity.id === 'butterfly' ? 'butterfly' : activity.id === 'sounds' ? 'sounds' : activity.category;
+  }
+  private catalog(): Activity[] {
+    const originals = ACTIVITIES.map((activity: Activity, index: number) => {
+      activity.category = index === 1 ? 'LEARN' : index === 2 ? 'CALM' : 'MOVE'; return activity;
+    });
+    return [...originals, workActivity('CREATE', this.data.settings), workActivity('CALM', this.data.settings)]
+      .filter((activity: Activity) => this.filter === 'ALL' || activity.category === this.filter);
+  }
+  private selectTab(tab: string): void {
+    if (tab === 'home') { this.filter = 'ALL'; }
+    if (tab === 'settings') { this.openSettings(); } else { this.navigate(tab); }
   }
 
   private openActivity(activity: Activity): void {
     if (['running', 'paused', 'ready'].includes(this.phase)) { this.notice = 'Finish or cancel the current activity first.'; return; }
     this.selected = activity;
+    this.generationCategory = activity.category; this.learningGoal = activity.educationalGoal;
     this.activeJobId = '';
     this.activitySource = activity.id.startsWith('tv-') ? 'Mock plan • Not real AI output' : 'Offline activity';
     this.session = new ActivitySession();
@@ -349,7 +453,8 @@ struct Index {
 
   private chooseBuiltIn(): void {
     if (this.backendLoading || this.importingVideo || ['running', 'paused', 'ready'].includes(this.phase)) { return; }
-    const original = ACTIVITIES.find((item: Activity) => item.id === this.selected.id) || ACTIVITIES[0];
+    const original = this.work.phase === 'active' ? workActivity(this.work.entries[this.work.index].category, this.data.settings) :
+      ACTIVITIES.find((item: Activity) => item.id === this.selected.id) || this.catalog().find((item: Activity) => item.id === this.selected.id) || ACTIVITIES[0];
     this.openActivity(original); this.activitySource = 'CompanionOS Built-in • Offline activity';
     this.notice = 'Original content is ready. No AI request was made.';
   }
@@ -375,7 +480,9 @@ struct Index {
       let url: string = '';
       try { url = await this.videos.publish(value, this.backendUrl.trim()); }
       catch { /* Private phone copy remains available offline; TV uses its labelled fallback. */ }
-      const activity = new Activity('user-video', value.title, this.data.settings.interests[0], ACTIVITIES[0].steps);
+      const template = this.work.phase === 'active' ? workActivity(this.work.entries[this.work.index].category, this.data.settings) : ACTIVITIES[0];
+      const activity = new Activity('user-video', value.title, this.data.settings.interests[0], template.steps);
+      activity.category = template.category; activity.educationalGoal = template.educationalGoal;
       activity.contentSource = ActivityContentSource.USER_VIDEO; activity.localVideoPath = value.path; activity.videoUrl = url;
       activity.activitySteps.forEach((step) => { step.videoUrl = url; });
       this.openActivity(activity); this.activitySource = 'My Video';
@@ -392,15 +499,18 @@ struct Index {
     this.session.contentSource = this.selected.contentSource; this.session.videoUrl = this.selected.videoUrl;
     this.session.localVideoPath = this.selected.localVideoPath; this.session.aiProvider = this.selected.aiProvider;
     this.session.aiGenerationId = this.selected.aiGenerationId;
-    this.session.start(Date.now(), this.data.settings.minutes, this.demo);
+    this.session.start(Date.now(), this.work.phase === 'active' ? this.work.entries[this.work.index].minutes : this.data.settings.minutes, this.demo);
+    if (this.work.phase === 'active') { this.session.id = `${this.work.id}-${this.work.index}`; }
     this.stepIndex = 0; this.stepBoundary = (this.demo ? 10 : this.session.minutes * 60) - this.stepSeconds();
     this.confirmed = false;
     this.notice = '';
     this.updateClock();
     this.transport?.startActivity(this.selected, this.frame());
+    this.parentControls = false; this.persistWork();
   }
 
   private cancelActivity(): void {
+    if (this.work.phase === 'active') { this.navigate('work-status'); return; }
     if (this.busy) { return; }
     if (this.phase === 'running' || this.phase === 'paused' || this.phase === 'ready') {
       this.getUIContext().showAlertDialog({
@@ -422,6 +532,7 @@ struct Index {
     if (this.screen === 'home') { return false; }
     if (this.backendLoading) { this.generationToken++; this.backendLoading = false; this.generationProgress = 'Generation view cancelled. Backend jobs may continue.'; }
     if (this.screen === 'tv') { this.leaveTv(); }
+    else if (this.screen === 'connect' && ['running', 'paused', 'ready'].includes(this.phase)) { this.navigate('activity'); }
     else if (this.screen === 'activity') { this.cancelActivity(); }
     else if (!this.busy) { this.navigate('home'); }
     return true;
@@ -450,7 +561,11 @@ struct Index {
       this.confirmed = false;
       this.today = countToday(updated, Date.now());
       this.notice = `${record.title} completed. Well done, together!`;
-      this.navigate('progress');
+      if (this.work.phase === 'active') {
+        this.work = settleEntry(this.work, 'completed', this.demo); this.persistWork();
+        if (this.work.phase === 'active') { this.openWorkEntry(); }
+        else { this.navigate('work-summary'); }
+      } else { this.navigate('progress'); }
     } catch {
       this.notice = 'Saving failed. Your activity is ready to confirm again.';
     } finally { this.busy = false; }
@@ -462,6 +577,11 @@ struct Index {
     settings.interests = this.data.settings.interests.slice();
     settings.minutes = this.data.settings.minutes;
     settings.aiEndpoint = this.data.settings.aiEndpoint;
+    settings.preferredActivityTypes = this.data.settings.preferredActivityTypes.slice();
+    settings.sessionDuration = this.data.settings.sessionDuration;
+    settings.activityDifficulty = this.data.settings.activityDifficulty;
+    settings.indoorOnly = this.data.settings.indoorOnly; settings.noJumping = this.data.settings.noJumping;
+    settings.lowIntensity = this.data.settings.lowIntensity;
     this.draft = settings;
     this.navigate('settings');
   }
@@ -480,6 +600,7 @@ struct Index {
       await this.store.save(updated);
       this.data = updated;
       this.notice = 'Parent settings saved on this device.';
+      this.workMinutes = updated.settings.sessionDuration;
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.recommendation = '';
       this.recommendationId = '';
@@ -508,47 +629,178 @@ struct Index {
   }
 
   @Builder
+  heroCard() {
+    Column({ space: 12 }) {
+      Image($rawfile('work-hero.svg')).width('100%').height(170).objectFit(ImageFit.Contain)
+      Row() {
+        Text('PARENT WORK SESSION').fontSize(12).fontWeight(FontWeight.Bold).fontColor('#446654').layoutWeight(1)
+        Text(`${this.data.settings.sessionDuration} min`).fontSize(13).fontColor('#355B49').padding(8).backgroundColor('#FFFFFF').borderRadius(16)
+      }.width('100%')
+      Text('A little adventure.\nA little room to focus.').fontSize(29).fontWeight(FontWeight.Bold).fontColor('#223D32').width('100%')
+      Text('Keep them engaged while you focus.').fontSize(16).fontColor('#466454').width('100%')
+      Button(this.work.phase === 'active' ? 'Return to work session' : 'Start Parent Work Session')
+        .width('100%').height(52).backgroundColor('#294E3D').fontColor('#FFFFFF')
+        .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
+    }.width('100%').padding(20).backgroundColor('#E1EEE8').borderRadius(28)
+      .onClick(() => { this.navigate(this.work.phase === 'active' ? 'work-status' : 'work-setup'); })
+  }
+
+  @Builder
+  typeTiles(types: string[]) {
+    Row({ space: 12 }) {
+      ForEach(types, (type: string) => {
+        Column({ space: 4 }) {
+          Image($rawfile(`${type}.svg`)).height(85).width('100%').objectFit(ImageFit.Contain)
+          Text(type).fontSize(16).fontWeight(FontWeight.Bold).fontColor('#283F36').width('100%')
+          Text(type === 'MOVE' ? 'Gentle energy' : type === 'LEARN' ? 'Discover something' : type === 'CREATE' ? 'Make and imagine' : 'Slow down & reset')
+            .fontSize(13).fontColor('#4C6258').width('100%')
+        }.layoutWeight(1).padding(14).borderRadius(22).backgroundColor(this.typeColor(type))
+          .onClick(() => { this.filter = type; this.navigate('activities'); })
+      })
+    }.width('100%')
+  }
+
+  @Builder
+  activityCard(activity: Activity) {
+    Column({ space: 10 }) {
+      Image($rawfile(`${this.activityArt(activity)}.svg`)).height(140).width('100%').objectFit(ImageFit.Contain)
+        .backgroundColor(this.typeColor(activity.category)).borderRadius(20)
+      Row() {
+        Text(activity.category).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#426352').padding(7).backgroundColor(this.typeColor(activity.category)).borderRadius(12)
+        Blank()
+        Text(`${this.data.settings.minutes} min`).fontSize(13).fontColor('#59695F')
+      }.width('100%')
+      Text(activity.title).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
+      Text('Indoor-friendly | Adult nearby').fontSize(13).fontColor('#466454').width('100%')
+      Text(this.data.settings.interests.includes(activity.interest) ? `Matches an interest: ${activity.interest.toLowerCase()}` : 'A gentle way to try something new')
+        .fontSize(14).fontColor('#59695F').width('100%')
+      Row() {
+        Text('Offline activity').fontSize(12).fontColor('#59695F').layoutWeight(1)
+        Text('Discover >').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#294E3D')
+      }.width('100%')
+    }.width('100%').padding(16).backgroundColor('#FFFFFF').borderRadius(24)
+      .scale({ x: this.pressedCard === activity.id ? 0.985 : 1, y: this.pressedCard === activity.id ? 0.985 : 1 })
+      .animation({ duration: 140, curve: Curve.EaseOut })
+      .onTouch((event: TouchEvent) => { this.pressedCard = event.type === TouchType.Down ? activity.id : ''; })
+      .onClick(() => this.openActivity(activity))
+  }
+
+  @Builder
   homeContent() {
-    Column({ space: 16 }) {
-      this.heading('Small activities. Meaningful family moments.')
-      Text(`Completed today: ${this.today}`).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#28745E')
-        .padding(20).width('100%').backgroundColor('#E0EEE5').borderRadius(20)
-      Text(`Ages ${this.data.settings.age} • ${this.data.settings.minutes} minutes • Adult accompanied`)
-        .fontSize(15).fontColor('#52645C').width('100%')
-      Text(this.data.settings.aiEndpoint === '' ? 'AI service: not configured. All three activities work offline.' :
-        'AI service: configured, connection not yet verified. Offline activities stay available.')
-        .fontSize(14).fontColor('#52645C').width('100%')
-      Button(this.aiLoading ? 'Finding an activity...' : 'Recommend an activity').width('100%')
-        .backgroundColor('#E0EEE5').fontColor('#203C31').enabled(!this.aiLoading)
-        .onClick(() => { this.recommendActivity(); })
-      if (this.recommendation !== '') {
-        Text(this.recommendation).fontSize(16).fontColor('#28745E').width('100%')
+    Column({ space: 18 }) {
+      Row({ space: 12 }) {
+        Column({ space: 6 }) {
+          Text('Ready for a safe adventure?').fontSize(24).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
+          Text('Keep today active and fun.').fontSize(15).fontColor('#657269').width('100%')
+        }.layoutWeight(1)
+        Image($rawfile('CALM.svg')).height(66).width(66).borderRadius(33)
+      }.width('100%')
+      Text(`${this.catalog().length} indoor activities ready for your child`).fontSize(13).fontColor('#587563').width('100%')
+      if (this.work.phase !== 'active' && ['running', 'paused', 'ready'].includes(this.phase)) {
+        Button('Return to activity').width('100%').backgroundColor('#294E3D').onClick(() => this.navigate('activity'))
       }
-      ForEach(ACTIVITIES, (activity: Activity) => {
-        Column({ space: 10 }) {
-          Text('Offline activity').fontSize(13).fontColor('#28745E').width('100%')
-          Text(activity.title).fontSize(23).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-          Text(activity.interest).fontSize(15).fontColor('#52645C').width('100%')
-          if (this.recommendationId === activity.id) {
-            Text('Recommended activity').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#28745E').width('100%')
-          }
-          if (this.data.settings.interests.includes(activity.interest)) {
-            Text('Matches your interests').fontSize(13).fontColor('#28745E').width('100%')
-          }
-          Button('Explore activity').width('100%').backgroundColor('#28745E').fontColor(Color.White)
-            .onClick(() => this.openActivity(activity))
-        }.padding(20).width('100%').backgroundColor(Color.White).borderRadius(20)
-      }, (activity: Activity) => activity.id)
-      Button('Parent settings').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.openSettings())
-      Button('Progress').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.navigate('progress'))
-      Button('Play on TV').width('100%').backgroundColor('#28745E').fontColor(Color.White).onClick(() => this.navigate('connect'))
+      this.heroCard()
+      this.heading('Quick Activities')
+      this.typeTiles(WORK_TYPES.slice(0, 2))
+      this.typeTiles(WORK_TYPES.slice(2))
+      this.heading('Recommended for your child')
+      ForEach(this.catalog().filter((activity: Activity) => this.data.settings.interests.includes(activity.interest)).slice(0, 2),
+        (activity: Activity) => { this.activityCard(activity) }, (activity: Activity) => activity.id)
+      Column({ space: 8 }) {
+        Text("Today's progress").fontSize(20).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
+        Text(`${this.today} activities confirmed`).fontSize(25).fontWeight(FontWeight.Bold).fontColor('#426352').width('100%')
+        Text('Small moments add up. View your activity journal >').fontSize(14).fontColor('#59695F').width('100%')
+      }.padding(20).width('100%').backgroundColor('#EEE9DE').borderRadius(24).onClick(() => this.navigate('progress'))
+      Text('CompanionOS supports independent activity but does not replace appropriate adult supervision.').fontSize(13).fontColor('#59695F').width('100%')
+    }.width('100%')
+  }
+
+  @Builder
+  discoveryContent() {
+    Column({ space: 16 }) {
+      this.heading('Find their next adventure')
+      Text('Short, guided activities. Prepared for home.').fontSize(15).fontColor('#59695F').width('100%')
+      Row({ space: 5 }) {
+        ForEach(['ALL', ...WORK_TYPES], (type: string) => {
+          Button(type === 'ALL' ? 'All' : type).fontSize(11).padding({ left: 3, right: 3 }).layoutWeight(1).height(44)
+            .backgroundColor(this.filter === type ? '#294E3D' : '#E8EDE6').fontColor(this.filter === type ? '#FFFFFF' : '#294E3D')
+            .onClick(() => { this.filter = type; })
+        })
+      }.width('100%')
+      ForEach(this.catalog(), (activity: Activity) => { this.activityCard(activity) }, (activity: Activity) => activity.id)
+      Button(this.aiLoading ? 'Finding a match...' : 'Find a match').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
+        .enabled(!this.aiLoading).onClick(() => { this.recommendActivity(); })
+      if (this.recommendation !== '') { Text(this.recommendation).fontSize(15).fontColor('#426352').width('100%') }
+    }.width('100%')
+  }
+
+  @Builder
+  workSetupContent() {
+    Column({ space: 16 }) {
+      this.heading('Your focus time. Their adventure.')
+      Image($rawfile('work-hero.svg')).width('100%').height(180).objectFit(ImageFit.Contain)
+      Text('Choose a work window').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+      Row({ space: 8 }) {
+        ForEach([15, 30, 45, 60], (minutes: number) => {
+          Button(`${minutes} min`).fontSize(14).padding({ left: 4, right: 4 }).layoutWeight(1).height(48)
+            .backgroundColor(this.workMinutes === minutes ? '#294E3D' : '#E1EEE8').fontColor(this.workMinutes === minutes ? '#FFFFFF' : '#294E3D')
+            .onClick(() => { this.workMinutes = minutes; })
+        })
+      }.width('100%')
+      Text('How should CompanionOS prepare activities?').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+      ForEach(PREPARATIONS, (source: string) => {
+        Button(`${this.preparation === source ? 'Selected: ' : ''}${source}`).width('100%').height(46)
+          .backgroundColor(this.preparation === source ? '#294E3D' : '#FFFFFF').fontColor(this.preparation === source ? '#FFFFFF' : '#294E3D')
+          .onClick(() => { this.preparation = source; })
+      })
+      Text('Recommended uses safe Built-in activities. Other sources remain optional and are prepared and reviewed before each activity. AI failure never blocks Built-in content.').fontSize(14).fontColor('#59695F')
+      Text(`${Math.floor(this.workMinutes / 5)} short activities | Breaks are welcome | No strict continuous schedule`).fontSize(15).fontColor('#426352').width('100%')
+      Text('An adult sets up a clear space, stays available and checks each activity. Younger children may need closer supervision. No climbing, jumping, sharp tools or outdoor tasks.').fontSize(14).fontColor('#59695F')
+      Button('Prepare work session').width('100%').height(54).backgroundColor('#294E3D').enabled(this.storageReady)
+        .onClick(() => this.startWork())
+    }.width('100%')
+  }
+
+  @Builder
+  workStatusContent() {
+    Column({ space: 16 }) {
+      this.heading('Your work session')
+      Image($rawfile(`${this.work.entries[this.work.index]?.category || 'CALM'}.svg`)).width('100%').height(160).objectFit(ImageFit.Contain)
+      Text(this.selected.title).fontSize(26).fontWeight(FontWeight.Bold).width('100%')
+      Text(`Status: ${this.phase === 'idle' ? 'Ready to review' : this.phase === 'ready' ? 'Awaiting parent confirmation' : this.phase === 'running' ? 'Playing' : 'Paused'}`).fontSize(18).width('100%')
+      Text(`Remaining planned activities: ${remainingWork(this.work)} min`).fontSize(20).fontWeight(FontWeight.Bold).fontColor('#426352')
+      Text(`Activities completed: ${this.work.entries.filter((entry) => entry.outcome === 'completed').length} / ${this.work.entries.length}`).fontSize(17)
+      Text('Planned time is an estimate. Breaks and parent review may extend your work window.').fontSize(13).fontColor('#59695F')
+      Button(this.phase === 'idle' ? 'Review next activity' : 'Open child view').width('100%').onClick(() => this.navigate('activity'))
+      if (this.phase === 'running') { Button('Pause').width('100%').onClick(() => { this.pauseActivity(); this.persistWork(); }) }
+      if (this.phase === 'paused') { Button('Resume').width('100%').onClick(() => { this.resumeActivity(); this.persistWork(); }) }
+      Button('Change Activity').width('100%').onClick(() => this.skipWorkEntry())
+      Button('End Session').width('100%').backgroundColor('#EEE9DE').fontColor('#694B3B').onClick(() => this.finishWork())
+      Text('CompanionOS supports independent activity but does not replace appropriate adult supervision.').fontSize(13).fontColor('#59695F')
+    }.padding(20).width('100%').backgroundColor('#FFFFFF').borderRadius(24)
+  }
+
+  @Builder
+  workSummaryContent() {
+    Column({ space: 16 }) {
+      Image($rawfile('CALM.svg')).width('100%').height(170).objectFit(ImageFit.Contain)
+      this.heading(this.work.phase === 'completed' ? 'Work Session Complete' : 'Work Session Ended')
+      Text(`${this.work.minutes} minutes planned`).fontSize(24).fontWeight(FontWeight.Bold)
+      Text(`${this.work.entries.filter((entry) => entry.outcome === 'completed').length} activities confirmed`).fontSize(20)
+      ForEach(WORK_TYPES, (type: string) => {
+        Text(`${categoryMinutes(this.work, type)} planned minutes ${type.toLowerCase()}`).fontSize(18).width('100%')
+      })
+      Text(`${this.work.entries.filter((entry) => entry.outcome === 'skipped').length} activities skipped`).fontSize(18)
+      Text('These are planned durations of confirmed activities, not measured movement or developmental outcomes. Demo activities are excluded from minute totals.').fontSize(13).fontColor('#59695F')
+      Button('Back to Home').width('100%').onClick(() => this.navigate('home'))
+      Button('View activity journal').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.navigate('progress'))
     }.width('100%')
   }
 
   @Builder
   settingsContent() {
     Column({ space: 16 }) {
-      this.heading('Parent settings')
+      this.heading('Child Profile & Parent Settings')
       Text('Stored only on this device. Changes apply to your next activity.').fontSize(16).fontColor('#52645C')
       Text('Age group').fontSize(20).fontColor('#203C31').width('100%')
       Row({ space: 12 }) {
@@ -571,6 +823,47 @@ struct Index {
             .fontColor(this.draft.minutes === minutes ? Color.White : '#203C31').onClick(() => { this.draft.minutes = minutes; })
         })
       }.width('100%')
+      Text('Preferred activity types').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+      Row({ space: 6 }) {
+        ForEach(WORK_TYPES, (type: string) => {
+          Button(type).fontSize(12).padding({ left: 4, right: 4 }).layoutWeight(1).height(46)
+            .backgroundColor(this.draft.preferredActivityTypes.includes(type) ? '#294E3D' : '#E1EEE8')
+            .fontColor(this.draft.preferredActivityTypes.includes(type) ? '#FFFFFF' : '#294E3D')
+            .onClick(() => { this.draft.preferredActivityTypes = this.draft.preferredActivityTypes.includes(type) ?
+              this.draft.preferredActivityTypes.filter((value: string) => value !== type) : [...this.draft.preferredActivityTypes, type]; })
+        })
+      }.width('100%')
+      Text('Preferred work window').fontSize(20).width('100%')
+      Row({ space: 6 }) {
+        ForEach([15, 30, 45, 60], (minutes: number) => {
+          Button(`${minutes} min`).fontSize(13).layoutWeight(1)
+            .backgroundColor(this.draft.sessionDuration === minutes ? '#294E3D' : '#E1EEE8')
+            .fontColor(this.draft.sessionDuration === minutes ? '#FFFFFF' : '#294E3D')
+            .onClick(() => { this.draft.sessionDuration = minutes; })
+        })
+      }.width('100%')
+      Text('Activity difficulty').fontSize(20).width('100%')
+      Row({ space: 12 }) {
+        ForEach(['Gentle', 'Standard'], (difficulty: string) => {
+          Button(difficulty).layoutWeight(1).backgroundColor(this.draft.activityDifficulty === difficulty ? '#294E3D' : '#E1EEE8')
+            .fontColor(this.draft.activityDifficulty === difficulty ? '#FFFFFF' : '#294E3D')
+            .onClick(() => { this.draft.activityDifficulty = difficulty; })
+        })
+      }.width('100%')
+      Text('Safety defaults').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+      Row() {
+        Text('Indoor only').layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.draft.indoorOnly }).onChange((value: boolean) => { this.draft.indoorOnly = value; })
+      }.width('100%')
+      Row() {
+        Text('No jumping').layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.draft.noJumping }).onChange((value: boolean) => { this.draft.noJumping = value; })
+      }.width('100%')
+      Row() {
+        Text('Low intensity').layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.draft.lowIntensity }).onChange((value: boolean) => { this.draft.lowIntensity = value; })
+      }.width('100%')
+      Text('Built-in activities remain indoor, gentle and jump-free even when a preference is off. No climbing or sharp tools. No camera, microphone, location or emotion monitoring.').fontSize(14).fontColor('#59695F')
       Text('Optional AI service (parent only)').fontSize(20).fontColor('#203C31').width('100%')
       Text('Leave empty for offline mode. Enter a trusted HTTPS recommendation endpoint. Never enter an API key here. Only age group, interests and duration are sent when you request a recommendation.')
         .fontSize(14).fontColor('#52645C').width('100%')
@@ -586,74 +879,88 @@ struct Index {
 
   @Builder
   activityContent() {
-    Column({ space: 16 }) {
-      Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-      if (this.selected.id.startsWith('tv-')) {
-        Text(`${this.selected.category} • Mock plan • ${this.selected.theme}`).fontSize(16).fontColor('#28745E')
-      }
-      Text(`TV: ${this.tvConnection}`).fontSize(16).fontColor('#52645C')
-      Button('Play on TV').width('100%').onClick(() => { this.showTv(); })
-      Text(this.activitySource).fontSize(14).fontColor('#28745E').width('100%')
-      Text(`Suitable for ages 4–5 and 6–8 • Your age group: ${this.data.settings.age}`)
-        .fontSize(16).fontColor('#52645C').width('100%')
-      Text(`${this.data.settings.minutes} minutes • Parent / caregiver must stay with the child.`)
-        .fontSize(16).fontColor('#52645C').width('100%')
-      Text(this.data.settings.age === '6–8' ? 'Take turns leading and invent a new move or sound.' :
-        'Parent leads first. Use simple turns and gentle movements.').fontSize(16).fontColor('#203C31').width('100%')
-      ForEach(this.selected.steps, (step: string, index: number) => {
-        Text(`${index + 1}. ${step}`).fontSize(17).fontColor('#203C31').padding(16)
-          .width('100%').backgroundColor(Color.White).borderRadius(14)
-      }, (step: string) => step)
-      if (this.phase === 'idle' || this.phase === 'cancelled' || this.phase === 'completed') {
+    if (['running', 'paused', 'ready'].includes(this.phase)) { this.childContent() }
+    else {
+      Column({ space: 16 }) {
+        Image($rawfile(`${this.activityArt(this.selected)}.svg`)).width('100%').height(180).objectFit(ImageFit.Contain)
+          .backgroundColor(this.typeColor(this.selected.category)).borderRadius(26)
+        Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+        Text(`${this.selected.category} | Ages ${this.data.settings.age} | ${this.work.phase === 'active' ? 5 : this.data.settings.minutes} min`)
+          .fontSize(16).fontColor('#426352').width('100%')
+        Text(this.activitySource).fontSize(13).fontColor('#59695F').width('100%')
+        Column({ space: 8 }) {
+          Text('Why this activity?').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+          Text(`Short ${this.selected.category.toLowerCase()} practice | ${this.selected.educationalGoal}`).fontSize(16).width('100%')
+          Text(`Interest: ${this.selected.interest} | Indoor-friendly | Gentle instructions`).fontSize(15).width('100%')
+          Text('Adult nearby and available. Younger children may need closer support.').fontSize(14).width('100%')
+        }.padding(18).width('100%').backgroundColor('#E1EEE8').borderRadius(20)
+        ForEach(this.selected.steps, (step: string, index: number) => {
+          Text(`${index + 1}. ${step}`).fontSize(16).fontColor('#253E33').padding(16).width('100%').backgroundColor('#FFFFFF').borderRadius(16)
+        }, (step: string) => step)
+        if (this.work.phase === 'active') { Text(`Preparation preference: ${this.work.preparation}. Review optional content below; Built-in is always ready.`).fontSize(14).fontColor('#59695F') }
         this.contentChoices()
         Row({ space: 8 }) {
-          Checkbox({ name: 'demoMode' }).select(this.demo).selectedColor('#28745E')
-            .onChange((value: boolean) => { this.demo = value; })
-          Text('Demo Mode — 10-second countdown').fontSize(16).fontColor('#203C31').layoutWeight(1)
+          Checkbox({ name: 'demoMode' }).select(this.demo).selectedColor('#294E3D').onChange((value: boolean) => { this.demo = value; })
+          Text('Demo Mode - 10-second countdown').fontSize(15).layoutWeight(1)
         }
-        Text('Normal mode uses your selected duration. Demo completions are labelled in Progress.')
-          .fontSize(14).fontColor('#52645C').width('100%')
-        Button('Start activity').width('100%').backgroundColor('#28745E').fontColor(Color.White)
-          .enabled(!this.backendLoading && !this.importingVideo)
-          .onClick(() => this.startActivity())
-      } else {
-        if (this.selected.contentSource === ActivityContentSource.USER_VIDEO) {
-          Video({ src: `file://${this.selected.localVideoPath}`, controller: this.phoneVideoController })
-            .width('100%').height(180).controls(false).autoPlay(false).loop(true).muted(true)
-            .onPrepared(() => {
-              if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} }
-            }).onDisAppear(() => { try { this.phoneVideoController.pause(); } catch {} })
-            .onError(() => { this.notice = 'My Video cannot play. Cancel and choose Built-in Video.'; })
+        Button('Start activity').width('100%').height(54).backgroundColor('#294E3D')
+          .enabled(!this.backendLoading && !this.importingVideo).onClick(() => this.startActivity())
+        Button('Play on a larger screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
+        Text('CompanionOS supports independent activity but does not replace appropriate adult supervision.').fontSize(13).fontColor('#59695F')
+      }.width('100%')
+    }
+  }
+
+  @Builder
+  childContent() {
+    Column({ space: 16 }) {
+      Text(this.selected.title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#253E33').width('100%')
+      if (this.phase !== 'ready') {
+        Video({ src: this.selected.contentSource === ActivityContentSource.USER_VIDEO ? `file://${this.selected.localVideoPath}` :
+          (this.selected.activitySteps[this.stepIndex]?.videoUrl || $rawfile('fallback.mp4')), controller: this.phoneVideoController })
+          .width('100%').height(220).controls(false).autoPlay(false).loop(true).muted(true)
+          .onPrepared(() => { if (this.phase === 'running') { try { this.phoneVideoController.start(); } catch {} } })
+          .onDisAppear(() => { try { this.phoneVideoController.pause(); } catch {} })
+          .onError(() => { this.notice = 'Video unavailable. Follow the safe illustrated instructions below; the activity continues.'; })
+      }
+      Text(this.phase === 'ready' ? 'Lovely effort! Check in with your adult.' : this.phase === 'paused' ? 'Take a gentle break.' : this.selected.steps[this.stepIndex])
+        .fontSize(25).fontWeight(FontWeight.Medium).fontColor('#253E33').width('100%')
+      Progress({ value: this.stepIndex + 1, total: this.selected.steps.length, type: ProgressType.Linear }).width('100%').color('#547963')
+        .animation({ duration: 200, curve: Curve.EaseOut })
+      Row() {
+        Text(`Step ${this.stepIndex + 1} of ${this.selected.steps.length}`).fontSize(15).fontColor('#59695F').layoutWeight(1)
+        Text(this.phase === 'ready' ? 'Finished' : this.clockLabel()).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#294E3D')
+      }.width('100%')
+      Text(this.demo ? 'Demo - 10 seconds' : 'Play gently. Rest whenever you need.').fontSize(13).fontColor('#59695F')
+      Button(this.parentControls ? 'Close parent controls' : 'Parent controls').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
+        .onClick(() => {
+          if (this.parentControls) { this.parentControls = false; }
+          else { this.getUIContext().showAlertDialog({ title: 'Parent controls', message: 'Please hand the phone to your parent or caregiver.',
+            primaryButton: { value: 'I am the parent', action: () => { this.parentControls = true; } },
+            secondaryButton: { value: 'Keep playing', action: () => {} } }); }
+        })
+      if (this.parentControls || this.phase === 'ready') {
+        if (this.phase === 'running') { Button('Pause activity').width('100%').onClick(() => { this.pauseActivity(); this.persistWork(); }) }
+        if (this.phase === 'paused') { Button('Resume activity').width('100%').onClick(() => { this.resumeActivity(); this.persistWork(); }) }
+        if (this.phase !== 'ready') {
+          Row({ space: 10 }) {
+            Button('Previous step').layoutWeight(1).enabled(this.stepIndex > 0).onClick(() => this.previousStep())
+            Button('Next step').layoutWeight(1).enabled(this.stepIndex < this.selected.steps.length - 1).onClick(() => this.nextStep())
+          }.width('100%')
         }
-        Text('Put the screen down and play together.').fontSize(25).fontWeight(FontWeight.Bold)
-          .fontColor('#28745E').width('100%')
-        Text(this.session.demo ? 'DEMO MODE • 10 seconds' : `NORMAL MODE • ${this.session.minutes} minutes`)
-          .fontSize(14).fontColor('#52645C').width('100%')
-        Text(this.phase === 'ready' ? 'Time is up!' : this.clockLabel()).fontSize(42).fontWeight(FontWeight.Bold).fontColor('#203C31')
-        if (this.phase === 'running') { Button('Pause activity').onClick(() => this.pauseActivity()) }
-        if (this.phase === 'paused') {
-          Text('Paused — take a comfortable break.').fontSize(22).fontColor('#28745E')
-          Button('Resume activity').onClick(() => this.resumeActivity())
-        }
-        Text(`Step ${this.stepIndex + 1} / ${this.selected.activitySteps.length}`).fontSize(20)
-        Text(this.selected.steps[this.stepIndex]).fontSize(18)
-        Button('Next step').enabled(this.phase !== 'ready' && this.stepIndex < this.selected.activitySteps.length - 1)
-          .onClick(() => this.nextStep())
-        Button('Previous step').enabled(this.phase !== 'ready' && this.stepIndex > 0).onClick(() => this.previousStep())
-        if (this.tvConnection === 'Connected') { Button('Disconnect TV').onClick(() => this.disconnectTv()) }
-        Text('If you leave the app, the deadline is checked when you return. Background reminders are not guaranteed.')
-          .fontSize(14).fontColor('#52645C').width('100%')
         if (this.phase === 'ready') {
           Row({ space: 8 }) {
-            Checkbox({ name: 'confirmParent' }).select(this.confirmed).selectedColor('#28745E').enabled(!this.busy)
+            Checkbox({ name: 'confirmParent' }).select(this.confirmed).selectedColor('#294E3D').enabled(!this.busy)
               .onChange((value: boolean) => { this.confirmed = value; })
-            Text('I am the parent / caregiver. We completed this activity together.').fontSize(16).fontColor('#203C31').layoutWeight(1)
+            Text('I am the parent / caregiver. I confirm this activity was completed.').fontSize(16).layoutWeight(1)
           }
-          Button(this.busy ? 'Saving...' : 'Mark as completed').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+          Button(this.busy ? 'Saving...' : 'Mark as completed').width('100%').backgroundColor('#294E3D')
             .enabled(this.confirmed && !this.busy && this.storageReady).onClick(() => { this.completeActivity(); })
         }
-        Button('Cancel activity').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31')
-          .enabled(!this.busy).onClick(() => this.cancelActivity())
+        if (this.work.phase === 'active') { Button('Parent work view').width('100%').onClick(() => this.navigate('work-status')) }
+        Button('Play on a larger screen').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D').onClick(() => this.showTv())
+        Button(this.work.phase === 'active' ? 'Change Activity' : 'Cancel activity').width('100%').backgroundColor('#EEE9DE').fontColor('#694B3B')
+          .enabled(!this.busy).onClick(() => { if (this.work.phase === 'active') { this.skipWorkEntry(); } else { this.cancelActivity(); } })
       }
     }.width('100%')
   }
@@ -661,7 +968,9 @@ struct Index {
   @Builder
   contentChoices() {
     Column({ space: 10 }) {
-      Text('Choose Activity Content').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
+      Text('How should we prepare this activity?').fontSize(23).fontWeight(FontWeight.Bold).width('100%')
+      Button('Recommended').width('100%').enabled(!this.backendLoading && !this.importingVideo).onClick(() => this.chooseBuiltIn())
+      Text('Safe Built-in content, ready without a network.').fontSize(14)
       Button('Gemini AI').width('100%').enabled(!this.backendLoading && !this.importingVideo)
         .onClick(() => { this.createAdventure('GEMINI'); })
       Text('Create a personalized activity with Gemini').fontSize(14).width('100%')
@@ -687,7 +996,9 @@ struct Index {
   @Builder
   connectionContent() {
     Column({ space: 16 }) {
-      this.heading('Connect to TV')
+      this.heading('Play on a larger screen')
+      Button('Continue on phone').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
+        .onClick(() => this.navigate('activity'))
       Text(`Connection: ${this.tvConnection}`).fontSize(22).fontColor('#28745E')
       Text('Nearby devices').fontSize(22).fontWeight(FontWeight.Bold)
       Text(this.nearby).fontSize(16)
@@ -766,6 +1077,10 @@ struct Index {
     Column({ space: 16 }) {
       this.heading('Progress')
       Text(`Completed today: ${this.today} • Total completions: ${this.data.total}`).fontSize(20).fontColor('#28745E').width('100%')
+      if (this.work.phase === 'completed' || this.work.phase === 'ended') {
+        Button('Latest work session summary').width('100%').backgroundColor('#E1EEE8').fontColor('#294E3D')
+          .onClick(() => this.navigate('work-summary'))
+      }
       Text(this.data.total >= 10 ? 'Family Explorer • 10+ moments together' :
         this.data.total >= 3 ? 'Together Team • 3+ moments together' :
         this.data.total >= 1 ? 'First Adventure • First moment together' : 'Your first badge is waiting!')
@@ -799,7 +1114,6 @@ struct Index {
         }
         Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31')
         Blank()
-        Text('OFFLINE').fontSize(11).fontColor('#28745E')
       }.width('100%').padding(16)
       Scroll(this.scroller) {
         Column({ space: 16 }) {
@@ -807,13 +1121,30 @@ struct Index {
             Text(this.notice).fontSize(15).fontColor('#6B451C').padding(16).width('100%').backgroundColor('#FFF0D9').borderRadius(14)
           }
           if (this.screen === 'home') { this.homeContent() }
+          else if (this.screen === 'activities') { this.discoveryContent() }
+          else if (this.screen === 'work-setup') { this.workSetupContent() }
+          else if (this.screen === 'work-status') { this.workStatusContent() }
+          else if (this.screen === 'work-summary') { this.workSummaryContent() }
           else if (this.screen === 'settings') { this.settingsContent() }
           else if (this.screen === 'progress') { this.progressContent() }
           else if (this.screen === 'connect') { this.connectionContent() }
           else { this.activityContent() }
-          Text('Made for moments together • HackYeah MVP').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
+          Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
         }.width('100%').padding({ left: 20, right: 20, top: 8 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
+      if (['home', 'activities', 'progress', 'settings'].includes(this.screen)) {
+        Row() {
+          ForEach(['home', 'activities', 'progress', 'settings'], (tab: string) => {
+            Column({ space: 2 }) {
+              Image($rawfile(`${tab === 'home' ? 'CALM' : tab === 'activities' ? 'MOVE' : tab === 'progress' ? 'LEARN' : 'CREATE'}.svg`))
+                .width(36).height(30).objectFit(ImageFit.Contain)
+              Text(tab === 'settings' ? 'Parent' : tab.charAt(0).toUpperCase() + tab.slice(1)).fontSize(12)
+                .fontWeight(this.screen === tab ? FontWeight.Bold : FontWeight.Normal).fontColor('#294E3D')
+            }.layoutWeight(1).height(62).justifyContent(FlexAlign.Center).borderRadius(16)
+              .backgroundColor(this.screen === tab ? '#E1EEE8' : '#FFFFFF').onClick(() => this.selectTab(tab))
+          })
+        }.width('100%').padding({ left: 12, right: 12, top: 6, bottom: 8 }).backgroundColor('#FFFFFF')
+      }
     }.height('100%').width('100%').backgroundColor('#F4F7F0')
     }
   }

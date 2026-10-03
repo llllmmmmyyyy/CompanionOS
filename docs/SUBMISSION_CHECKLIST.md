@@ -4,6 +4,8 @@ This checklist reports implementation and observed evidence. It is not a competi
 
 | Deliverable / requirement | Status | Evidence or next action |
 |---|---|---|
+| Illustrated Phone experience | Implemented and emulator inspected | Original hero/category SVGs, four-tab navigation, activity cards; larger-font/smaller-phone review remains pending |
+| Parent Work Session / profile | Implemented and emulator tested | 15-minute plan completed with labelled Demo activities; 30-minute plan pause/restart/resume/skip/end; see TESTING for exact limits |
 | Independent TV + relay backend | Built and emulator tested | TV minimum API 19, Phone API 21; real video playback, controls, reconnect and notification observed |
 | Four content sources | Implemented | Gemini preserved, Huawei adapters, unchanged Built-in, real system MP4 import/title/duration/restart; see latest TESTING evidence |
 | Live Gemini/Veo and Huawei generation | Unverified | Backend-only credentials/model access required; cloud HTTP tests are mocks |

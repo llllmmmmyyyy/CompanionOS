@@ -1,5 +1,9 @@
 # AI development workflow
 
+## Parent work sessions and visual redesign - 2026-10-03
+
+The user requested a substantial visual/product refinement of the existing native app: busy parents, structured indoor activities, optional content sources and optional TV. The Codex coding assistant directly edited ArkTS models, persistence and UI, authored original SVG illustrations, reused the existing bundled video unchanged, and added host checks for planning/migration/recovery. No external artwork, new dependencies, extra agents or live cloud credentials were used. Existing history, notification adapters, providers, picker and relay were retained. Actual build/device outcomes and remaining human checks are in docs/TESTING.md.
+
 ## Emulator relay communication fix — 2026-10-03
 
 The user requested diagnosis and an actual Phone/TV connection fix without unrelated feature changes. The coding assistant inspected existing HTTP relay clients, Windows listeners and both running emulator routes. It found no 18080 listener and no reverse tunnels, replaced guest-loopback defaults with the actually verified 10.0.2.2 gateway, standardized the backend on port 18080, added visible connection/error diagnostics and updated the startup helper. No additional agents, generated assets or live AI-provider calls were used.

@@ -6,6 +6,12 @@ export class ParentSettings {
   interests: string[] = ['Movement'];
   minutes: number = 3;
   aiEndpoint: string = '';
+  preferredActivityTypes: string[] = ['MOVE', 'LEARN', 'CREATE', 'CALM'];
+  sessionDuration: number = 30;
+  activityDifficulty: string = 'Gentle';
+  indoorOnly: boolean = true;
+  noJumping: boolean = true;
+  lowIntensity: boolean = true;
 }
 
 export class Activity {
@@ -94,6 +100,10 @@ export function validSettings(settings: ParentSettings): boolean {
     [3, 5, 10].includes(settings.minutes) && Array.isArray(settings.interests) &&
     settings.interests.length > 0 && settings.interests.length <= 3 &&
     settings.interests.every((item: string) => ['Movement', 'Sounds', 'Nature'].includes(item)) &&
+    Array.isArray(settings.preferredActivityTypes) && settings.preferredActivityTypes.length > 0 &&
+    settings.preferredActivityTypes.length <= 4 && settings.preferredActivityTypes.every((value: string) => ['MOVE', 'LEARN', 'CREATE', 'CALM'].includes(value)) &&
+    [15, 30, 45, 60].includes(settings.sessionDuration) && ['Gentle', 'Standard'].includes(settings.activityDifficulty) &&
+    typeof settings.indoorOnly === 'boolean' && typeof settings.noJumping === 'boolean' && typeof settings.lowIntensity === 'boolean' &&
     typeof settings.aiEndpoint === 'string' && settings.aiEndpoint.length <= 200 &&
     (settings.aiEndpoint === '' || validEndpoint(settings.aiEndpoint));
 }
@@ -105,6 +115,15 @@ export function validEndpoint(endpoint: string): boolean {
 export function parseSnapshot(raw: string): Snapshot | undefined {
   try {
     const data = JSON.parse(raw) as Snapshot;
+    if (data && data.settings) {
+      const defaults = new ParentSettings();
+      if (data.settings.preferredActivityTypes === undefined) { data.settings.preferredActivityTypes = defaults.preferredActivityTypes; }
+      if (data.settings.sessionDuration === undefined) { data.settings.sessionDuration = defaults.sessionDuration; }
+      if (data.settings.activityDifficulty === undefined) { data.settings.activityDifficulty = defaults.activityDifficulty; }
+      if (data.settings.indoorOnly === undefined) { data.settings.indoorOnly = true; }
+      if (data.settings.noJumping === undefined) { data.settings.noJumping = true; }
+      if (data.settings.lowIntensity === undefined) { data.settings.lowIntensity = true; }
+    }
     if (data === null || data.version !== 1 || !validSettings(data.settings) ||
       !Array.isArray(data.records) || data.records.length > 20 ||
       !Number.isSafeInteger(data.total) || data.total < data.records.length ||

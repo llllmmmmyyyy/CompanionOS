@@ -52,6 +52,9 @@ try {
     & $node (Join-Path $scriptRoot 'test-domain.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }
+    & $node (Join-Path $scriptRoot 'test-work.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Work-session checks failed' }
     & $node (Join-Path $scriptRoot 'test-services.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Mocked-service checks failed' }

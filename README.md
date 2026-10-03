@@ -1,22 +1,24 @@
 ﻿# CompanionOS
 
-Small activities. Meaningful family moments.
+CompanionOS helps busy parents keep working while their children stay safely engaged at home.
 
-CompanionOS is a native HarmonyOS phone MVP for short, adult-accompanied family activities. It encourages families to put the screen down and play together, then lets a parent confirm the shared moment. The core works offline without an account or AI key.
+Turn passive screen time into safe, guided activity time. Parents should not have to choose between focused work and keeping their child meaningfully engaged. CompanionOS provides a fourth option alongside constant entertainment, passive screens and unsupervised outdoor play: short, structured home activities with practical adult oversight. It does not replace appropriate adult supervision.
 
-## Implemented experience
+## The experience
 
-- **Choose Activity Content:** Gemini AI, Huawei AI, Built-in Video and My Video share the existing Phone session/history and TV player. Gemini is preserved; Huawei MaaS is a second backend adapter. Both need backend-only credentials and remain unverified against live APIs. Built-in requires no AI call. My Video uses the system picker, a private persistent MP4 copy and optional backend caching for TV; offline Phone playback is supported.
+- **A home designed around families:** original illustrations, a prominent Parent Work Session hero, warm category colors, tappable activity cards and Home / Activities / Progress / Parent navigation. Network/provider status is shown only where relevant.
+- **Parent Work Session:** choose 15, 30, 45 or 60 planned minutes. A sequence of five-minute MOVE, LEARN, CREATE and CALM activities uses the parent's preferred types. Review before each start, take breaks, pause/resume, skip or end. Parent-confirmed activities feed the existing journal; the summary separates completed, skipped and demo activities. Planned durations are not measured developmental outcomes or a promise of continuous engagement.
+- **Child profile:** ages 4-5 / 6-8, interests, preferred activity types, work-window duration, Gentle / Standard difficulty, indoor/no-jumping/low-intensity preferences. Existing 3/5/10-minute quick activities remain available. Settings and history migrate without resetting earlier records.
+- **Child view and parent work view:** a large native video/instruction area with progress and minimal controls. Parent controls require a hand-off dialog, which is an accidental-tap barrier, not authentication. The compact work view shows current activity, status and remaining planned activities.
+- **Content options:** Recommended chooses safe Built-in content without a network. Gemini AI, Huawei AI and My Videos remain optional sources, with parent review and safe fallback. Work-session source preference prepares each new activity; parents can change it before starting. API keys stay on the backend. Neither live cloud provider has been verified with credentials.
+- **Phone first:** the complete session works on Phone alone. "Play on a larger screen" exposes existing Demo TV and independent emulator TV as optional extensions. Failed TV connections never block Phone activity or confirmation.
+- **Native HarmonyOS:** ArkTS/ArkUI, Preferences persistence, foreground-end notification permission/error handling, system video picker, existing widget and optional multi-device playback. No Flutter or web runtime.
 
-- **Companion TV Mode:** same-phone Demo TV plus independent `tventry` on API 19 TV. Phone-owned timer/pause/resume/next/previous/cancel/completion, HTTP relay and reconnect synchronization. See [TV mode](docs/TV_MODE.md).
-- **Generation backend:** Node/TypeScript, real Gemini structured-plan and Veo 3.1 REST paths, validation/retry, asynchronous segments, reviewed disk cache and safe no-key fallback. No live provider call was attempted this run. TV plays a labelled original bundled fallback MP4 when generated clips are unavailable. See [AI architecture](docs/AI_ARCHITECTURE.md).
+## Safety and recovery
 
-- **Home:** Penguin Walk, Animal Sounds, Butterfly Stretch, today's completion count, interest matches, settings and progress.
-- **Parent Settings:** ages 4–5 or 6–8, Movement / Sounds / Nature interests, 3 / 5 / 10 minutes, persistent local settings.
-- **Activity:** age guidance, curated steps, adult accompaniment, start, countdown, cancellation and parent confirmation. Normal mode uses the selected duration; clearly labelled Demo Mode uses ten seconds.
-- **Progress:** recent completions, local date/time, total count and badges at 1, 3 and 10 completions. Demo completions are labelled and included in totals.
-- **HarmonyOS capabilities:** Preferences persistence, real foreground-end notification calls with permission/error handling, and a 2×2 desktop widget with an app launch link.
-- **Optional recommendation service:** configurable HTTPS endpoint, validation, ten-second timeout and offline fallback. This older catalog recommendation adapter is separate from the new generation backend. No live provider connection has been verified.
+An adult prepares a clear indoor space, stays available, reviews media and confirms completion. Younger children may need closer support. Built-in templates remain indoor, gentle and jump-free even if a safety preference is disabled. No climbing, sharp tools, risky jumps or unsupervised outdoor suggestions. The app does not monitor children through location, camera, microphone or emotion recognition.
+
+Active work sessions checkpoint locally; after process restart they resume in a safe paused state with Built-in content and the same completion identifier. Generated/imported source selection is reviewed again, rather than silently replayed after restart. Missing/corrupt work data returns to safe defaults; previous activity records are stored separately. Reliable background alarms are not claimed.
 
 ## Environment verified during development
 
@@ -31,7 +33,7 @@ CompanionOS is a native HarmonyOS phone MVP for short, adult-accompanied family 
 
 Phone product `default` remains minimum/target API 21. Separate product `tv` is minimum API 19, target/compiler SDK 21. Its independent HAP was installed and launched on the actual API 19 TV. `shared` is a local protocol HAR, not another project.
 
-## Phone + TV hackathon demo
+## Optional larger-screen demo
 
 Backend requires Node.js 22+ (24.21.0 was available here). In Windows PowerShell inside `backend`, run `npm.cmd ci`, `npm.cmd run build`, then `npm.cmd start`. No key is needed for fallback. To enable providers, copy `.env.example` to ignored `.env`. Set `GEMINI_API_KEY` for Gemini/Veo, or `HUAWEI_MAAS_API_KEY` plus the exact enabled `HUAWEI_MAAS_MODEL` from your MaaS console. Huawei video uses the documented Wan text-to-video adapter; configure the enabled video model and explicit trusted storage hosts in `HUAWEI_VIDEO_DOWNLOAD_HOSTS`. No key goes into either app. Account/model access remains unverified. Generated footage is review-gated: inspect MP4 under backend/data/videos, then `npm.cmd run review -- <videoId>` to approve.
 
@@ -86,7 +88,7 @@ Output: `entry/build/default/outputs/default/entry-default-unsigned.hap`. Local 
 4. Select the `entry` run configuration and target device, then click **Run**.
 5. In Parent Settings, enable notifications explicitly. Open an activity, select Demo Mode, start it, wait ten seconds, check the parent confirmation box and mark it completed.
 
-The current project has no signing configuration. The verified output is **unsigned**, not a signed release. In the follow-up test, the API 21 development emulator accepted this unsigned HAP and ran it successfully. Home/details, settings and record persistence, Demo and full three-minute normal completion, cancellation, confirmation/double-click protection, background expiry/resume and an actual notification in the system notification center were verified. Widget hosting, physical-phone installation and full 5/10-minute expiry variants remain pending. See `docs/TESTING.md` for exact results.
+The current project has no signing configuration. The verified output is **unsigned**, not a signed release. The redesigned Phone and preserved TV HAPs were built and installed; current parent-work and visual checks are listed at the top of docs/TESTING.md. The following core-flow checks are historical evidence. In the follow-up test, the API 21 development emulator accepted this unsigned HAP and ran it successfully. Home/details, settings and record persistence, Demo and full three-minute normal completion, cancellation, confirmation/double-click protection, background expiry/resume and an actual notification in the system notification center were verified. The current work flow also passed one full normal five-minute activity. Widget hosting, physical-phone installation, full ten-minute expiry and full-length work windows remain pending. See `docs/TESTING.md` for exact results.
 
 To try the widget after installation, open the launcher's service-widget picker for CompanionOS and add **Today together**. Launcher support varies. Tap it to open the app. Counts are pushed after saves and refreshed on system widget callbacks; the widget shows its data date and does not promise instant background refresh.
 
@@ -94,9 +96,9 @@ To try the widget after installation, open the launcher's service-widget picker 
 
 Settings and the latest 20 records share a validated Preferences snapshot. Total and daily counts are independent of the history limit. Valid records from the previous homepage are migrated; its older discarded records cannot be reconstructed, so an imported total reflects known records/counts. Missing or invalid snapshots recover to defaults with a notice. Storage access/write failures are reported and do not claim a successful save.
 
-An in-memory session uses a wall-clock deadline. Backgrounding clears the UI interval; returning recalculates remaining time. An activity that expires in the background becomes ready for parent confirmation on return without a retroactive notification. Process termination discards the unfinished session and never records it automatically. Manual clock changes can affect timing. Reliable background alarms are not implemented.
+An in-memory session uses a wall-clock deadline. Backgrounding clears the UI interval; returning recalculates remaining time. An activity that expires in the background becomes ready for parent confirmation on return without a retroactive notification. Process termination discards an unfinished standalone quick activity and never records it automatically. Parent Work Sessions checkpoint remaining time/step and restore paused with Built-in content. Manual clock changes can affect timing. Reliable background alarms are not implemented.
 
-No camera, location, child account, dangerous tools or client API keys are used. Network access is used only when a parent configures a service and requests a recommendation. Local Preferences are not presented as encrypted storage.
+No camera, location, child account, dangerous tools or client API keys are used. Network access is used for explicitly requested optional recommendations, AI preparation, imported-video TV caching or TV relay communication. Local Built-in activities do not require network success. Local Preferences are not presented as encrypted storage.
 
 ## Evidence and submission materials
 

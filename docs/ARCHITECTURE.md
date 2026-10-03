@@ -1,5 +1,15 @@
 # Architecture
 
+## Parent work-session layer
+
+Home, Activities and the existing Progress/Parent views share four bottom tabs. Index adds work setup, parent status, summary and a reduced child-facing activity state. Existing single-activity state machine, source selection, timer, notification and parent-confirmation paths remain the execution layer.
+
+`model/WorkSession.ets` owns deterministic category scheduling, validated checkpoint data, skip/end transitions and summary totals. `services/WorkStore.ets` stores a separate bounded Preferences checkpoint, so corrupt work data cannot erase the existing history. ParentSettings adds preferred types, work-window minutes, difficulty and safety preferences; old snapshots receive defaults before validation. Age groups represent childAge; interests and quick-activity minutes retain their existing fields.
+
+Flow: parent profile -> work duration/source preference -> short category plan -> review and optional content preparation -> child activity -> parent confirmation -> existing LocalStore journal -> next activity or summary. Stable work ID + entry index protects history against retries after restart. Demo activity minutes are excluded from category summary totals. Skip/end never fabricate completions. Checkpoints retain remaining seconds/step/demo and restart in a paused Built-in state; media and live jobs are deliberately reviewed again. Only the latest work session/summary is retained.
+
+Original SVGs in entry/rawfile form a semantic MOVE/LEARN/CREATE/CALM illustration system; the hero shows a working parent and a child indoors. The existing fallback MP4 is copied unchanged into Phone for offline native Video playback. No new UI framework is used.
+
 Content origin is shared enum ActivityContentSource. VideoSource carries source/URI/title/activity/provider from Phone to TV; private paths stay on Phone. Provider-independent ActivityJobs retains common validation, retry, review/cache and fallbacks for Gemini and Huawei adapters. System-imported My Video stores one MP4 privately plus Preferences metadata, optionally publishes it to the loopback cache for separate-TV playback, and uses the same session/confirmation/history flow. Old records without source default to Built-in. See AI_ARCHITECTURE.md for exact cloud contracts and verification limits.
 
 ## Integrated system

@@ -1,39 +1,16 @@
-# Two-minute demo
+# Two-minute parent work-session demo
 
-## Four-source TV variation
+Use the installed Phone build. TV and AI are optional. Label the accelerated ten-second activity as Demo Mode, not a real five-minute completion.
 
-0:00–0:20: "CompanionOS turns a few minutes into shared family moments. These original activities work without an AI key." Show Home/settings/history.
+| Time | Action and English narration |
+|---|---|
+| 0:00-0:20 | Show the illustrated home and four category tiles. "Busy parents cannot constantly entertain their children. CompanionOS turns passive screen time into short, structured indoor activities while adults remain nearby and in control." |
+| 0:20-0:40 | Open Parent, show age/interests/types and safety defaults. "We prepare a clear space and choose what fits our child. The app does not replace appropriate adult supervision or monitor children." |
+| 0:40-1:00 | Start Parent Work Session, choose 15 or 30 minutes and Recommended. "This prepares a sequence of short activities. Breaks and review are welcome; it is not a strict uninterrupted schedule." |
+| 1:00-1:25 | Show Why this activity, enable Demo Mode and start. Show the clean child view. "Built-in works without a network. Parents may also choose reviewed videos or optional AI preparation." Open parent controls and briefly pause/resume. |
+| 1:25-1:45 | Let the demo expire, confirm as parent, show the next activity and parent work view. "Only parent confirmation records completion. We can change an activity or end the session without adding false records." |
+| 1:45-2:00 | End Session and show summary/journal. "These are planned durations, with skipped and demo activities identified. Phone works on its own; a larger screen is an optional extension." |
 
-0:20–0:45: Show Choose Activity Content. "Parents can choose Gemini, Huawei Cloud MaaS, original content, or their own video. Keys stay on the backend. Today’s cloud paths are unconfigured, so the app tells us and offers a safe fallback." Select Built-in or a reviewed imported MP4; do not describe fallback as AI output.
+For a complete summary demo, finish all three 15-minute-plan activities in clearly labelled Demo Mode beforehand. Do not call this fifteen elapsed minutes. If showcasing cloud sources without keys, explain the real fallback; do not claim live AI generation.
 
-0:45–1:20: Connect to Emulator TV, enable ten-second Demo Mode, start and briefly pause/resume. "The phone controls the session. The TV plays the selected content and never writes history. We can put the screen down and play together."
-
-1:20–1:45: After expiry confirm as parent, Mark as completed, show one source-labelled record and TV celebration. "Only an adult confirms the shared moment. Repeated taps cannot count it twice."
-
-1:45–2:00: "Settings, imported video and records survive restarting. Normal mode uses three, five or ten minutes. This demo is on emulators; signed hardware and live cloud generation still need verification."
-
-Record manually with Windows Snipping Tool (Win+Shift+R), selecting both emulator windows, then Start. Perform this sequence, stop, review the MP4 and save it outside tracked source, such as ignored artifacts. No recording has been produced automatically.
-
-Use a phone/emulator on API 21+, a signed debug build, and clearly labelled Demo Mode. This script describes a planned walkthrough; no video has been recorded automatically.
-
-| Time | Action | English narration |
-|---|---|---|
-| 0:00–0:15 | Show Home and the three cards | “CompanionOS turns small activities into meaningful family moments. The three adventures work offline, with a parent beside the child.” |
-| 0:15–0:35 | Open Parent Settings; choose age 6–8, Movement, and 3 minutes; save | “Parents choose an age group, interests and duration. Settings are saved locally. No child account, camera or location is needed.” |
-| 0:35–0:55 | Open Penguin Walk and show its steps | “Each activity has simple steps, age guidance and an adult accompaniment reminder. The aim is to leave the screen and play together.” |
-| 0:55–1:15 | Enable Demo Mode and start; wait ten seconds | “For this demonstration, Demo Mode shortens the countdown to ten seconds. Normal mode runs for the parent's selected three, five or ten minutes.” |
-| 1:15–1:35 | Show time-up; check parent confirmation; mark completed; show Progress | “A foreground activity can submit a real system notification when allowed. Notification failure never blocks completion. Only the parent confirms the shared activity. One session produces one record.” |
-| 1:35–1:50 | Show total, date, badge; return Home and request recommendation with empty endpoint | “Progress stays on this device. With no AI service configured, recommendations are honestly labelled offline. A future trusted service can recommend only one of these curated activities.” |
-| 1:50–2:00 | Show the desktop widget if verified; otherwise finish on Home | “Our native widget offers today's activity and count, and opens the app. CompanionOS helps families spend more time together, away from the screen.” |
-
-If notification delivery or widget hosting has not been verified, say “implemented, awaiting device verification” and show the in-app state instead of staging a fake notification/card. Do not describe a preset as live AI output or claim reliable background reminders.
-
-## Record the walkthrough
-
-1. Run the signed app using the README instructions and complete the device checks in `TESTING.md` first.
-2. On the phone/emulator, open its quick settings and start **Screen recording**, or use an already available desktop recording tool to capture the emulator window. Record without private notifications or account information on screen.
-3. Follow the timeline above. Keep Demo Mode visible. Use the actual parent confirmation and actual saved record; do not overlay fabricated UI or results.
-4. Stop recording at about two minutes. Play the whole file back to check readable text, timing and audio. If the recorder has no microphone option, record narration separately or use accurate English subtitles.
-5. Save the real recording as `CompanionOS-demo.mp4` outside tracked source/cache folders, then upload it through the competition's actual submission channel once that channel and its limits are known.
-
-The video's path, duration and completion status should be entered in `SUBMISSION_CHECKLIST.md` only after the file exists and has been reviewed. No recorder was launched and no recording is claimed in this run.
+Record with Windows Snipping Tool: Win+Shift+R, select the Phone emulator window, Start, follow this sequence, Stop and review the saved MP4. Include TV only for the optional variation. Store recordings outside tracked source, for example artifacts. No recording has been produced automatically. Signed physical hardware, live cloud calls and a real family usability review remain separate checks.

@@ -1,5 +1,11 @@
 # Backend activity and video architecture
 
+## Product role: optional activity preparation
+
+AI is an optional source within parent work sessions and quick activities, not the homepage headline. Recommended uses deterministic safe Built-in templates. Work setup offers Recommended / Built-in / Huawei AI / Gemini AI / My Videos, and each activity remains reviewable before start. Gemini/Huawei still use the existing validated backend; failures return labelled fallback, not fabricated AI success. My Videos retains the system picker, private Phone copy and optional relay cache.
+
+Work activities use five-minute category requests with the child's age, interests and learning goal. Age adapts counting instructions; local difficulty adjusts safe creative templates. Safety preferences never relax existing AI validation or adult-support requirements; the cloud adapters keep their stricter existing safety contract. The app does not claim that these preference flags are remotely enforced as additional provider parameters. Keys and media review policy remain backend-only.
+
 ## Four content sources
 
 Activity offers **Choose Activity Content**: Gemini AI, Huawei AI, Built-in Video, My Video. Shared `ActivityContentSource` and `VideoSource` describe origin. Activity/session retain source, video/private path and provider/generation identity; history retains source. Old version-1 records without source default to BUILT_IN without losing existing records.

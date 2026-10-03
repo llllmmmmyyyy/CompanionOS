@@ -1,5 +1,9 @@
 # CompanionOS Phone + TV
 
+## Optional larger-screen extension
+
+The primary product is now a Phone-only parent work session or quick activity. TV is presented as "Play on a larger screen" inside activity/parent controls. It is not a primary tab or home headline. Existing transport, independent TV module, same-phone Demo TV and native video player remain intact. Phone owns the timer, confirmation and journal; a work activity uses the same full snapshots. TV failure leaves Phone playing and never blocks a work session. The verified gateway endpoint remains http://10.0.2.2:18080 with room family-demo.
+
 ## Content selection
 
 Phone offers Gemini AI, Huawei AI, Built-in Video and My Video before start. Shared VideoSource carries URI/title/source through the existing protocol; the player uses only its URI regardless of origin. Older messages are converted to Built-in metadata. The original bundled MP4 is unchanged. My Video uses backend caching for separate TV, private offline playback on Phone, and explicit TV fallback when the cache is unavailable. Choosing a provider does not imply successful AI generation.
