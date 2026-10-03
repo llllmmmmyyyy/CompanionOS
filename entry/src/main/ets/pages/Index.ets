@@ -1,233 +1,317 @@
-import { preferences } from '@kit.ArkData';
-
-class AnimalActivity {
-  id: string;
-  animal: string;
-  title: string;
-  description: string;
-  minutes: number;
-  steps: string[];
-  constructor(id: string, animal: string, title: string, description: string, minutes: number, steps: string[]) {
-    this.id = id;
-    this.animal = animal;
-    this.title = title;
-    this.description = description;
-    this.minutes = minutes;
-    this.steps = steps;
-  }
-}
-
-class CompletionRecord {
-  id: string = '';
-  title: string = '';
-  animal: string = '';
-  completedAt: number = 0;
-}
-
-const ACTIVITIES: AnimalActivity[] = [
-  new AnimalActivity('penguin', 'Penguin', 'Penguin Walk', 'Waddle side by side on a little penguin adventure.', 5,
-    ['Find a clear space and stand beside your parent.',
-      'Hold your arms like little flippers and take ten small waddling steps together.',
-      'Turn around slowly, waddle back, and finish with a high five.']),
-  new AnimalActivity('sounds', 'Animals', 'Animal Sounds', 'Listen, guess, and laugh together.', 3,
-    ['Choose an animal without telling each other its name.',
-      'Make its sound and let your partner guess the animal.',
-      'Swap roles and try three more animals together.']),
-  new AnimalActivity('butterfly', 'Butterfly', 'Butterfly Stretch', 'Spread your wings for a gentle family stretch.', 3,
-    ['Stand or sit comfortably beside your parent.',
-      'Open your arms like butterfly wings and gently stretch upward.',
-      'Slowly lower your wings. Repeat five times, staying comfortable.'])
-];
+﻿import { common } from '@kit.AbilityKit';
+import { ACTIVITIES, Activity, ActivitySession, Completion, ParentSettings, Snapshot,
+  addCompletion, countToday, validSettings } from '../model/Companion';
+import { LocalStore } from '../services/LocalStore';
 
 @Entry
 @Component
 struct Index {
   @State screen: string = 'home';
-  @State selected: AnimalActivity = ACTIVITIES[0];
-  @State records: CompletionRecord[] = [];
-  @State todayCount: number = 0;
-  @State saving: boolean = false;
+  @State data: Snapshot = new Snapshot();
+  @State draft: ParentSettings = new ParentSettings();
+  @State selected: Activity = ACTIVITIES[0];
+  @State phase: string = 'idle';
+  @State remaining: number = 0;
+  @State demo: boolean = false;
+  @State confirmed: boolean = false;
+  @State busy: boolean = false;
   @State storageReady: boolean = false;
   @State notice: string = '';
-  @State justCompleted: boolean = false;
-  private store: preferences.Preferences | undefined = undefined;
-  private countDay: string = '';
-  private dayTimer: number = -1;
+  @State today: number = 0;
+  @StorageLink('appForeground') @Watch('foregroundChanged') foreground: boolean = true;
+  private session: ActivitySession = new ActivitySession();
+  private store: LocalStore | undefined = undefined;
+  private timer: number = -1;
   private scroller: Scroller = new Scroller();
-
-  private dayKey(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  }
-
-  private refreshDay(): void {
-    const today = this.dayKey(Date.now());
-    if (this.countDay !== today) {
-      this.countDay = today;
-      this.todayCount = 0;
-    }
-  }
-
-  onPageShow(): void {
-    this.refreshDay();
-  }
-
-  aboutToDisappear(): void {
-    clearInterval(this.dayTimer);
-  }
 
   aboutToAppear(): void {
     try {
-      this.store = preferences.getPreferencesSync(this.getUIContext().getHostContext(), { name: 'companion_history' });
-      const saved = JSON.parse(this.store.getSync('records', '[]') as string) as CompletionRecord[];
-      if (Array.isArray(saved) && saved.every((record: CompletionRecord) => record !== null &&
-        typeof record.id === 'string' && typeof record.title === 'string' &&
-        typeof record.animal === 'string' && typeof record.completedAt === 'number')) {
-        this.records = saved;
-      } else {
-        this.notice = 'Saved history could not be read. New activities can still be saved.';
-      }
-      this.countDay = this.store.getSync('countDay', '') as string;
-      const count = this.store.getSync('todayCount', 0) as number;
-      this.todayCount = Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0;
-      if (this.countDay === '') {
-        this.countDay = this.dayKey(Date.now());
-        this.todayCount = this.records.filter((record: CompletionRecord) =>
-          this.dayKey(record.completedAt) === this.countDay).length;
-      }
-      this.refreshDay();
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      this.store = new LocalStore(context);
+      this.data = this.store.load();
       this.storageReady = true;
+      if (this.store.recovered) { this.notice = 'Some local data was unreadable. Safe defaults have been restored.'; }
     } catch {
-      this.notice = 'Local storage is unavailable. Please reopen the app to try again.';
+      this.notice = 'Local storage is unavailable. You can explore activities, but saving is disabled. Reopen the app to retry.';
     }
-    this.dayTimer = setInterval(() => { this.refreshDay(); }, 1000);
+    this.updateClock();
+    this.startTimer();
   }
 
-  private async completeActivity(): Promise<void> {
-    if (this.saving || !this.store || !this.storageReady || this.screen !== 'detail') {
-      return;
-    }
-    this.saving = true;
-    const record = new CompletionRecord();
-    record.completedAt = Date.now();
-    record.id = `${this.selected.id}-${record.completedAt}`;
-    record.title = this.selected.title;
-    record.animal = this.selected.animal;
-    // Bound the serialized value to fit the Preferences storage limit.
-    const updated: CompletionRecord[] = [record, ...this.records].slice(0, 30);
-    this.refreshDay();
-    const completedDay = this.dayKey(record.completedAt);
-    const updatedCount = this.todayCount + 1;
-    try {
-      this.store.putSync('records', JSON.stringify(updated));
-      this.store.putSync('countDay', completedDay);
-      this.store.putSync('todayCount', updatedCount);
-      await this.store.flush();
-      this.records = updated;
-      this.countDay = completedDay;
-      this.todayCount = updatedCount;
-      this.refreshDay();
-      this.justCompleted = true;
-      this.notice = `${record.title} completed. Well done, together!`;
-      this.screen = 'home';
-      this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
-    } catch {
-      this.notice = 'We could not save this activity. Please try confirming again.';
-    } finally {
-      this.saving = false;
+  aboutToDisappear(): void { clearInterval(this.timer); }
+  onPageShow(): void { this.foregroundChanged(); }
+  onPageHide(): void { clearInterval(this.timer); }
+
+  private startTimer(): void {
+    clearInterval(this.timer);
+    if (this.foreground) { this.timer = setInterval(() => { this.updateClock(); }, 500); }
+  }
+
+  private foregroundChanged(): void {
+    clearInterval(this.timer);
+    if (this.foreground) {
+      this.session.resume(Date.now());
+      this.phase = this.session.phase;
+      this.updateClock();
+      this.startTimer();
     }
   }
 
-  private goBack(): void {
-    if (this.saving) { return; }
-    this.justCompleted = false;
-    this.screen = 'home';
+  private updateClock(): void {
+    this.today = countToday(this.data, Date.now());
+    if (this.session.tick(Date.now(), this.foreground)) {
+      this.notice = 'Time is up. Parent / caregiver: confirm when you have finished together.';
+    }
+    this.phase = this.session.phase;
+    this.remaining = this.session.remaining(Date.now());
+  }
+
+  private navigate(screen: string): void {
+    this.screen = screen;
     this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+  }
+
+  private openActivity(activity: Activity): void {
+    this.selected = activity;
+    this.session = new ActivitySession();
+    this.phase = 'idle';
+    this.confirmed = false;
+    this.demo = false;
+    if (this.storageReady) { this.notice = ''; }
+    this.navigate('activity');
+  }
+
+  private startActivity(): void {
+    if (this.busy || this.phase === 'running' || this.phase === 'ready') { return; }
+    this.session.start(Date.now(), this.data.settings.minutes, this.demo);
+    this.confirmed = false;
+    this.notice = '';
+    this.updateClock();
+  }
+
+  private cancelActivity(): void {
+    if (this.busy) { return; }
+    if (this.phase === 'running' || this.phase === 'ready') {
+      this.getUIContext().showAlertDialog({
+        title: 'Cancel this activity?',
+        message: 'No completion will be recorded.',
+        primaryButton: { value: 'Keep playing', action: () => {} },
+        secondaryButton: { value: 'Cancel activity', action: () => {
+          this.session.cancel(); this.phase = 'cancelled'; this.confirmed = false;
+          this.notice = 'Activity cancelled. No completion was recorded.';
+          this.navigate('home');
+        } }
+      });
+    } else { this.navigate('home'); }
   }
 
   onBackPress(): boolean {
     if (this.screen === 'home') { return false; }
-    this.goBack();
+    if (this.screen === 'activity') { this.cancelActivity(); }
+    else if (!this.busy) { this.navigate('home'); }
     return true;
+  }
+
+  private async completeActivity(): Promise<void> {
+    if (this.busy || !this.store || !this.storageReady || this.phase !== 'ready' || !this.confirmed) { return; }
+    this.busy = true;
+    const record = new Completion();
+    record.id = this.session.id;
+    record.activityId = this.selected.id;
+    record.title = this.selected.title;
+    record.completedAt = Date.now();
+    record.minutes = this.session.minutes;
+    record.demo = this.session.demo;
+    const updated = addCompletion(this.data, record);
+    try {
+      await this.store.save(updated);
+      this.data = updated;
+      this.session.phase = 'completed';
+      this.phase = 'completed';
+      this.confirmed = false;
+      this.today = countToday(updated, Date.now());
+      this.notice = `${record.title} completed. Well done, together!`;
+      this.navigate('progress');
+    } catch {
+      this.notice = 'Saving failed. Your activity is ready to confirm again.';
+    } finally { this.busy = false; }
+  }
+
+  private openSettings(): void {
+    const settings = new ParentSettings();
+    settings.age = this.data.settings.age;
+    settings.interests = this.data.settings.interests.slice();
+    settings.minutes = this.data.settings.minutes;
+    settings.aiEndpoint = this.data.settings.aiEndpoint;
+    this.draft = settings;
+    this.navigate('settings');
+  }
+
+  private async saveSettings(): Promise<void> {
+    if (this.busy || !this.store || !this.storageReady) { return; }
+    if (!validSettings(this.draft)) { this.notice = 'Choose at least one interest and a valid HTTPS service URL, or leave the URL empty.'; return; }
+    this.busy = true;
+    const updated = new Snapshot();
+    updated.settings = this.draft;
+    updated.records = this.data.records;
+    updated.total = this.data.total;
+    updated.countDay = this.data.countDay;
+    updated.todayCount = this.data.todayCount;
+    try {
+      await this.store.save(updated);
+      this.data = updated;
+      this.notice = 'Parent settings saved on this device.';
+      this.navigate('home');
+    } catch { this.notice = 'Settings could not be saved. Please try again.'; }
+    finally { this.busy = false; }
+  }
+
+  private toggleInterest(interest: string): void {
+    this.draft.interests = this.draft.interests.includes(interest) ?
+      this.draft.interests.filter((item: string) => item !== interest) : [...this.draft.interests, interest];
+  }
+
+  private clockLabel(): string {
+    return `${Math.floor(this.remaining / 60).toString().padStart(2, '0')}:${(this.remaining % 60).toString().padStart(2, '0')}`;
   }
 
   private dateLabel(timestamp: number): string {
     const date = new Date(timestamp);
-    const months: string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()} at ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }
+
+  @Builder
+  heading(title: string) {
+    Text(title).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
   }
 
   @Builder
   homeContent() {
     Column({ space: 16 }) {
-      Text('Small activities. Meaningful family moments.').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-      Text(`Completed today: ${this.todayCount}`).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#28745E')
+      this.heading('Small activities. Meaningful family moments.')
+      Text(`Completed today: ${this.today}`).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#28745E')
         .padding(20).width('100%').backgroundColor('#E0EEE5').borderRadius(20)
-      Text('Choose an adventure. A parent stays with their child throughout each activity.')
-        .fontSize(16).fontColor('#52645C').width('100%')
-      ForEach(ACTIVITIES, (activity: AnimalActivity) => {
+      Text(`Ages ${this.data.settings.age} • ${this.data.settings.minutes} minutes • Adult accompanied`)
+        .fontSize(15).fontColor('#52645C').width('100%')
+      ForEach(ACTIVITIES, (activity: Activity) => {
         Column({ space: 10 }) {
-          Text(`${activity.animal.toUpperCase()} • ${activity.minutes} min`).fontSize(14).fontColor('#28745E').width('100%')
-          Text(activity.title).fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-          Text(activity.description).fontSize(16).fontColor('#52645C').width('100%')
-          Button('Explore activity').width('100%').backgroundColor('#28745E')
-            .onClick(() => {
-              this.selected = activity;
-              if (this.storageReady) { this.notice = ''; }
-              this.screen = 'detail';
-              this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
-            })
+          Text('Offline activity').fontSize(13).fontColor('#28745E').width('100%')
+          Text(activity.title).fontSize(23).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+          Text(activity.interest).fontSize(15).fontColor('#52645C').width('100%')
+          if (this.data.settings.interests.includes(activity.interest)) {
+            Text('Matches your interests').fontSize(13).fontColor('#28745E').width('100%')
+          }
+          Button('Explore activity').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+            .onClick(() => this.openActivity(activity))
         }.padding(20).width('100%').backgroundColor(Color.White).borderRadius(20)
-      }, (activity: AnimalActivity) => activity.id)
-      Button(`Completion history (${this.records.length})`).width('100%').backgroundColor('#E0EEE5').fontColor('#203C31')
-        .onClick(() => { this.justCompleted = false; this.screen = 'records'; })
+      }, (activity: Activity) => activity.id)
+      Button('Parent settings').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.openSettings())
+      Button('Progress').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31').onClick(() => this.navigate('progress'))
     }.width('100%')
   }
 
   @Builder
-  detailContent() {
-    Column({ space: 18 }) {
-      Text(this.selected.animal.toUpperCase()).fontSize(14).fontColor('#28745E').width('100%')
-      Text(this.selected.title).fontSize(30).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-      Text(`Suggested duration: ${this.selected.minutes} minutes`).fontSize(16).fontColor('#28745E').width('100%')
-      Text(this.selected.description).fontSize(17).fontColor('#52645C').width('100%')
-      Text('Your steps').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-      ForEach(this.selected.steps, (step: string, index: number) => {
-        Row({ space: 12 }) {
-          Text(`${index + 1}`).fontSize(18).fontWeight(FontWeight.Bold).fontColor('#28745E').width(26)
-          Text(step).fontSize(17).fontColor('#203C31').layoutWeight(1)
-        }.alignItems(VerticalAlign.Top).padding(16).width('100%').backgroundColor(Color.White).borderRadius(14)
-      }, (step: string) => step)
-      Text('Parent / caregiver: tap below when you have completed this activity together.')
-        .fontSize(16).fontColor('#52645C').width('100%')
-      Button(this.saving ? 'Saving...' : 'Mark as completed').width('100%').backgroundColor('#28745E')
-        .enabled(!this.saving && this.storageReady).onClick(() => { this.completeActivity(); })
-    }.width('100%')
-  }
-
-  @Builder
-  historyContent() {
+  settingsContent() {
     Column({ space: 16 }) {
-      if (this.justCompleted) {
-        Text('Well done, together!\nYour activity has been saved.').fontSize(24).fontWeight(FontWeight.Bold)
-          .fontColor('#28745E').padding(20).width('100%').backgroundColor('#E0EEE5').borderRadius(20)
+      this.heading('Parent settings')
+      Text('Stored only on this device. Changes apply to your next activity.').fontSize(16).fontColor('#52645C')
+      Text('Age group').fontSize(20).fontColor('#203C31').width('100%')
+      Row({ space: 12 }) {
+        ForEach(['4–5', '6–8'], (age: string) => {
+          Button(age).layoutWeight(1).backgroundColor(this.draft.age === age ? '#28745E' : '#E0EEE5')
+            .fontColor(this.draft.age === age ? Color.White : '#203C31').onClick(() => { this.draft.age = age; })
+        })
+      }.width('100%')
+      Text('Interests (choose at least one)').fontSize(20).fontColor('#203C31').width('100%')
+      ForEach(['Movement', 'Sounds', 'Nature'], (interest: string) => {
+        Button(`${this.draft.interests.includes(interest) ? '✓ ' : ''}${interest}`).width('100%')
+          .backgroundColor(this.draft.interests.includes(interest) ? '#28745E' : '#E0EEE5')
+          .fontColor(this.draft.interests.includes(interest) ? Color.White : '#203C31')
+          .onClick(() => this.toggleInterest(interest))
+      })
+      Text('Activity duration').fontSize(20).fontColor('#203C31').width('100%')
+      Row({ space: 12 }) {
+        ForEach([3, 5, 10], (minutes: number) => {
+          Button(`${minutes} min`).layoutWeight(1).backgroundColor(this.draft.minutes === minutes ? '#28745E' : '#E0EEE5')
+            .fontColor(this.draft.minutes === minutes ? Color.White : '#203C31').onClick(() => { this.draft.minutes = minutes; })
+        })
+      }.width('100%')
+      Button(this.busy ? 'Saving...' : 'Save settings').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+        .enabled(this.storageReady && !this.busy).onClick(() => { this.saveSettings(); })
+    }.width('100%')
+  }
+
+  @Builder
+  activityContent() {
+    Column({ space: 16 }) {
+      this.heading(this.selected.title)
+      Text('Offline activity').fontSize(14).fontColor('#28745E').width('100%')
+      Text(`Suitable for ages 4–5 and 6–8 • Your age group: ${this.data.settings.age}`)
+        .fontSize(16).fontColor('#52645C').width('100%')
+      Text(`${this.data.settings.minutes} minutes • Parent / caregiver must stay with the child.`)
+        .fontSize(16).fontColor('#52645C').width('100%')
+      Text(this.data.settings.age === '6–8' ? 'Take turns leading and invent a new move or sound.' :
+        'Parent leads first. Use simple turns and gentle movements.').fontSize(16).fontColor('#203C31').width('100%')
+      ForEach(this.selected.steps, (step: string, index: number) => {
+        Text(`${index + 1}. ${step}`).fontSize(17).fontColor('#203C31').padding(16)
+          .width('100%').backgroundColor(Color.White).borderRadius(14)
+      }, (step: string) => step)
+      if (this.phase === 'idle' || this.phase === 'cancelled' || this.phase === 'completed') {
+        Row({ space: 8 }) {
+          Checkbox({ name: 'demoMode' }).select(this.demo).selectedColor('#28745E')
+            .onChange((value: boolean) => { this.demo = value; })
+          Text('Demo Mode — 10-second countdown').fontSize(16).fontColor('#203C31').layoutWeight(1)
+        }
+        Text('Normal mode uses your selected duration. Demo completions are labelled in Progress.')
+          .fontSize(14).fontColor('#52645C').width('100%')
+        Button('Start activity').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+          .onClick(() => this.startActivity())
+      } else {
+        Text('Put the screen down and play together.').fontSize(25).fontWeight(FontWeight.Bold)
+          .fontColor('#28745E').width('100%')
+        Text(this.session.demo ? 'DEMO MODE • 10 seconds' : `NORMAL MODE • ${this.session.minutes} minutes`)
+          .fontSize(14).fontColor('#52645C').width('100%')
+        Text(this.phase === 'ready' ? 'Time is up!' : this.clockLabel()).fontSize(42).fontWeight(FontWeight.Bold).fontColor('#203C31')
+        Text('If you leave the app, the deadline is checked when you return. Background reminders are not guaranteed.')
+          .fontSize(14).fontColor('#52645C').width('100%')
+        if (this.phase === 'ready') {
+          Row({ space: 8 }) {
+            Checkbox({ name: 'confirmParent' }).select(this.confirmed).selectedColor('#28745E').enabled(!this.busy)
+              .onChange((value: boolean) => { this.confirmed = value; })
+            Text('I am the parent / caregiver. We completed this activity together.').fontSize(16).fontColor('#203C31').layoutWeight(1)
+          }
+          Button(this.busy ? 'Saving...' : 'Mark as completed').width('100%').backgroundColor('#28745E').fontColor(Color.White)
+            .enabled(this.confirmed && !this.busy && this.storageReady).onClick(() => { this.completeActivity(); })
+        }
+        Button('Cancel activity').width('100%').backgroundColor('#E0EEE5').fontColor('#203C31')
+          .enabled(!this.busy).onClick(() => this.cancelActivity())
       }
-      Text('Completion history').fontSize(30).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
-      Text('The latest 30 parent-confirmed activities, saved on this device.').fontSize(16).fontColor('#52645C').width('100%')
-      if (this.records.length === 0) {
-        Text('Your first adventure is waiting.\nComplete an activity together to see it here.')
-          .fontSize(18).fontColor('#52645C').padding(24).width('100%').backgroundColor(Color.White).borderRadius(20)
+    }.width('100%')
+  }
+
+  @Builder
+  progressContent() {
+    Column({ space: 16 }) {
+      this.heading('Progress')
+      Text(`Completed today: ${this.today} • Total completions: ${this.data.total}`).fontSize(20).fontColor('#28745E').width('100%')
+      Text(this.data.total >= 10 ? 'Family Explorer • 10+ moments together' :
+        this.data.total >= 3 ? 'Together Team • 3+ moments together' :
+        this.data.total >= 1 ? 'First Adventure • First moment together' : 'Your first badge is waiting!')
+        .fontSize(20).fontWeight(FontWeight.Bold).fontColor('#203C31').padding(20)
+        .width('100%').backgroundColor('#E0EEE5').borderRadius(16)
+      Text('Latest 20 completions. Total includes earlier and Demo Mode completions.').fontSize(14).fontColor('#52645C').width('100%')
+      if (this.data.records.length === 0) {
+        Text('Complete an activity together to start your story.').fontSize(18).fontColor('#52645C').width('100%')
       }
-      ForEach(this.records, (record: CompletionRecord) => {
+      ForEach(this.data.records, (record: Completion) => {
         Column({ space: 8 }) {
-          Text(`${record.animal} • Completed`).fontSize(14).fontColor('#28745E').width('100%')
           Text(record.title).fontSize(21).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
           Text(this.dateLabel(record.completedAt)).fontSize(15).fontColor('#52645C').width('100%')
-          Text('Confirmed by parent / caregiver').fontSize(14).fontColor('#52645C').width('100%')
+          Text(record.demo ? 'Demo Mode • 10 seconds • Parent confirmed' : `${record.minutes} min • Parent confirmed`)
+            .fontSize(14).fontColor('#28745E').width('100%')
         }.padding(20).width('100%').backgroundColor(Color.White).borderRadius(20)
-      }, (record: CompletionRecord) => record.id)
-      Button('Choose another adventure').width('100%').backgroundColor('#28745E')
-        .onClick(() => { this.justCompleted = false; this.screen = 'home'; })
+      }, (record: Completion) => record.id)
+      Button('Choose another adventure').width('100%').backgroundColor('#28745E').fontColor(Color.White).onClick(() => this.navigate('home'))
     }.width('100%')
   }
 
@@ -235,25 +319,24 @@ struct Index {
     Column() {
       Row({ space: 12 }) {
         if (this.screen !== 'home') {
-          Button('Back').fontSize(14).backgroundColor('#E0EEE5').fontColor('#203C31')
-            .enabled(!this.saving).onClick(() => this.goBack())
+          Button('Back').fontSize(14).backgroundColor('#E0EEE5').fontColor('#203C31').enabled(!this.busy)
+            .onClick(() => { if (this.screen === 'activity') { this.cancelActivity(); } else { this.navigate('home'); } })
         }
         Text('CompanionOS').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#203C31')
         Blank()
         Text('OFFLINE').fontSize(11).fontColor('#28745E')
-      }.width('100%').padding({ left: 20, right: 20, top: 16, bottom: 16 })
+      }.width('100%').padding(16)
       Scroll(this.scroller) {
         Column({ space: 16 }) {
           if (this.notice !== '') {
-            Text(this.notice).fontSize(15).fontColor('#8A451D').padding(16)
-              .width('100%').backgroundColor('#FFF0D9').borderRadius(14)
+            Text(this.notice).fontSize(15).fontColor('#6B451C').padding(16).width('100%').backgroundColor('#FFF0D9').borderRadius(14)
           }
           if (this.screen === 'home') { this.homeContent() }
-          else if (this.screen === 'records') { this.historyContent() }
-          else { this.detailContent() }
-          Text('Made for moments together • HackYeah Demo').fontSize(12).fontColor('#52645C')
-            .padding({ top: 12, bottom: 20 })
-        }.padding({ left: 20, right: 20, top: 8 }).width('100%')
+          else if (this.screen === 'settings') { this.settingsContent() }
+          else if (this.screen === 'progress') { this.progressContent() }
+          else { this.activityContent() }
+          Text('Made for moments together • HackYeah MVP').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 })
+        }.width('100%').padding({ left: 20, right: 20, top: 8 })
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
     }.height('100%').width('100%').backgroundColor('#F4F7F0')
   }
