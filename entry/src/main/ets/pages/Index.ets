@@ -1,4 +1,5 @@
 import { ParentDashboard } from './ParentDashboard';
+import { PicoMascot, PicoAnimationController, PicoTransitionFrame, PicoTransitionOverlay } from '@companion/protocol';
 ﻿import { common } from '@kit.AbilityKit';
 import { ACTIVITIES, Activity, ActivitySession, Completion, ParentSettings, Snapshot,
   addCompletion, countToday, validSettings } from '../model/Companion';
@@ -27,6 +28,11 @@ import { BehaviorStore } from '../services/BehaviorStore';
 @Entry
 @Component
 struct Index {
+  @State picoFrame: PicoTransitionFrame = new PicoTransitionFrame();
+  @State picoAction: string = 'wave';
+  @State picoCue: number = 0;
+  @StorageLink('picoReducedMotion') reducedMotion: boolean = false;
+  private picoController: PicoAnimationController = new PicoAnimationController();
   @State game: GameState = new GameState();
   @State journey: JourneyState = new JourneyState();
   private journeyStore: JourneyStore | undefined = undefined;
@@ -153,9 +159,9 @@ struct Index {
     this.startTimer();
   }
 
-  aboutToDisappear(): void { this.persistWork(); clearInterval(this.timer); this.generationToken++; this.transport?.disconnect(); }
+  aboutToDisappear(): void { this.picoController.cancel(true); this.persistWork(); clearInterval(this.timer); this.generationToken++; this.transport?.disconnect(); }
   onPageShow(): void { this.foregroundChanged(); }
-  onPageHide(): void { clearInterval(this.timer); }
+  onPageHide(): void { this.picoController.cancel(true); clearInterval(this.timer); }
 
   private startTimer(): void {
     clearInterval(this.timer);
@@ -163,6 +169,7 @@ struct Index {
   }
 
   private foregroundChanged(): void {
+    if (!this.foreground) { this.picoController.cancel(true); }
     clearInterval(this.timer);
     if (this.foreground) {
       this.session.resume(Date.now());
@@ -408,9 +415,26 @@ struct Index {
   }
 
   private navigate(screen: string): void {
-    if (screen === 'home') { this.filter = 'ALL'; }
-    this.screen = screen;
-    this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+    if (screen === this.screen && !this.picoFrame.visible) { return; }
+    const commit = (): void => {
+      if (screen === 'home') { this.filter = 'ALL'; }
+      this.screen = screen; this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+      if (!['progress', 'work-summary'].includes(screen)) { this.picoAction = screen === 'home' ? 'wave' : 'point'; }
+      this.picoCue++;
+    };
+    const major = ['home', 'parent-activities', 'parent-insights', 'parent-controls', 'activity', 'work-status', 'progress', 'work-summary'];
+    if (!this.foreground || !major.includes(screen)) { this.picoController.cancel(); commit(); return; }
+    const action = screen === 'parent-activities' ? 'pull' : screen === 'parent-insights' ? 'eat' : 'reveal';
+    this.picoController.transition(action, commit, (frame: PicoTransitionFrame) => {
+      console.info(`[PicoTransition] phone stage=${frame.stage} destination=${screen}`);
+      this.getUIContext().animateTo({ duration: frame.duration, curve: Curve.EaseInOut }, () => { this.picoFrame = frame; });
+    }, this.reducedMotion);
+  }
+  private leadPico(): void {
+    this.picoController.transition('reveal', () => {}, (frame: PicoTransitionFrame) => {
+      console.info(`[PicoTransition] phone activity stage=${frame.stage}`);
+      this.getUIContext().animateTo({ duration: frame.duration, curve: Curve.EaseInOut }, () => { this.picoFrame = frame; });
+    }, this.reducedMotion || !this.foreground);
   }
 
   private persistWork(): void {
@@ -600,6 +624,8 @@ struct Index {
     this.updateClock();
     this.transport?.startActivity(this.selected, this.frame());
     this.parentControls = false; this.scroller.scrollTo({ xOffset: 0, yOffset: 0 }); this.persistWork();
+    this.picoAction = 'run'; this.picoCue++;
+    this.leadPico();
   }
 
   private cancelActivity(): void {
@@ -659,6 +685,7 @@ struct Index {
       this.activeJobId = '';
       Widgets.update(this.getUIContext().getHostContext() as common.UIAbilityContext, updated);
       this.phase = 'completed';
+      this.picoAction = 'celebrate'; this.picoCue++;
       this.syncTv();
       this.confirmed = false;
       this.today = countToday(updated, Date.now());
@@ -1042,7 +1069,7 @@ struct Index {
 
   @Builder
   homeContent() {
-    ParentDashboard({ settings: this.data.settings, tab: this.screen, openPage: (page: string) => { if (page === 'settings') { this.openSettings(); } else { this.navigate(page); } } })
+    ParentDashboard({ settings: this.data.settings, tab: this.screen, reducedMotion: this.reducedMotion, onReducedMotion: (value: boolean) => { this.reducedMotion = value; if (value) { this.picoController.cancel(true); } }, onMascot: (action: string) => { this.picoAction = action; this.picoCue++; if (action === 'run') { this.leadPico(); } }, openPage: (page: string) => { if (page === 'settings') { this.openSettings(); } else { this.navigate(page); } } })
   }
 
   @Builder
@@ -1469,6 +1496,7 @@ struct Index {
   build() {
     if (this.screen === 'tv') { this.tvContent() }
     else {
+    Stack({ alignContent: Alignment.BottomEnd }) {
     Column() {
       if (!['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
       Row({ space: 12 }) {
@@ -1501,6 +1529,8 @@ struct Index {
           else { this.activityContent() }
           if (this.screen !== 'home') { Text('Small adventures. Space to focus.').fontSize(12).fontColor('#52645C').padding({ top: 12, bottom: 24 }) }
         }.width('100%').padding({ left: 16, right: 16, top: 4 })
+          .scale({ x: this.picoFrame.contentScale, y: this.picoFrame.contentScale, centerX: '85%', centerY: '80%' })
+          .translate({ x: this.picoFrame.contentX }).opacity(this.picoFrame.contentOpacity)
       }.layoutWeight(1).width('100%').align(Alignment.Top).scrollBar(BarState.Auto)
       if (['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
         Row() {
@@ -1513,13 +1543,20 @@ struct Index {
             }.layoutWeight(1).height(52).justifyContent(FlexAlign.Center).borderRadius(14)
               .border({ width: this.screen === tab ? 1 : 0, color: '#9FC3AC' })
               .backgroundColor(this.screen === tab ? '#D6EBDC' : '#FFFFFF')
-              .animation({ duration: 120, curve: Curve.EaseOut })
+              .animation({ duration: this.reducedMotion ? 0 : 280, curve: Curve.EaseOut })
               .accessibilityGroup(true).accessibilityText(`${tab === 'parent-controls' ? 'Parent' : tab === 'parent-insights' ? 'Insights' : tab === 'parent-activities' ? 'Activities' : 'Home'}. ${this.screen === tab ? 'Selected' : 'Tap to open'}`)
               .onClick(() => this.selectTab(tab))
           })
         }.width('100%').padding({ left: 10, right: 10, top: 4, bottom: 4 }).backgroundColor('#FFFFFF')
       }
     }.height('100%').width('100%').backgroundColor('#F4F7F0')
+      if (!this.picoFrame.visible && !['home', 'parent-activities', 'parent-insights', 'parent-controls'].includes(this.screen)) {
+        PicoMascot({ action: this.backendLoading || this.aiLoading || this.importingVideo ? 'walk' : this.notice.includes('failed') || this.notice.includes('unavailable') ? 'gentle-error' : this.picoAction, cue: this.picoCue, mascotSize: 54, active: this.foreground, reducedMotion: this.reducedMotion })
+          .margin({ right: 14, bottom: 12 }).hitTestBehavior(HitTestMode.None)
+      }
+      PicoTransitionOverlay({ frame: this.picoFrame, reducedMotion: this.reducedMotion })
+        .margin({ right: 16, bottom: 70 }).hitTestBehavior(HitTestMode.None)
+    }.height('100%').width('100%')
     }
   }
 }

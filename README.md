@@ -2,6 +2,8 @@
 
 Small activities. Meaningful family moments.
 
+Pico has a reusable native layered mascot system on Phone and Tablet: articulated greetings/blinks, page pull/collapse/reveal, activity entry and bounded completion celebrations. **Reduce mascot motion** is available in Parent and on Tablet. See [implementation](docs/PICO_ANIMATION.md) and [actual verification](docs/TESTING.md).
+
 ## Problem
 
 Parents need a clear way to guide bounded screen-based activities and understand observable play patterns, without surveillance or diagnostic labels. Children need interaction, movement, creativity and a calm ending rather than an endless video feed. An adult remains nearby and available; this is not a replacement for supervision.
@@ -96,7 +98,7 @@ Tablet:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Clean -Module tventry
 ```
 
-`-Clean` regenerates packages; omit it for incremental builds. `-RunChecks` runs 87 host checks against actual ArkTS logic/services, with platform/cloud mocks explicitly separated from runtime evidence. Scripts change environment variables only for their process. They need normal write access to DevEco/Hvigor's user caches. They do not configure signing or change persistent execution policy.
+`-Clean` regenerates packages; omit it for incremental builds. `-RunChecks` currently runs 114 host checks against actual ArkTS logic/services and Pico choreography, with platform/cloud mocks explicitly separated from runtime evidence. Scripts change environment variables only for their process. They need normal write access to DevEco/Hvigor's user caches. They do not configure signing or change persistent execution policy.
 
 Backend checks:
 

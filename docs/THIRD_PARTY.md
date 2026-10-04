@@ -1,5 +1,9 @@
 # Third-party inventory
 
+## Pico animation refinement
+
+Seven shared transparent SVG layers derive solely from the existing authored Tablet `pico.svg`. No artwork was downloaded or generated, no font/media engine was added, and no new runtime dependency or license is inferred. Motion uses the already configured HarmonyOS ArkUI SDK. The source mascot and existing asset-rights boundaries remain unchanged.
+
 | Item | Actual use | License / evidence |
 |---|---|---|
 | HarmonyOS SDK and DevEco Studio | Native ArkTS/ArkUI compilation, system APIs and inherited project template | Installed vendor SDK/tooling; governed by their supplied terms. This document does not assign an open-source license to the entire SDK. |

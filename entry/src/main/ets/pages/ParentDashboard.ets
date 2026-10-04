@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { PicoMascot } from '@companion/protocol';
 import { WorldStatus, WorldEnvelope, WorldCommand, WorldResult, WorldSlot, validWorldResult, worldSlots, recommendedWorld, backendRequest, connectionError, EMULATOR_RELAY_ENDPOINT } from '@companion/protocol';
 import { BalanceRules, BALANCE_PRESETS, presetRules, validRules, SessionBalanceEngine } from '../model/SessionBalanceEngine';
 import { ParentInsightSummaryEngine, ParentInsightSummary, SummaryEvidence } from '../model/ParentInsightSummaryEngine';
@@ -6,7 +7,13 @@ import { ParentSettings } from '../model/Companion';
 import { ParentWorldStore, ParentWorldData } from '../services/ParentWorldStore';
 @Component
 export struct ParentDashboard {
-  @Prop tab: string = 'home';
+  @Prop reducedMotion: boolean = false;
+  onReducedMotion: (value: boolean) => void = () => {};
+  onMascot: (action: string) => void = () => {};
+  @State mascotCue: number = 0;
+  @State mascotAction: string = 'wave';
+  @StorageLink('appForeground') foreground: boolean = true;
+  @Prop @Watch('tabChanged') tab: string = 'home';
   openPage: (page: string) => void = () => {};
   @Prop settings: ParentSettings = new ParentSettings();
   @State status: WorldStatus = new WorldStatus();
@@ -26,6 +33,7 @@ export struct ParentDashboard {
   private active: boolean = false;
   private dirty: boolean = false;
   private sequence: number = 0;
+  private tabChanged(): void { this.mascotAction = this.tab === 'home' ? 'wave' : 'point'; this.mascotCue++; }
   aboutToAppear(): void { try { this.store = new ParentWorldStore(this.getUIContext().getHostContext() as common.Context); this.data = this.store.load(); this.rules = this.data.preset === 'Custom' ? this.data.customRules : presetRules(this.data.preset); } catch { this.detail = 'Local parent journal could not open.'; }
     this.active = true; this.timer = setInterval(() => this.poll(), 1500); this.poll(); }
   aboutToDisappear(): void { this.active = false; clearInterval(this.timer); }
@@ -34,7 +42,10 @@ export struct ParentDashboard {
     if (!this.active || this.polling) { return; } this.polling = true;
     try { const envelope = JSON.parse(await backendRequest(`${EMULATOR_RELAY_ENDPOINT}/world/rooms/family-demo/phone`, 'GET', '', 262144)) as WorldEnvelope;
       if (!this.active) { return; } this.connected = envelope.connected === true; this.detail = this.connected ? 'Connected | family-demo' : 'Tablet offline. Current safe activity can continue locally.';
-      if (envelope.status && typeof envelope.status.active === 'boolean') { this.status = envelope.status; }
+      if (envelope.status && typeof envelope.status.active === 'boolean') {
+        const wasEnded = this.status.ended; this.status = envelope.status;
+        if (!wasEnded && this.status.ended) { this.mascotAction = 'celebrate'; this.mascotCue++; this.onMascot('celebrate'); }
+      }
       if (Array.isArray(envelope.results)) { const merged = this.data.results.slice(); let changed = false; envelope.results.forEach((r: WorldResult) => { if (!validWorldResult(r)) { return; } const index = merged.findIndex((old: WorldResult) => old.id === r.id); if (index < 0) { merged.push(r); changed = true; } else if (merged[index].completed === r.completed && merged[index].skipped === r.skipped && (merged[index].feedback !== r.feedback || merged[index].difficultyFeedback !== r.difficultyFeedback)) { merged[index] = r; changed = true; } });
         if (changed) { this.data.results = merged.slice(-300); this.save(); }
       }
@@ -46,8 +57,8 @@ export struct ParentDashboard {
     if (this.sending || (type === 'START_SESSION' && !validRules(this.rules))) { return; } this.sending = true; const command = new WorldCommand(); command.id = `parent-${Date.now()}-${this.sequence++}`; command.type = type; command.minutes = this.data.minutes;
     command.slots = worldSlots(SessionBalanceEngine.plan(this.data.minutes, this.rules).map((slot) => { const item = new WorldSlot(); item.category = slot.category; item.minutes = slot.minutes; item.mode = slot.mode; item.gameType = slot.gameType; return item; }), recommendedWorld(this.data.results, Date.now()));
     const memory = this.data.results.filter((r: WorldResult) => r.style === 'MEMORY' && r.difficultyFeedback !== '' && r.timestamp >= Date.now() - 7 * 86400000); command.difficulty = memory.length >= 3 && memory.filter((r: WorldResult) => r.difficultyFeedback === 'too hard').length > memory.length / 2 ? 2 : this.data.memorySignals;
-    try { console.info(`[CompanionParent] endpoint=${EMULATOR_RELAY_ENDPOINT} room=family-demo command=${type}`); await backendRequest(`${EMULATOR_RELAY_ENDPOINT}/world/rooms/family-demo/command`, 'POST', JSON.stringify(command)); this.detail = 'Command sent. Waiting for Tablet acknowledgement...'; this.save(); await this.poll(); }
-    catch { this.detail = 'Command failed. The Tablet did not acknowledge this request.'; } finally { this.sending = false; }
+    try { console.info(`[CompanionParent] endpoint=${EMULATOR_RELAY_ENDPOINT} room=family-demo command=${type}`); await backendRequest(`${EMULATOR_RELAY_ENDPOINT}/world/rooms/family-demo/command`, 'POST', JSON.stringify(command)); this.detail = 'Command sent. Waiting for Tablet acknowledgement...'; this.save(); await this.poll(); this.mascotAction = ['ENTER_CHILD_MODE', 'START_SESSION'].includes(type) ? 'run' : 'hop'; this.mascotCue++; this.onMascot(this.mascotAction); }
+    catch { this.detail = 'Command failed. The Tablet did not acknowledge this request.'; this.mascotAction = 'gentle-error'; this.mascotCue++; } finally { this.sending = false; }
   }
   private recent(): WorldResult[] { return ParentInsightSummaryEngine.window(this.data.results, this.insightDays, Date.now()); }
   private summary(): ParentInsightSummary { return ParentInsightSummaryEngine.summarize(this.data.results, this.insightDays, Date.now()); }
@@ -136,7 +147,10 @@ export struct ParentDashboard {
   }
   build() {
     Column({ space: 10 }) {
-      Text(this.tab === 'home' ? 'CompanionOS Parent' : this.tab === 'parent-activities' ? 'Activities' : this.tab === 'parent-insights' ? 'Activity Insights' : 'Parent').fontSize(25).fontWeight(FontWeight.Bold).fontColor('#203C31').width('100%')
+      Row({ space: 8 }) {
+        Text(this.tab === 'home' ? 'CompanionOS Parent' : this.tab === 'parent-activities' ? 'Activities' : this.tab === 'parent-insights' ? 'Activity Insights' : 'Parent').fontSize(25).fontWeight(FontWeight.Bold).fontColor('#203C31').layoutWeight(1)
+        PicoMascot({ action: this.sending || this.detail.startsWith('Checking') ? 'walk' : this.detail.includes('failed') ? 'gentle-error' : this.tab === 'parent-insights' && this.data.results.length === 0 ? 'point' : this.mascotAction, cue: this.mascotCue, mascotSize: 43, active: this.foreground, reducedMotion: this.reducedMotion })
+      }.width('100%')
       if (this.tab === 'home') {
         Text('Understand your child through everyday discoveries.').fontSize(14).fontColor('#536D61').width('100%')
         Column({ space: 6 }) {
@@ -185,6 +199,10 @@ export struct ParentDashboard {
         Button('Phone fallback Activity Insights').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('insights'))
         Button('Parent-confirmed records').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('progress'))
       } else {
+        Row({ space: 10 }) {
+          Text('Reduce mascot motion').fontSize(15).layoutWeight(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.reducedMotion }).onChange((value: boolean) => this.onReducedMotion(value))
+        }.width('100%')
         Button('Child & Safety Settings').backgroundColor('#E8EDE8').fontColor('#335248').onClick(() => this.openPage('settings'))
         Text('Age, interests, safety and content preferences').fontSize(14).fontColor('#536D61')
         this.sessionOptions()

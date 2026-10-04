@@ -9,7 +9,7 @@ function load(file) {
   const exports = {}; cache.set(file, exports);
   const box = { exports, Date, Math, Number, JSON, Array, Promise, Error,
     setInterval: callback => { interval = callback; return 1; }, clearInterval: () => {},
-    require: name => name === './GameBoard' ? {GameBoard:()=>{}} : name === '@companion/protocol' ? { ...load('shared/Index.ets'), backendRequest: (...args) => request(...args) } :
+    require: name => ['./GameBoard', './PicoMascot', './PicoTransitionOverlay'].includes(name) ? {[name.slice(2)]:()=>{}} : name === '@companion/protocol' ? { ...load('shared/Index.ets'), backendRequest: (...args) => request(...args) } :
       file === path.resolve(__dirname, '../shared/Index.ets') && name === './Network' ? { backendRequest: (...args) => request(...args) } :
         load(path.relative(path.resolve(__dirname, '..'), path.resolve(path.dirname(file), name + '.ets'))) };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 } }).outputText, box);

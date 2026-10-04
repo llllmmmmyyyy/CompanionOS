@@ -1,3 +1,9 @@
+# Native Pico choreography - 2026-10-04
+
+Codex read the user's mascot attachment and inspected both native entries, API 21 SDK/devices, existing Pico SVG, session authority and Git changes. It separated original vector primitives, implemented reusable ArkUI poses/controller/overlay, integrated navigation/activity events and process-local reduced motion, and added deterministic cancellation/commit tests. No image generator, downloaded mascot or additional AI provider was used. Existing local signing/configuration edits were preserved and excluded from the commit.
+
+Actual work includes HAP builds, model/protocol regressions, native Phone tab/start/reduced-motion checks and Tablet Robot Memory completion plus Phone pause/resume. Screenshots capture an in-flight Phone transition and Tablet raised-arm/star celebration. A redundant relay startup encountered EADDRINUSE; tests used the already-running relay. Family/demo journals were retained; first verification and the final-package repeat added two real memory completions in separate sessions, with unfinished following missions explicitly ended. Physical-device performance, child usability and destructive empty/error fixtures remain unverified. See docs/TESTING.md.
+
 # Interactive cloud Storybook correction - 2026-10-04
 
 Codex read the user's correction: change Storybook/WATCH in Home Base, not Calm Sky. The existing cloud video and reviewed URI selection remain, followed by an automatic three-waypoint native scene. Drag and tap-cloud/tap-glow are supported; gentle misses have no challenge score/retry. Completion waits for an explicit Return to World and reuses the existing stable-ID outcome and Daily progression. Fixed input fields and storage/protocol/Phone/Insights/balance logic were retained.

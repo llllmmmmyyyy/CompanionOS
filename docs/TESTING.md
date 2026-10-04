@@ -1,3 +1,38 @@
+# Native Pico animation verification - 2026-10-04
+
+## Build and host checks
+
+Phone and Tablet clean builds passed with the configured HarmonyOS 6.0.1/API 21 SDK. Both API 21 emulators were detected through HDC, and both final unsigned HAPs installed and launched. The user's existing local Phone debug signing configuration also produced a signed Phone HAP; that signing material/configuration was not committed. Tablet still has no signing configuration. Installation tests used unsigned development packages, not a signed physical-device release.
+
+`scripts/build.ps1 -Module entry -Clean -RunChecks` completed all **114 host checks**: domain 14, work 17, parent summary 14, games/journey 10, world 21, Pico scheduler 6, mocked services 18, TV/AI 7, emulator protocol/client 7. The scheduler checks navigation once, latest-tab wins, lifecycle cancellation, post-swap cancellation, immediate reduced motion and supported actions. Existing host protocol loaders now explicitly stub native UI exports; these are not UI-rendering tests.
+
+Final installed unsigned artifacts:
+
+- `entry/build/default/outputs/default/entry-default-unsigned.hap`: SHA-256 `F3537818A229BE075E72884EF573EC1DF7D15A86010DE6EF27160EA964BDADFE`.
+- `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`: SHA-256 `359379EF100B264242D3EF2BAFF85C91DBC32B7D95EDC11E37B8050A08C25DC4`.
+
+## Native checks
+
+| Check | Actual result |
+|---|---|
+| Phone Home, Activities, Insights, Parent | Passed: all destinations displayed existing content with a layered Pico header and selected tab indicator. Native logs captured enter/out/in/reveal/rest stages, including pull for Activities and eat for Insights. An in-flight overlay was captured, not only a static final page. |
+| Parent settings reachable | Passed: Child & Safety Settings opened the existing age/interests/duration page; session duration, presets, custom balance, memory, Exit Child Mode and technical information remained available. |
+| Phone reduced motion | Passed: native toggle reported checked=true; Home navigation worked; toggled off afterwards. Flag is process-local. |
+| Tablet reduced motion | Passed: native toggle reported checked=true and was restored off. |
+| Start Session | Passed: actual Phone button sent the existing START_SESSION command; Tablet entered a planned adventure and Phone showed running counters. No protocol/backend change. |
+| Pause/resume with Robot Memory | Passed: Phone Pause displayed one Tablet pause overlay with Skip absent; Phone Resume returned to input safely. Memory completed with three correct inputs and zero retries. |
+| Completion celebration | Passed: native capture shows articulated raised arms and gold stars beside Robot. Continue produced one stable-ID completed record and the Phone count increased from 54 to 55. Checking the ID in the actual relay journal found one occurrence. |
+| Bounded ending / Home Base | Passed: ending the test session showed the existing healthy ending/Back to World; returning preserved the one garden gift and saved completion count. An unfinished next mission was explicitly ended, not counted as completed. |
+| Restart preservation | Passed: after installing/restarting final packages, Phone still showed 55 completed activities and Tablet 55 discoveries/one garden gift. No app data was cleared. |
+| Final-package repeat | Passed: final HAPs ran another separate session, Phone Pause → Tablet Resume Adventure → three correct memory inputs → celebration → Okay feedback/hop → Continue. The new stable ID occurred once, with three attempts/zero retries and feedback=okay; Phone count rose 55 → 56. End/Back to World retained one garden gift and 56 discoveries. These are two separate test sessions, not duplicate records. |
+| Foreground/layout | Passed for tested layouts: first Phone viewport retained Today's Activity above navigation; overlays use no hit testing. No ReferenceError/TypeError/SyntaxError/FATAL matched the inspected native logs. |
+
+Native evidence is local and ignored under `artifacts/pico-*`: layouts, screenshots and filtered motion logs. Initial automation briefly saw the launcher before the app returned to foreground; that initial capture was not called a Home pass. A preset was found changed during automation and restored to the original 30 min / More Movement selection without resetting custom rules or journals. The existing relay already owned port 18080; a redundant startup returned EADDRINUSE and was not reported as a successful server start.
+
+## Remaining verification limits
+
+Native testing is a focused emulator regression, not proof of every screen/animation on every device. Physical-device FPS/battery, large-font/small-screen accessibility and a child usability study remain unverified. Empty/error states are implemented but destructive empty-journal/storage-failure scenarios were not injected into retained data. Background animation cancellation is covered by deterministic scheduler checks; every possible native background race has not been exhaustively tested. No snapshot capture or shader mask is used; live content transforms provide the reusable pull/eat/reveal illusion. No new full 15/30/45/60-minute timing or AI-provider validation is claimed. See [PICO_ANIMATION.md](PICO_ANIMATION.md).
+
 # Interactive cloud Storybook verification - 2026-10-04
 
 Correction scope: **Storybook/WATCH in Home Base**, not Calm Sky. Previously native video completion directly marked Storybook success; child could only watch and return/skip. Now Help the Cloud Find Home keeps the existing eight-second cloud clip, automatically replaces the player with three native sky waypoints, accepts drag or cloud-tap/next-glow-tap, then shows The cloud found its home! and one Return to World. Gentle misplaced drags return without wrong/failure screens, attempt scores or retry counts. No new schema, Phone logic, Insights, relay or SessionBalanceEngine change; Calm Sky and other game branches are untouched.
@@ -602,7 +637,7 @@ Use this checklist for broader regression coverage on an API 21+ phone/emulator.
 
 ## Known limits
 
-- No signed HAP, physical-phone run or screen recording is available. The development emulator accepted and ran the unsigned HAP.
+- No signed release, physical-phone run or screen recording is available. The development emulator accepted the unsigned HAP; the latest local Phone configuration additionally builds a signed debug artifact, as recorded above.
 - Notification and widget delivery are controlled by the OS. No reliable background reminder is implemented.
 - Unfinished sessions are in-memory; process kill cancels them implicitly. Wall-clock adjustment can change countdown behavior.
 - Demo completions count towards totals; imported legacy totals include only reconstructible known history/counts.

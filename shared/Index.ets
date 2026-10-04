@@ -1,5 +1,8 @@
 import { GameState, validGame } from './InteractiveActivity';
 import { BusinessError } from '@kit.BasicServicesKit';
+export { PicoMascot } from './PicoMascot';
+export { PicoAnimationController, PicoTransitionFrame, PICO_ACTIONS } from './PicoAnimationController';
+export { PicoTransitionOverlay } from './PicoTransitionOverlay';
 export { GameState, GameEngine, InteractiveActivity, gameDefinition, GAME_IDS, validGame } from './InteractiveActivity';
 export { GameBoard } from './GameBoard';
 export { backendRequest } from './Network';

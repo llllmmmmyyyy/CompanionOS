@@ -1,5 +1,9 @@
 # Actual architecture
 
+## Native mascot presentation layer
+
+`shared/PicoMascot`, `PicoAnimationController` and `PicoTransitionOverlay` provide layered poses and finite cancellable choreography to both entries. Phone navigation commits once between outgoing/incoming animations; Tablet commands remain immediate and only presentation is choreographed. Foreground/component lifecycle clears timers. Reduced motion is process-local. WorldEngine, relay payloads, completion IDs and reward persistence remain outside this layer. See [PICO_ANIMATION.md](PICO_ANIMATION.md).
+
 CompanionOS separates the child and parent experiences across HarmonyOS devices. The Tablet provides an engaging interactive world for the child, while the Phone acts as the parent's control and insight dashboard.
 
 ## Native modules

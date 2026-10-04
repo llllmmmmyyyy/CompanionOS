@@ -1,0 +1,16 @@
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), path = require('node:path');
+const ts = require(path.resolve(process.argv[2]));
+let now = 0, next = 0, tasks = new Map();
+const box = { exports: {}, setTimeout: (run, delay) => { const id = ++next; tasks.set(id, { run, at: now + delay }); return id; }, clearTimeout: id => tasks.delete(id) };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../shared/PicoAnimationController.ets'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2021 } }).outputText, box);
+const { PicoAnimationController: Controller, PICO_ACTIONS } = box.exports;
+function advance(ms) { const end = now + ms; while (true) { const item = [...tasks].sort((a, b) => a[1].at - b[1].at)[0]; if (!item || item[1].at > end) break; now = item[1].at; tasks.delete(item[0]); item[1].run(); } now = end; }
+let passed = 0;
+function test(name, run) { now = 0; tasks.clear(); run(); passed++; console.log('PASS ' + name); }
+test('Navigation commits once, fully reveals and clears all finite transition timers', () => { const c = new Controller(); let count = 0, frames = []; c.transition('eat', () => count++, f => frames.push(f)); advance(289); assert.equal(count, 0); assert(frames.some(f => f.contentScale === .08)); advance(1); assert.equal(count, 1); advance(500); assert.equal(frames.at(-1).visible, false); assert.equal(frames.at(-1).contentOpacity, 1); assert.equal(tasks.size, 0); advance(5000); assert.equal(count, 1); });
+test('Rapid tab changes keep only the latest destination and never commit a cancelled page', () => { const c = new Controller(), visited = []; c.transition('pull', () => visited.push('Activities'), () => {}); advance(120); c.transition('eat', () => visited.push('Insights'), () => {}); advance(1000); assert.deepEqual(visited, ['Insights']); assert.equal(tasks.size, 0); });
+test('Background/dispose can settle pending navigation once without stale callbacks', () => { const c = new Controller(); let count = 0, calls = 0; c.transition('reveal', () => count++, () => calls++); advance(100); c.cancel(true); const old = calls; advance(5000); assert.equal(count, 1); assert.equal(calls, old); assert.equal(tasks.size, 0); c.cancel(true); assert.equal(count, 1); });
+test('Cancel after the swap does not duplicate commit', () => { const c = new Controller(); let count = 0; c.transition('pull', () => count++, () => {}); advance(350); c.cancel(true); advance(1000); assert.equal(count, 1); });
+test('Reduced motion commits immediately and creates no animation timers', () => { const c = new Controller(); let count = 0, frame; c.transition('eat', () => count++, f => frame = f, true); assert.equal(count, 1); assert.equal(frame.visible, false); assert.equal(frame.contentScale, 1); assert.equal(tasks.size, 0); });
+test('All requested action presets are explicitly supported', () => { for (const a of ['idle', 'blink', 'wave', 'hop', 'bounce', 'walk', 'run', 'pull', 'eat', 'reveal', 'point', 'celebrate', 'gentle-error']) assert(PICO_ACTIONS.includes(a)); });
+console.log(`${passed} Pico choreography checks passed; native rendering is a separate emulator check.`);

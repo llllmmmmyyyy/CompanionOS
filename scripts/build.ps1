@@ -66,6 +66,9 @@ try {
     & $node (Join-Path $scriptRoot 'test-world.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Tablet world checks failed' }
+    & $node (Join-Path $scriptRoot 'test-pico.cjs') $compiler |
+      Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
+    if ($LASTEXITCODE -ne 0) { throw 'Pico choreography checks failed' }
     & $node (Join-Path $scriptRoot 'test-services.cjs') $compiler |
       Tee-Object -FilePath (Join-Path $artifactRoot 'tests.txt') -Append
     if ($LASTEXITCODE -ne 0) { throw 'Mocked-service checks failed' }

@@ -1,9 +1,23 @@
 import { common } from '@kit.AbilityKit';
+import { PicoMascot, PicoAnimationController, PicoTransitionFrame, PicoTransitionOverlay } from '@companion/protocol';
 import { WorldEngine, WorldState, WorldCommand, WorldEnvelope, WorldResult, WORLD_GAMES, worldTitle, worldName, backendRequest, connectionError, EMULATOR_RELAY_ENDPOINT, TvMessage } from '@companion/protocol';
 import { WorldStore } from '../services/WorldStore';
 
 @Component
 export struct ChildWorld {
+  @State picoFrame: PicoTransitionFrame = new PicoTransitionFrame();
+  @State picoCue: number = 0;
+  @State picoFeedbackAction: string = '';
+  @State reducedMotion: boolean = false;
+  private picoController: PicoAnimationController = new PicoAnimationController();
+  private leadIntoWorld(): void {
+    this.picoFeedbackAction = '';
+    this.picoCue++;
+    this.picoController.transition('reveal', () => {}, (frame: PicoTransitionFrame) => {
+      console.info(`[PicoTransition] tablet stage=${frame.stage} game=${this.state.game}`);
+      this.getUIContext().animateTo({ duration: frame.duration, curve: Curve.EaseInOut }, () => { this.picoFrame = frame; });
+    }, this.reducedMotion || !this.foreground);
+  }
   onActive: (active: boolean) => void = () => {};
   @Prop frame: TvMessage = new TvMessage();
   @Prop endpoint: string = EMULATOR_RELAY_ENDPOINT;
@@ -36,13 +50,14 @@ export struct ChildWorld {
     } catch { this.storageError = 'Local saving is unavailable. Ask your parent for help.'; }
     this.onActive(this.state.active); this.active = true; this.timer = setInterval(() => { this.clock(); }, 1000); this.sync();
   }
-  aboutToDisappear(): void { this.active = false; clearInterval(this.timer); this.save(); this.stopVideo(); }
-  private foregroundChanged(): void { if (!this.foreground) { if (this.state.active && !this.state.ended) { this.state.paused = true; } this.save(); this.stopVideo(); } else { this.state.lastTick = Date.now(); this.sync(); } }
+  aboutToDisappear(): void { this.picoController.cancel(); this.active = false; clearInterval(this.timer); this.save(); this.stopVideo(); }
+  private foregroundChanged(): void { if (!this.foreground) { this.picoController.cancel(); if (this.state.active && !this.state.ended) { this.state.paused = true; } this.save(); this.stopVideo(); } else { this.state.lastTick = Date.now(); this.sync(); } }
   private stopVideo(): void { this.videoPlaying = false; try { this.controller.pause(); } catch { } }
   private applyCommand(command: WorldCommand): void {
     if (this.state.handled.includes(command.id)) { return; }
     console.info(`[CompanionWorld] command=${command.type} room=${this.room}`);
     this.state = WorldEngine.command(this.state, command, Date.now());
+    if (['ENTER_CHILD_MODE', 'START_SESSION', 'START_DAILY', 'NEXT_ACTIVITY'].includes(command.type)) { this.leadIntoWorld(); }
     this.onActive(this.state.active); this.save();
     if (this.state.paused || !this.state.active || this.state.ended) { this.stopVideo(); }
     else if (command.type === 'RESUME_SESSION' && this.state.game === 'watch' && this.state.phase === 'watch') { try { this.controller.start(); } catch { } }
@@ -72,16 +87,17 @@ export struct ChildWorld {
     } catch (error) { this.connected = false; console.warn(`[CompanionWorld] compact sync paused endpoint=${this.endpoint} room=${this.room}: ${connectionError(error as Error)}`); }
     finally { this.polling = false; }
   }
-  private act(action: string, value: number = 0): void { const before = this.state.phase; this.state = WorldEngine.act(this.state, action, value, Date.now()); this.onSound(this.state.phase === 'success' && before !== 'success' ? 'celebration' : ['place', 'habitat', 'collect', 'flower'].includes(action) ? 'object-placement' : 'tap'); this.save(); this.sync(); }
-  private open(game: string): void { if (this.state.ended || (this.state.sessionId && this.state.slots.length)) { return; } this.state = WorldEngine.open(this.state, game, Date.now()); this.save(); }
-  private backToWorld(): void { this.stopVideo(); this.state = WorldEngine.backToWorld(this.state); this.save(); this.sync(); }
+  private act(action: string, value: number = 0): void { const before = this.state.phase; this.state = WorldEngine.act(this.state, action, value, Date.now()); if (this.state.phase !== before || ['flower', 'pico'].includes(action)) { this.picoCue++; } this.onSound(this.state.phase === 'success' && before !== 'success' ? 'celebration' : ['place', 'habitat', 'collect', 'flower'].includes(action) ? 'object-placement' : 'tap'); this.save(); this.sync(); }
+  private open(game: string): void { if (this.state.ended || (this.state.sessionId && this.state.slots.length)) { return; } this.state = WorldEngine.open(this.state, game, Date.now()); this.save(); this.leadIntoWorld(); }
+  private backToWorld(): void { this.stopVideo(); this.state = WorldEngine.backToWorld(this.state); this.save(); this.sync(); this.leadIntoWorld(); }
   private choosePath(game: string): void {
     const slot = this.state.slots[this.state.slotIndex];
     if (!slot || slot.category !== 'LEARN' || slot.mode !== 'INTERACTIVE' || this.state.paused || this.state.ended || this.state.attempts > 0 || this.state.progress > 0) { return; }
     WorldEngine.log(this.state, 'OBJECT_SELECTED', `path:${game}`, Date.now()); this.state = WorldEngine.open(this.state, game, Date.now()); this.save();
+    this.leadIntoWorld();
   }
-  private next(): void { this.state = WorldEngine.next(this.state, Date.now()); this.save(); this.sync(); }
-  private feedback(value: string, difficulty: boolean): void { if (difficulty) { this.state.difficultyFeedback = value; } else { this.state.feedback = value; } WorldEngine.log(this.state, 'FEEDBACK_SUBMITTED', value, Date.now()); this.save(); }
+  private next(): void { this.state = WorldEngine.next(this.state, Date.now()); this.save(); this.sync(); this.leadIntoWorld(); }
+  private feedback(value: string, difficulty: boolean): void { if (difficulty) { this.state.difficultyFeedback = value; } else { this.state.feedback = value; } this.picoFeedbackAction = 'hop'; this.picoCue++; WorldEngine.log(this.state, 'FEEDBACK_SUBMITTED', value, Date.now()); this.save(); }
   private drop(index: number): void {
     const rocket = this.state.game === 'rocket';
     const dx = rocket ? this.worldWidth * 0.4 : this.worldWidth * (0.27 - index * 0.07);
@@ -123,11 +139,7 @@ export struct ChildWorld {
   @Builder
   pico() {
     Column({ space: 1 }) {
-      Image($rawfile('pico.svg')).width(120).height(140).objectFit(ImageFit.Contain)
-        .rotate({ angle: this.state.pico === 'MOVING' ? (this.pulse ? 10 : -10) : this.state.pico === 'THINKING' ? -8 : this.state.pico === 'LOOKING' ? 9 : 0 })
-        .scale({ x: this.state.pico === 'CELEBRATING' ? (this.pulse ? 1.12 : 1) : 1, y: this.pulse ? 1.02 : 1 })
-        .translate({ y: ['MOVING', 'CELEBRATING'].includes(this.state.pico) && this.pulse ? -12 : 0 })
-        .animation({ duration: 700, curve: Curve.EaseInOut })
+      PicoMascot({ action: this.storageError || this.state.message.includes('cannot play') ? 'gentle-error' : this.state.paused ? 'idle' : this.picoFeedbackAction && ['success', 'feedback'].includes(this.state.phase) ? this.picoFeedbackAction : ['success', 'feedback', 'ending'].includes(this.state.phase) ? 'celebrate' : this.state.phase === 'retry' ? 'gentle-error' : this.state.phase === 'hub' ? 'wave' : this.state.game === 'watch' && !this.videoPlaying ? 'walk' : this.state.pico === 'MOVING' ? 'walk' : this.state.pico === 'LOOKING' ? 'point' : 'idle', cue: this.picoCue, mascotSize: 120, active: this.foreground && !this.state.paused, reducedMotion: this.reducedMotion })
       Text('Pico').fontSize(18).fontWeight(FontWeight.Bold).fontColor('#245C59')
     }.position({ x: this.state.game === 'bridge' && ['success', 'feedback'].includes(this.state.phase) ? '72%' : '5%', y: '48%' })
       .animation({ duration: 1400, curve: Curve.EaseInOut }).accessibilityGroup(true).accessibilityText(`Pico ${this.state.pico}`).onClick(() => this.act('pico'))
@@ -272,10 +284,13 @@ export struct ChildWorld {
         Button('Back to World').fontSize(22).fontWeight(FontWeight.Bold).height(56).padding({ left: 32, right: 32 }).backgroundColor('#386946').fontColor('#FFFFFF').onClick(() => this.backToWorld())
       }.width('65%').padding(24).backgroundColor('#F8F5D9').borderRadius(30).position({ x: '27%', y: '23%' }) }
     }.width('100%').layoutWeight(1).clip(true).borderRadius(28)
+      .scale({ x: this.picoFrame.contentScale, y: this.picoFrame.contentScale })
+      .translate({ x: this.picoFrame.contentX }).opacity(this.picoFrame.contentOpacity)
       .onAreaChange((oldArea: Area, area: Area) => { this.worldWidth = Number(area.width); this.worldHeight = Number(area.height); })
   }
   build() {
     if (this.state.active) {
+      Stack({ alignContent: Alignment.BottomEnd }) {
       Column({ space: 10 }) {
         Row() { Text(this.state.game === 'watch' ? 'Help the Cloud Find Home' : this.state.game === 'calm' ? 'Breathe with the Cloud' : worldName(this.state.game)).fontSize(26).fontWeight(FontWeight.Bold).fontColor('#284D4B').layoutWeight(1)
           Text(this.connected ? 'Parent connected' : 'Parent connection paused').fontSize(15).fontColor('#45695C')
@@ -305,7 +320,10 @@ export struct ChildWorld {
         }
         if (this.storageError) { Text(this.storageError).fontSize(15).fontColor('#8A452C') }
         Text('Adult nearby. Gentle, comfortable movement only. Take a break anytime.').fontSize(14).fontColor('#45695C')
+        Row({ space: 8 }) { Text('Reduce mascot motion').fontSize(13).fontColor('#45695C'); Toggle({ type: ToggleType.Switch, isOn: this.reducedMotion }).onChange((value: boolean) => { this.reducedMotion = value; if (value) { this.picoController.cancel(); } }) }
       }.width('100%').height('100%').padding(18).backgroundColor('#F5F3DF')
+        PicoTransitionOverlay({ frame: this.picoFrame, reducedMotion: this.reducedMotion }).margin({ right: 30, bottom: 110 }).hitTestBehavior(HitTestMode.None)
+      }.width('100%').height('100%')
     } else {
       Button('Open Pico world locally').position({ x: 28, y: 65 }).onClick(() => { this.state.active = true; this.state.paused = false; this.state.ended = false; this.state.sessionId = ''; this.state.slots = []; this.state.phase = 'hub'; this.state.game = ''; this.onActive(true); this.save(); })
     }
