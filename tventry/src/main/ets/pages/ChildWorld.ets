@@ -28,6 +28,7 @@ export struct ChildWorld {
   private active: boolean = false;
   private controller: VideoController = new VideoController();
   private saveAt: number = 0;
+  private localCommandSequence: number = 0;
   aboutToAppear(): void {
     try { this.store = new WorldStore(this.getUIContext().getHostContext() as common.Context); this.state = this.store.load();
       if (this.state.ended) { this.state.paused = false; }
@@ -38,6 +39,21 @@ export struct ChildWorld {
   aboutToDisappear(): void { this.active = false; clearInterval(this.timer); this.save(); this.stopVideo(); }
   private foregroundChanged(): void { if (!this.foreground) { if (this.state.active && !this.state.ended) { this.state.paused = true; } this.save(); this.stopVideo(); } else { this.state.lastTick = Date.now(); this.sync(); } }
   private stopVideo(): void { this.videoPlaying = false; try { this.controller.pause(); } catch { } }
+  private applyCommand(command: WorldCommand): void {
+    if (this.state.handled.includes(command.id)) { return; }
+    console.info(`[CompanionWorld] command=${command.type} room=${this.room}`);
+    this.state = WorldEngine.command(this.state, command, Date.now());
+    this.onActive(this.state.active); this.save();
+    if (this.state.paused || !this.state.active || this.state.ended) { this.stopVideo(); }
+    else if (command.type === 'RESUME_SESSION' && this.state.game === 'watch' && this.state.phase === 'watch') { try { this.controller.start(); } catch { } }
+  }
+  private resumeAdventure(): void {
+    if (!this.foreground || !this.state.active || !this.state.paused || this.state.ended) { return; }
+    const command = new WorldCommand();
+    command.id = `tablet-resume-${Date.now()}-${this.localCommandSequence++}`; command.type = 'RESUME_SESSION';
+    // Tablet owns the session state; both local and Phone commands use this path.
+    this.applyCommand(command); this.sync();
+  }
   private save(): void { try { this.state.savedAt = Date.now(); if (!this.store) { throw new Error('Local saving unavailable'); } this.store.save(this.state); this.storageError = ''; } catch { this.storageError = 'Saving needs help. Keep this screen open and ask your parent.'; } }
   private clock(): void {
     if (!this.foreground) { return; } if (!this.state.paused) { this.pulse = !this.pulse; this.breathTick++; if (this.breathTick % 4 === 0) { this.breath = !this.breath; } }
@@ -51,7 +67,7 @@ export struct ChildWorld {
       const envelope = JSON.parse(await backendRequest(`${this.endpoint}/world/rooms/${this.room}/tablet`, 'POST', JSON.stringify({ status: WorldEngine.status(this.state), results: this.state.results }), 262144)) as WorldEnvelope;
       if (!this.active || !this.foreground) { return; } this.connected = envelope.connected === true;
       if (Array.isArray(envelope.commands)) { envelope.commands.forEach((command: WorldCommand) => {
-        if (!this.state.handled.includes(command.id)) { console.info(`[CompanionWorld] command=${command.type} room=${this.room}`); this.state = WorldEngine.command(this.state, command, Date.now()); this.onActive(this.state.active); this.save(); if (this.state.paused || !this.state.active || this.state.ended) { this.stopVideo(); } else if (command.type === 'RESUME_SESSION' && this.state.game === 'watch' && this.state.phase === 'watch') { try { this.controller.start(); } catch { } } }
+        this.applyCommand(command);
       }); }
     } catch (error) { this.connected = false; console.warn(`[CompanionWorld] compact sync paused endpoint=${this.endpoint} room=${this.room}: ${connectionError(error as Error)}`); }
     finally { this.polling = false; }
@@ -213,7 +229,10 @@ export struct ChildWorld {
       Circle().width(35).height(35).fill(this.pulse ? '#FFE7A8' : '#F8D58B').position({ x: '4%', y: '34%' }).accessibilityText('Pico lamp').onClick(() => this.act('ambient', 0))
       ForEach([0, 1, 2, 3, 4].slice(0, Math.min(this.state.decorations, 5)), (index: number) => { Image($rawfile('world-flower.svg')).width(50).height(60).position({ x: `${20 + index * 14}%`, y: '84%' }) })
       if (this.state.decorations > 0) { Text(`${this.state.decorations} garden gifts`).fontSize(20).fontColor('#386946').position({ x: '5%', y: '2%' }) }
-      if (this.state.paused) { Text('Adventure paused').fontSize(38).fontColor('#FFFFFF').padding(28).backgroundColor('#C0345160').borderRadius(20).position({ x: '30%', y: '40%' }) }
+      if (this.state.paused && !this.state.ended) { Column({ space: 18 }) {
+        Text('Adventure paused').fontSize(38).fontColor('#FFFFFF')
+        Button('Resume Adventure').height(56).fontSize(22).backgroundColor('#F8F5D9').fontColor('#284D4B').onClick(() => this.resumeAdventure())
+      }.padding(28).backgroundColor('#E0345160').borderRadius(20).position({ x: '30%', y: '30%' }) }
       if (this.state.phase === 'ending') { Column({ space: 16 }) { Text(this.state.message).fontSize(30).fontWeight(FontWeight.Bold).textAlign(TextAlign.Center)
         Text('Your world will be here next time. Missed days never remove progress.').fontSize(20).textAlign(TextAlign.Center)
         Button('Back to World').fontSize(22).fontWeight(FontWeight.Bold).height(56).padding({ left: 32, right: 32 }).backgroundColor('#386946').fontColor('#FFFFFF').onClick(() => this.backToWorld())
@@ -230,17 +249,17 @@ export struct ChildWorld {
         }.width('100%')
         Text(this.state.phase === 'ending' ? 'A happy ending' : this.state.message).fontSize(21).fontColor('#36584A').maxLines(2).height(52).width('100%')
         if (this.state.daily && !this.state.ended) { Text('Today: Help Dino Get Home').fontSize(16).fontColor('#536F59') }
-        if (this.state.slots[this.state.slotIndex]?.category === 'LEARN' && this.state.slots[this.state.slotIndex]?.mode === 'INTERACTIVE' && this.state.attempts === 0 && this.state.progress === 0 && !this.state.ended) {
+        if (!this.state.paused && this.state.slots[this.state.slotIndex]?.category === 'LEARN' && this.state.slots[this.state.slotIndex]?.mode === 'INTERACTIVE' && this.state.attempts === 0 && this.state.progress === 0 && !this.state.ended) {
           Row({ space: 15 }) { Text('Choose a path').fontSize(16).fontColor('#47615A'); ForEach(['bridge', 'memory', 'rocket', 'rescue'], (game: string) => { Button(worldName(game)).height(42).fontSize(15).backgroundColor('#DDE7CD').fontColor('#36584A').onClick(() => this.choosePath(game)) }) }
         }
         this.scene()
-        if (['success', 'feedback'].includes(this.state.phase)) {
+        if (!this.state.paused && ['success', 'feedback'].includes(this.state.phase)) {
           Row({ space: 10 }) {
             ForEach(['liked', 'okay', 'disliked'], (value: string, index: number) => { Button(['Loved it', 'Okay', 'Not for me'][index]).height(46).fontSize(17).backgroundColor(this.state.feedback === value ? '#386F5C' : '#ECF1DC').fontColor(this.state.feedback === value ? '#FFFFFF' : '#36584A').onClick(() => this.feedback(value, false)) })
             ForEach(['too easy', 'just right', 'too hard'], (value: string, index: number) => { Button(['Easy', 'Just right', 'Tricky'][index]).height(46).fontSize(17).backgroundColor(this.state.difficultyFeedback === value ? '#386F5C' : '#ECF1DC').fontColor(this.state.difficultyFeedback === value ? '#FFFFFF' : '#36584A').onClick(() => this.feedback(value, true)) })
             Button('Continue adventure').height(50).onClick(() => this.next())
           }
-        } else if (this.state.phase !== 'ending' && this.state.phase !== 'hub') {
+        } else if (!this.state.paused && this.state.phase !== 'ending' && this.state.phase !== 'hub') {
           Row({ space: 15 }) {
             if (this.state.phase === 'retry') { Button('Try again').height(52).onClick(() => this.act('retry')) }
             if (['movement', 'confirm'].includes(this.state.phase)) { Button('More time').height(52).onClick(() => this.act('more')); Button('Done').height(52).enabled(this.state.phase === 'confirm').onClick(() => this.act('done')) }
@@ -248,7 +267,6 @@ export struct ChildWorld {
             Button('Skip').height(52).backgroundColor('#E6EBCF').fontColor('#36584A').onClick(() => this.act('skip'))
           }
         }
-        if (this.state.paused) { Button('Resume saved adventure').height(46).onClick(() => { if (!this.connected) { this.state.paused = false; this.state.lastTick = Date.now(); this.save(); } }).enabled(!this.connected) }
         if (this.storageError) { Text(this.storageError).fontSize(15).fontColor('#8A452C') }
         Text('Adult nearby. Gentle, comfortable movement only. Take a break anytime.').fontSize(14).fontColor('#45695C')
       }.width('100%').height('100%').padding(18).backgroundColor('#F5F3DF')

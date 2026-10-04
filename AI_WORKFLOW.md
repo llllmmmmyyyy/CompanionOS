@@ -1,3 +1,9 @@
+# Tablet local resume repair - 2026-10-04
+
+Codex followed the narrowly scoped instruction to repair the dead Tablet Resume saved adventure control. The old connected-state disable/local-flag branch was replaced by Resume Adventure in one pause overlay, invoking exactly the same applyCommand → WorldEngine.command(RESUME_SESSION) path as received Phone commands. It saves and publishes the authoritative Tablet state through existing sync. Pause hides Skip/path/feedback/continuation controls; ended sessions do not offer Resume. Phone, backend, shared command engine and protocol were not redesigned.
+
+Actual verification: 17 world host checks including preview/input resume, preserved progress/results/retries, command replay and paused-time exclusion; native API 21 Phone Pause → Tablet Resume tests during Robot preview and after one answer. Phone reflected running, memory finished with two attempts, zero retries and one stable-ID completion. Documentation separates final-package spot checks from edge-case host tests; no video/physical-device regression claim is added.
+
 # Evidence-backed Parent Insight Summary - 2026-10-04
 
 Codex read the user's attached request and added ParentInsightSummaryEngine above the retained BehaviorInsightEngine. It maps stable Tablet mission outcomes to existing completion/skip metrics and generates bounded local templates, source evidence and an optional category-preserving suggestion. Home and Insights now lead with plain language; structured metrics remain accessible. No cloud model, key, new dependency or child-study data was introduced.

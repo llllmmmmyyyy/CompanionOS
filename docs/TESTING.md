@@ -1,3 +1,25 @@
+# Tablet local Resume Adventure fix - 2026-10-04
+
+Scope: ChildWorld's local pause/resume button and paused presentation only. The old control was disabled whenever connected; its disconnected handler merely changed a flag. The new Resume Adventure constructs RESUME_SESSION and invokes the same extracted applyCommand handler used for received Phone commands: WorldEngine.command, active callback, persistence, video handling and existing state sync. The Tablet is already the session-state authority. No Phone, backend, shared command transition or protocol change was made.
+
+Tablet final build: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module tventry`; BUILD SUCCESSFUL, exit 0, API 21. Final HAP `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`, SHA256 `6FEA616AAF968A70369815F481871F97FE3A663D0F29B34464C52F76F7912CD0`. Installed/launched on the existing Tablet API 21 without removing storage. It remains unsigned development output; signing and existing exception warnings remain.
+
+| Check | Actual verification | Status |
+|---|---|---|
+| Shared resume semantics | 17 world host checks passed, including added preview/input RESUME_SESSION test, replay safety, unchanged progress/results/retries and ten-minute paused-time exclusion | PASS |
+| Phone Pause → Tablet resume | Real Phone Pause while Robot Memory was previewing, followed by real Tablet Resume Adventure; overlay disappeared and Phone displayed Robot task with running Pause/Next/End controls | PASS |
+| Paused UI | Real paused layout: exactly one Adventure paused text and one Resume Adventure, zero Skip buttons; path/feedback/continuation controls hidden | PASS |
+| Pause budget | Real relay remaining held at 1796 seconds across an additional eight-second paused wait, beyond native inspection time | PASS |
+| Memory preview | Paused preview safely resumed and reached input with 0/2 lights; host test separately proves preview restarts its sequence safely | PASS |
+| Partial memory input | Tapped Blue, Phone Pause, Tablet Resume: 1/2 progress persisted; Red completed Robot without repeating the first answer | PASS |
+| No extra retry/completion | Resume itself added no outcomes; actual completed memory mission had exactly one stable-ID result, 2 attempts and 0 retries | PASS |
+| Final HAP spot check | After hiding resume for ended sessions, rebuilt/reinstalled and repeated connected Phone Pause → Tablet Resume; no new outcome on resume and Phone running | PASS |
+| Ended while paused | Final HAP Phone Pause then End Session showed ending without dead resume button/pause overlay | PASS |
+| Runtime logs | Final Tablet process log had zero Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured scope |
+| Video-specific local resume / disconnected resume / physical Tablet | Same handler retains video controller resume branch, but these variants were not exercised in this narrow runtime test | NOT RUN |
+
+Native memory completion tests ran on the first build with the same handler; final build added only the ended-overlay visibility guard and received the separate native spot check above. Existing 30-minute Custom settings and journal were retained. Test sessions were explicitly ended from Phone; those unfinished outcomes remain skipped rather than claimed as successful. Ignored artifacts/tablet-resume-* contain real layouts/screenshots, pause snapshot and build/runtime logs. No unrelated broad backend/Phone suite was rerun.
+
 # Local Parent Insight Summary verification - 2026-10-04
 
 ParentInsightSummaryEngine is a new read-only deterministic layer on the retained BehaviorInsightEngine metrics. It summarizes validated, deduplicated saved Tablet outcomes; temporary mission-level metric adapter events are neither persisted nor uploaded. Home shows one seven-day sentence; Insights offers up to three observations, one balanced suggestion, Today/7/30 controls, expandable evidence and optional structured metrics/history.
