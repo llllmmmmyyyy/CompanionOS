@@ -1,3 +1,30 @@
+# Interactive cloud Storybook verification - 2026-10-04
+
+Correction scope: **Storybook/WATCH in Home Base**, not Calm Sky. Previously native video completion directly marked Storybook success; child could only watch and return/skip. Now Help the Cloud Find Home keeps the existing eight-second cloud clip, automatically replaces the player with three native sky waypoints, accepts drag or cloud-tap/next-glow-tap, then shows The cloud found its home! and one Return to World. Gentle misplaced drags return without wrong/failure screens, attempt scores or retry counts. No new schema, Phone logic, Insights, relay or SessionBalanceEngine change; Calm Sky and other game branches are untouched.
+
+Final clean Tablet build: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module tventry -Clean`, BUILD SUCCESSFUL, exit 0, API 21. Installed/launched without removing journal data. Output `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`, SHA256 `4E409062C2603CC2C2518E6D662D65C4A3C33B5860677582F4D97DE9669F99D3`. Existing signing/exception warnings remain; unsigned emulator development output, not a signed release. A normal incremental build initially reused an older external shared-model cache; the clean build included the current model and pause/video guard, and the installed clean HAP was used for final Daily testing. The requested post-test build also finished BUILD SUCCESSFUL with exit 0 and the identical SHA256, so the final output matches the installed/tested HAP.
+
+| Check | Actual verification | Status |
+|---|---|---|
+| Video preservation | API 21 Storybook screenshot/layout showed native player resource://RAWFILE/fallback.mp4 and 00:08 duration; cloud story clip actually played | PASS |
+| Automatic transition | Native video end replaced player with Can you help the cloud find the sky? and a large interactive cloud/path; no Return press needed first | PASS |
+| Wrong drag | Actual drag from Story cloud directly to waypoint 3 at first step returned cloud, showed The glowing path will guide our cloud and stayed interactive | PASS |
+| Drag and fallback tap | Native drag to waypoint 1, tap cloud then waypoint 2, drag to sky waypoint 3 all moved the cloud; screenshots show brighter sun and cloud joining the sky | PASS |
+| Completion UX | The cloud found its home! / Thanks for helping, explorer; one Return to World, no score/failure/leaderboard/retry UI | PASS |
+| Independent return | Return to World opened Home Base and produced one WATCHING/CALM result, completed, 0 attempts, 0 retries | PASS |
+| Skip | Actually skipped during video and separately after video in input; Return to World returned hub and both outcomes stayed skipped, not completed | PASS |
+| Final clean HAP Daily flow | Genuine bridge placements, memory sequence, foreground movement + Done, garden planting + Done, native video and all three cloud drags completed | PASS |
+| No video-only completion | Final Daily after video before interaction was 4/5, active and not ended; only interaction + explicit Return advanced to 5/5 ending | PASS |
+| Duplicate Return | Two native Return clicks at the same button coordinates; final Daily had exactly one completed Storybook mission result, total 5/5 | PASS |
+| Existing ending/hub | Final healthy bounded ending and Back to World worked; existing daily gift retained, not re-awarded | PASS |
+| Model tests | 21 world checks passed: four new Storybook rules cover video gating/three steps/gentle miss/dedup, skips/reload/paused progress, paused-video-end race and intermediate Daily slot return; 17 existing checks retained | PASS |
+| Logs | Captured final Tablet process log had zero Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured scope |
+| Physical Tablet / child pacing study / selected remote URI / native restart during story | Not exercised in this task. Reload/pause semantics were host-tested; 20–40 seconds is a pacing target, not an enforced deadline or usability finding | NOT RUN on device |
+
+Event scope: existing MISSION_STARTED, native VIDEO_STARTED, one phase-guarded VIDEO_COMPLETED, OBJECT_DRAG_STARTED, three successful OBJECT_PLACED, and one final completed/skipped outcome. Tap arming and gentle misses emit no per-touch/psychological event. Raw events remain Tablet-local; existing relay carries compact WATCHING outcome only. Story duration includes video plus interaction and is not a passive-watch-only or psychological measurement. Shared phase/progress/selected fields preserve existing storage schema; no artificial completion rows were injected.
+
+Evidence is ignored under artifacts/story-cloud-* (screenshots/layouts, actual compact outcomes, host tests, clean build/runtime logs). Test setup used unchanged existing relay command endpoints. Balanced 15-minute Daily command reused the actual SessionBalanceEngine/worldSlots plan from earlier verified harness with a fresh ID; saved parent settings were not changed. Full standalone and Skip checks used the prior build with the same story transition; final clean package also includes a native-video-start pause guard and received the full Daily and duplicate-return checks. No unrelated Phone/backend system was rebuilt.
+
 # Calm Sky wording and gentle tap verification - 2026-10-04
 
 This is a small Tablet UX consistency change, not a new game. No "Help the cloud find home" or other cloud drag-home instruction was found in the current inspected scene/model/demo copy. Old child title was Calm Sky; prompt was "Breathe comfortably with the cloud. Tap gently, with no score."; completion used the generic "Our world changed because of you!". New child title: **Breathe with the Cloud**. Story: "Pico found a sleepy cloud. Let's help it relax." Instruction: "Watch the cloud. Breathe slowly, then tap it gently." Completion: "Nice and calm." The safety reminder retains comfortable breaths, no holding and no score.

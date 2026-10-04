@@ -1,4 +1,4 @@
-# 75-90 second English demonstration
+# Two-minute English demonstration
 
 **Core message:** "The tablet engages the child. The phone helps the parent understand the child."
 
@@ -8,7 +8,7 @@ Build both current HAPs, restore backend dependencies/build and start `npm.cmd s
 
 The finite five-mission sequence is Bridge, Memory, Move, Garden and the allocated built-in video when Dino Forest is chosen. Actual mission ordering can follow the retained story adapter/recommendation; rehearse the current saved configuration. Do not alter gameplay or substitute Skip/Next for genuine completion. If a daily gift is already earned, show retained world progress rather than claiming a second gift that date.
 
-## 90-second target
+## Two-minute target with interactive story
 
 | Time | Demo step / actual action | English narration |
 |---|---|---|
@@ -20,10 +20,10 @@ The finite five-mission sequence is Bridge, Memory, Move, Garden and the allocat
 | 0:49-1:01 | 11: Continue; actual ten-second Copy Pico, Done | "Movement is child-confirmed, without camera monitoring. An adult stays nearby." |
 | 1:01-1:08 | 12: Place Garden flower, Done/Continue; built-in native video | "Creative play and a short reviewed story are part of the same adventure." |
 | 1:08-1:15 | 13-15: Phone Pause during mission/video, Tablet paused; Resume | "The parent can pause and resume from the phone." |
-| 1:15-1:20 | 16-17: Let video finish, Continue; genuine 5/5 ending and saved garden progress | "The adventure has an ending, and progress stays for another day." |
-| 1:20-1:30 | 18-20: View Summary; read the plain-language summary and balanced suggestion; expand Why am I seeing this? | "These are descriptive activity patterns with evidence and sample limits, never a diagnosis." |
+| 1:15-1:45 | 16-17: Let video finish, guide cloud through three glowing waypoints, Return to World; genuine 5/5 ending and saved garden progress | "The adventure has an ending, and progress stays for another day." |
+| 1:45-2:00 | 18-20: View Summary; read the plain-language summary and balanced suggestion; expand Why am I seeing this? | "These are descriptive activity patterns with evidence and sample limits, never a diagnosis." |
 
-This is a recording/editing plan, not an executed timed 90-second demo. Record the full real chain first. If actual actions exceed the target, use **Edited for time** captions and clearly visible cuts. Preserve the real movement wait and memory preview; do not suggest a complete 15/30-minute window elapsed. Existing development results are not evidence from real children. Native fallback video is not AI-generated.
+This is a recording/editing plan, not an executed timed two-minute demo. Record the full real chain first. If actual actions exceed the target, use **Edited for time** captions and clearly visible cuts. Preserve the real movement wait and memory preview; do not suggest a complete 15/30-minute window elapsed. Existing development results are not evidence from real children. Native fallback video is not AI-generated.
 
 ## Record and review
 
@@ -36,3 +36,9 @@ Use the real saved demo journal; do not inject study records. Open Home → View
 ## Optional Calm Sky close-up
 
 From Home Base open Calm Sky. The child title is **Breathe with the Cloud**. Read: "Pico found a sleepy cloud. Let's help it relax." Instruction: "Watch the cloud. Breathe slowly, then tap it gently." Show the slow breathing animation and soft tap response. Comfortable breaths, no holding and no score. Tap Done exploring: "Nice and calm." Continue adventure returns to the hub or the next already-planned slot. This is a wording/visual-feedback clarification of the existing CALM activity, not a new puzzle, drag-to-home mechanic or emotional assessment.
+
+## Interactive Storybook correction
+
+This is **Storybook / WATCH in Home Base**, not Calm Sky. Title: Help the Cloud Find Home. Opening: "Pico found a little cloud that can't find its way home." Preserve the existing eight-second cloud clip; when it finishes, the player is replaced automatically by the cloud scene. Guide the cloud to three soft waypoints by dragging, or tap the cloud then the next glow. A misplaced drag gently returns; it has no score, failure screen or retry count. Cloud movement reveals a brighter sun and joins the clouds in the sky. "The cloud found its home!" appears with one Return to World. This records the story once and follows the current independent hub or existing Daily Adventure route; it never restarts the video on return.
+
+Allow roughly 20–40 seconds for unhurried child interaction in the story segment; this is a pacing target, not a measured usability finding or enforced timer. The timeline above allocates thirty seconds for this part. Skip remains available during video and interaction and produces a skipped outcome. Calm Sky remains the separate unscored breathing/tapping activity.

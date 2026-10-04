@@ -1,3 +1,9 @@
+# Interactive cloud Storybook correction - 2026-10-04
+
+Codex read the user's correction: change Storybook/WATCH in Home Base, not Calm Sky. The existing cloud video and reviewed URI selection remain, followed by an automatic three-waypoint native scene. Drag and tap-cloud/tap-glow are supported; gentle misses have no challenge score/retry. Completion waits for an explicit Return to World and reuses the existing stable-ID outcome and Daily progression. Fixed input fields and storage/protocol/Phone/Insights/balance logic were retained.
+
+Actual work: four targeted Storybook host checks (21 total world checks), clean Tablet builds after detecting incremental external shared-model caching, native API 21 video/interaction/incorrect drag/correct drag/tap fallback/return and Skip tests, screenshot review, final-HAP Daily flow validation and runtime logs. The displayed cloud video was confirmed as the original fallback.mp4, not a replaced asset or generated clip. Calm Sky was not changed this iteration. Native test setup used existing demo relay commands and actual saved outcomes; no completion rows were injected. Documentation distinguishes pacing targets and untested physical-device/provider variants from actual checks.
+
 # Calm Sky UX consistency - 2026-10-04
 
 Codex read the user's attached small-UX request and inspected the Calm scene/model/demo copy. No cloud-find-home instruction was found. Existing child title Calm Sky, general breathe/tap prompt and generic completion were clarified to Breathe with the Cloud, a sleepy-cloud story, Watch/Breathe/Tap instruction and Nice and calm. A 900ms soft opacity response uses the existing calmTaps counter while retaining the four-second breathing expansion/contraction. No new challenge, score, metric, data field, session architecture, provider or Phone logic was added.

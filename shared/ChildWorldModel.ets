@@ -85,7 +85,7 @@ export class WorldEngine {
     s.pico = 'CURIOUS'; s.placed = []; s.selected = -1; s.progress = 0; s.attempts = 0; s.retries = 0; s.elapsed = 0; s.flowers = []; s.calmTaps = 0;
     s.feedback = ''; s.difficultyFeedback = ''; s.remaining = game === 'copy' ? 10 : 0; s.movementSeconds = 0; s.previewAt = now; s.lastTick = now;
     s.sequence = [0, 1, 2, 3, 0].slice(0, s.difficulty); s.flash = game === 'memory' ? 0 : -1;
-    s.message = game === 'bridge' ? 'Dino needs three stones to cross the river. Drag each stone onto the bridge.' : game === 'memory' ? 'Robot needs your help. Watch the lights!' : game === 'rescue' ? 'The animals are lost. Tap an animal, then its home.' : game === 'stars' ? 'Five blue stars will open the gate. Leave the amber star.' : game === 'number' ? 'Pico needs four blue energy crystals. Find them, then march together.' : game === 'copy' ? 'Copy Pico: tiny penguin steps or seated arm moves. Adult nearby.' : game === 'rocket' ? 'Fit the three shapes into the rocket.' : game === 'garden' ? 'Choose colors and plant your own garden. Every garden is welcome.' : game === 'calm' ? 'Watch the cloud. Breathe slowly, then tap it gently.' : 'A storybook opens. Watch, then return to our world.';
+    s.message = game === 'bridge' ? 'Dino needs three stones to cross the river. Drag each stone onto the bridge.' : game === 'memory' ? 'Robot needs your help. Watch the lights!' : game === 'rescue' ? 'The animals are lost. Tap an animal, then its home.' : game === 'stars' ? 'Five blue stars will open the gate. Leave the amber star.' : game === 'number' ? 'Pico needs four blue energy crystals. Find them, then march together.' : game === 'copy' ? 'Copy Pico: tiny penguin steps or seated arm moves. Adult nearby.' : game === 'rocket' ? 'Fit the three shapes into the rocket.' : game === 'garden' ? 'Choose colors and plant your own garden. Every garden is welcome.' : game === 'calm' ? 'Watch the cloud. Breathe slowly, then tap it gently.' : "Pico found a little cloud that can't find its way home.";
     WorldEngine.log(s, 'MISSION_STARTED', worldStyle(game), now); return s;
   }
   static backToWorld(state: WorldState): WorldState {
@@ -109,10 +109,25 @@ export class WorldEngine {
   }
   static success(s: WorldState): void { s.phase = 'success'; s.pico = 'CELEBRATING'; s.message = s.game === 'bridge' ? 'The bridge is repaired! Dino and Pico can cross. 5 + 3 = 8.' : s.game === 'memory' ? 'Robot is awake! The lights are back.' : s.game === 'rescue' ? 'Everyone is home! Watch the animals settle in.' : s.game === 'stars' ? 'Five stars! The forest gate opens.' : s.game === 'rocket' ? 'The rocket is ready. Off we go!' : s.game === 'calm' ? 'Nice and calm.' : 'Our world changed because of you!'; }
   static act(state: WorldState, action: string, value: number, now: number): WorldState {
-    const s = copy(state); if (!s.active || s.paused || s.ended || ['feedback', 'ending'].includes(s.phase)) { return s; }
+    const s = copy(state);
+    if (s.active && !s.ended && s.game === 'watch' && action === 'video-ended' && s.phase === 'watch') {
+      WorldEngine.log(s, 'VIDEO_COMPLETED', '', now); s.phase = 'input'; s.message = 'Can you help the cloud find the sky?'; s.pico = 'CURIOUS'; return s;
+    }
+    if (!s.active || s.paused || s.ended || ['feedback', 'ending'].includes(s.phase)) { return s; }
     if (action === 'pico') { s.pico = s.pico === 'HAPPY' ? 'SURPRISED' : 'HAPPY'; s.message = 'Pico waves! Where shall we explore?'; return s; }
     if (action === 'ambient') { s.pico = 'LOOKING'; s.message = value === 0 ? 'The lamp glows softly.' : value === 1 ? 'A tiny seed becomes a leaf.' : 'The backpack has a little map.'; return s; }
     if (action === 'skip') { WorldEngine.finish(s, false, now); s.phase = 'feedback'; return s; }
+    if (s.game === 'watch') {
+      if (action === 'story-select' && s.phase === 'input') { s.selected = 0; return s; }
+      if (action === 'story-step' && s.phase === 'input') {
+        if (s.selected !== 0 || value !== s.progress) { s.selected = -1; s.pico = 'ENCOURAGING'; s.message = 'The glowing path will guide our cloud.'; return s; }
+        WorldEngine.log(s, 'OBJECT_PLACED', `cloud:${value}`, now); s.progress++; s.selected = -1; s.pico = 'HAPPY';
+        if (s.progress === 3) { WorldEngine.success(s); s.message = 'The cloud found its home!'; }
+        else { s.message = 'Our cloud is getting closer. Follow the gentle glow.'; }
+        return s;
+      }
+      return s;
+    }
     if (action === 'more' && ['movement', 'confirm'].includes(s.phase)) { s.phase = 'movement'; s.remaining = 10; s.retries++; s.pico = 'ENCOURAGING'; WorldEngine.log(s, 'NEED_MORE_TIME', '', now); return s; }
     if (action === 'done' && s.phase === 'confirm') { WorldEngine.success(s); return s; }
     if (action === 'done' && ['garden', 'calm', 'watch'].includes(s.game) && (s.game !== 'garden' || s.flowers.length > 0)) { WorldEngine.success(s); return s; }

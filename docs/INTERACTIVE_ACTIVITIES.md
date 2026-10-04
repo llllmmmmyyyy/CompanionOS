@@ -13,7 +13,7 @@ Primary gameplay runs on Tablet API 21, using reusable native ArkUI scenes and t
 | Build the Rocket | Circle/triangle/rectangle drag into corresponding target positions; wrong placement retries; three fitted pieces launch rocket | spatial matching, BUILDING |
 | Creative Garden | Choose palette and tap garden positions to place flowers; finish after at least one placement; no correctness judgement | open CREATING |
 | Calm Sky (Breathe with the Cloud) | Watch the cloud, breathe slowly and tap gently; slow expansion/contraction, soft tap fade, optional finish; no score/accuracy | unscored EXPLORING / CALM |
-| Storybook | Native Video from existing reviewed URI or original built-in counting/cloud clip; normal end returns to world, early exit is skipped | WATCHING |
+| Storybook / Help the Cloud Find Home | Existing native cloud video (or selected reviewed URI), then three gentle cloud waypoints by drag or cloud-tap/target-tap; one Return to World after reaching the sky; early Skip is not completion | WATCHING, descriptive hybrid story |
 
 Original graphics are authored vectors/native shapes, not commercial characters or stock game scenes. No Unity/Flutter/web runtime, camera or risky equipment. Lightweight native motion represents consequences, not verified real-world learning or exercise.
 

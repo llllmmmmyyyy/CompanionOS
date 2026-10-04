@@ -90,6 +90,36 @@ export struct ChildWorld {
     this.dragIndex = -1; this.dragX = 0; this.dragY = 0; this.act('place', okay ? index : -1);
   }
   private sceneColor(): string { return this.state.game === 'memory' ? '#D8E8F5' : ['number', 'rocket', 'stars'].includes(this.state.game) ? '#DDE5F7' : this.state.game === 'rescue' ? '#CDEDE7' : '#DFF0D4'; }
+  private storyDrop(): void {
+    const step = this.state.progress;
+    const x = [30, 45, 62, 79]; const y = [62, 43, 26, 10];
+    const okay = Math.abs(this.dragX - this.worldWidth * (x[step + 1] - x[step]) / 100) < 65 &&
+      Math.abs(this.dragY - this.worldHeight * (y[step + 1] - y[step]) / 100) < 65;
+    this.dragIndex = -1; this.dragX = 0; this.dragY = 0;
+    this.act('story-step', okay ? step : -1);
+  }
+  @Builder
+  cloudStory() {
+    Circle().width(90).height(90).fill(this.state.progress >= 2 ? '#FFE7A8' : '#DAEBD2').position({ x: '69%', y: '4%' }).animation({ duration: 1600 })
+    ForEach([0, 1, 2], (step: number) => {
+      Circle().width(110).height(100).fill(this.state.progress > step ? '#DAEBD2' : step === this.state.progress ? '#FFF5BF' : '#EBF5EE')
+        .stroke('#A7C7C4').strokeWidth(step === this.state.progress ? 4 : 1)
+        .position({ x: `${[45, 62, 79][step]}%`, y: `${[43, 26, 10][step]}%` })
+        .id(`Cloud waypoint ${step + 1}`).accessibilityText(step === 2 ? 'Cloud sky home' : `Cloud waypoint ${step + 1}`)
+        .onClick(() => this.act('story-step', step))
+    })
+    Image($rawfile('world-cloud.svg')).width(110).height(100).objectFit(ImageFit.Contain)
+      .position({ x: `${[30, 45, 62, 79][this.state.progress]}%`, y: `${[62, 43, 26, 10][this.state.progress]}%` })
+      .animation({ duration: 1400, curve: Curve.EaseInOut })
+      .translate({ x: this.dragIndex === 10 ? this.dragX : 0, y: this.dragIndex === 10 ? this.dragY : 0 })
+      .animation({ duration: this.dragIndex === 10 ? 0 : 900, curve: Curve.EaseInOut })
+      .zIndex(6).id('Story cloud').accessibilityText('Story cloud').onClick(() => this.act('story-select'))
+      .gesture(PanGesture().onActionStart(() => { if (this.state.paused || this.state.phase !== 'input') { return; } this.act('story-select'); this.dragIndex = 10; WorldEngine.log(this.state, 'OBJECT_DRAG_STARTED', 'cloud', Date.now()); })
+        .onActionUpdate((event: GestureEvent) => { if (this.dragIndex === 10) { this.dragX = event.offsetX; this.dragY = event.offsetY; } })
+        .onActionEnd(() => { if (this.dragIndex === 10) { this.storyDrop(); } }))
+    if (this.state.phase === 'input') { Text('Move the cloud to the glow. Or tap the cloud, then the glow.').fontSize(20).fontColor('#36584A').position({ x: '25%', y: '82%' }) }
+    if (this.state.phase === 'success') { Text('Thanks for helping, explorer.').fontSize(22).fontColor('#36584A').position({ x: '30%', y: '73%' }) }
+  }
   @Builder
   pico() {
     Column({ space: 1 }) {
@@ -219,13 +249,14 @@ export struct ChildWorld {
           .rotate({ angle: this.state.phase === 'movement' ? (this.pulse ? 12 : -12) : 0 }).translate({ y: this.pulse && this.state.phase === 'movement' ? -15 : 0 }).animation({ duration: 650 })
         Text(this.state.phase === 'movement' ? `${this.state.remaining} seconds | Tiny steps or seated arm moves` : 'Thank you for moving with Pico. Rest whenever you need.').fontSize(24).fontColor('#345C59').position({ x: '28%', y: '77%' })
       } else if (this.state.game === 'watch' && this.state.phase === 'watch') {
-        Video({ src: this.frame.content.uri !== '' ? this.frame.content.uri : this.state.slots[this.state.slotIndex]?.category === 'CALM' ? $rawfile('fallback.mp4') : $rawfile('counting.mp4'), controller: this.controller }).width('72%').height('90%').position({ x: '25%', y: '4%' })
+        Video({ src: this.frame.content.uri !== '' ? this.frame.content.uri : $rawfile('fallback.mp4'), controller: this.controller }).width('72%').height('90%').position({ x: '25%', y: '4%' })
           .controls(true).autoPlay(true).loop(false).muted(true).objectFit(ImageFit.Contain)
-          .onStart(() => { if (!this.videoPlaying) { WorldEngine.log(this.state, 'VIDEO_STARTED', '', Date.now()); this.videoPlaying = true; console.info('[CompanionWorld] native storybook playback started'); } })
-          .onFinish(() => { WorldEngine.log(this.state, 'VIDEO_COMPLETED', '', Date.now()); this.videoPlaying = false; this.act('done'); })
+          .onStart(() => { if (this.state.paused || this.state.ended || !this.foreground) { this.stopVideo(); return; } if (!this.videoPlaying) { WorldEngine.log(this.state, 'VIDEO_STARTED', '', Date.now()); this.videoPlaying = true; console.info('[CompanionWorld] native storybook playback started'); } })
+          .onFinish(() => { this.videoPlaying = false; this.act('video-ended'); })
           .onError(() => { this.state.message = 'This story cannot play. You can return to the world or try Built-in on Phone.'; })
       }
-      if (this.state.game === 'watch' && this.state.phase !== 'watch') { Image($rawfile('world-book.svg')).width(180).height(200).position({ x: '48%', y: '30%' }) }
+      if (this.state.game === 'watch' && ['input', 'success'].includes(this.state.phase)) { this.cloudStory() }
+      else if (this.state.game === 'watch' && this.state.phase === 'feedback') { Image($rawfile('world-book.svg')).width(180).height(200).position({ x: '48%', y: '30%' }) }
       this.pico()
       Image($rawfile('world-backpack.svg')).width(48).height(50).objectFit(ImageFit.Contain).position({ x: '6%', y: '14%' }).accessibilityText('Pico backpack').onClick(() => this.act('ambient', 2))
       Image($rawfile('world-plant.svg')).width(52).height(58).objectFit(ImageFit.Contain).position({ x: '12%', y: '85%' }).accessibilityText('Pico plant').onClick(() => this.act('ambient', 1))
@@ -246,7 +277,7 @@ export struct ChildWorld {
   build() {
     if (this.state.active) {
       Column({ space: 10 }) {
-        Row() { Text(this.state.game === 'calm' ? 'Breathe with the Cloud' : worldName(this.state.game)).fontSize(26).fontWeight(FontWeight.Bold).fontColor('#284D4B').layoutWeight(1)
+        Row() { Text(this.state.game === 'watch' ? 'Help the Cloud Find Home' : this.state.game === 'calm' ? 'Breathe with the Cloud' : worldName(this.state.game)).fontSize(26).fontWeight(FontWeight.Bold).fontColor('#284D4B').layoutWeight(1)
           Text(this.connected ? 'Parent connected' : 'Parent connection paused').fontSize(15).fontColor('#45695C')
           Text(`${this.state.results.filter((r: WorldResult) => r.completed).length} discoveries`).fontSize(16).fontColor('#45695C').margin({ left: 18 })
         }.width('100%')
@@ -256,7 +287,9 @@ export struct ChildWorld {
           Row({ space: 15 }) { Text('Choose a path').fontSize(16).fontColor('#47615A'); ForEach(['bridge', 'memory', 'rocket', 'rescue'], (game: string) => { Button(worldName(game)).height(42).fontSize(15).backgroundColor('#DDE7CD').fontColor('#36584A').onClick(() => this.choosePath(game)) }) }
         }
         this.scene()
-        if (!this.state.paused && ['success', 'feedback'].includes(this.state.phase)) {
+        if (!this.state.paused && this.state.game === 'watch' && ['success', 'feedback'].includes(this.state.phase)) {
+          Button('Return to World').height(56).fontSize(22).onClick(() => this.next())
+        } else if (!this.state.paused && ['success', 'feedback'].includes(this.state.phase)) {
           Row({ space: 10 }) {
             ForEach(['liked', 'okay', 'disliked'], (value: string, index: number) => { Button(['Loved it', 'Okay', 'Not for me'][index]).height(46).fontSize(17).backgroundColor(this.state.feedback === value ? '#386F5C' : '#ECF1DC').fontColor(this.state.feedback === value ? '#FFFFFF' : '#36584A').onClick(() => this.feedback(value, false)) })
             ForEach(['too easy', 'just right', 'too hard'], (value: string, index: number) => { Button(['Easy', 'Just right', 'Tricky'][index]).height(46).fontSize(17).backgroundColor(this.state.difficultyFeedback === value ? '#386F5C' : '#ECF1DC').fontColor(this.state.difficultyFeedback === value ? '#FFFFFF' : '#36584A').onClick(() => this.feedback(value, true)) })
@@ -266,8 +299,8 @@ export struct ChildWorld {
           Row({ space: 15 }) {
             if (this.state.phase === 'retry') { Button('Try again').height(52).onClick(() => this.act('retry')) }
             if (['movement', 'confirm'].includes(this.state.phase)) { Button('More time').height(52).onClick(() => this.act('more')); Button('Done').height(52).enabled(this.state.phase === 'confirm').onClick(() => this.act('done')) }
-            if (['garden', 'calm', 'watch'].includes(this.state.game)) { Button(this.state.game === 'watch' ? 'Return to world' : 'Done exploring').height(52).enabled(this.state.game !== 'garden' || this.state.flowers.length > 0).onClick(() => { this.stopVideo(); this.act(this.state.game === 'watch' ? 'skip' : 'done'); }) }
-            Button('Skip').height(52).backgroundColor('#E6EBCF').fontColor('#36584A').onClick(() => this.act('skip'))
+            if (['garden', 'calm'].includes(this.state.game)) { Button('Done exploring').height(52).enabled(this.state.game !== 'garden' || this.state.flowers.length > 0).onClick(() => { this.stopVideo(); this.act('done'); }) }
+            Button('Skip').height(52).backgroundColor('#E6EBCF').fontColor('#36584A').onClick(() => { if (this.state.game === 'watch') { this.stopVideo(); } this.act('skip'); })
           }
         }
         if (this.storageError) { Text(this.storageError).fontSize(15).fontColor('#8A452C') }
