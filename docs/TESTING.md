@@ -1,3 +1,25 @@
+# Calm Sky wording and gentle tap verification - 2026-10-04
+
+This is a small Tablet UX consistency change, not a new game. No "Help the cloud find home" or other cloud drag-home instruction was found in the current inspected scene/model/demo copy. Old child title was Calm Sky; prompt was "Breathe comfortably with the cloud. Tap gently, with no score."; completion used the generic "Our world changed because of you!". New child title: **Breathe with the Cloud**. Story: "Pico found a sleepy cloud. Let's help it relax." Instruction: "Watch the cloud. Breathe slowly, then tap it gently." Completion: "Nice and calm." The safety reminder retains comfortable breaths, no holding and no score.
+
+The existing 4-second breathing scale animation, cloud tap counter, optional Done/Skip, activity completion and progression remain. A soft 900ms opacity change uses the existing counter as visual tap feedback; no new score, retry, challenge, reward, timer, data field or psychological metric was added. World/record name Calm Sky is retained; the new title is child-facing. Phone/relay/Insights/persistence/session architecture were not changed or rebuilt.
+
+Tablet build command: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 -Module tventry`. The tested API 21 package was installed/launched without deleting data; build exited 0 with BUILD SUCCESSFUL. Output `tventry/build/tablet/outputs/default/tventry-default-unsigned.hap`, SHA256 `0DD8E585235B52B2BDF3974B36FCEFCCC12022733C4F582E754CB49FCF2F861A`. It is unsigned development output with the existing signing/exception warnings, not a signed release. The required post-verification Tablet build also finished BUILD SUCCESSFUL with exit 0 and the same SHA256, so its artifact is identical to the installed/tested HAP.
+
+| Check | Actual verification | Status |
+|---|---|---|
+| Clear Calm instructions | Actual Tablet API 21 opened Calm Sky from Home Base; screenshot/layout showed one Breathe with the Cloud title, Watch/Breathe/Tap instruction, sleepy-cloud story and no-score safety text | PASS |
+| Gentle cloud tap response | Actual HDC tap and before/after screenshots show soft cloud tint change; the same interior screenshot pixel changed RGB 255/255/255 → 251/253/250. Existing slow scale motion retained | PASS within captured visual evidence |
+| Calm completion | Done exploring displayed Nice and calm; no score, correct/wrong, failure, drag target or retry state appeared | PASS |
+| Data semantics | Calm outcome remained EXPLORING / CALM, completed, 0 attempts, 0 retries; no new field/event or emotional inference | PASS |
+| Continue progression | Continue adventure returned to Home Base after the independent Calm activity | PASS |
+| Daily Adventure regression | Actual native bridge placements, memory signals, foreground movement + Done, garden planting + Done, built-in story/video completion; all 5/5 complete, healthy ending and Back to World worked | PASS |
+| Existing host rules | All 17 world rule checks passed through installed SDK compiler, including unscored calm, daily dedup/progression and pause/resume | PASS |
+| Runtime log | Tablet process log had zero Uncaught/JsError/FATAL/TypeError/ReferenceError/Unhandled matches | PASS within captured scope |
+| Physical Tablet / accessibility / child comprehension study | Not performed | NOT RUN |
+
+First Phone navigation attempts encountered its separately restored fallback work screen and were interrupted, not marked passes. Test setup used the existing unchanged relay command endpoint for end/re-entry and START_SESSION. The 15-minute Balanced regression command was generated from actual SessionBalanceEngine + worldSlots using the installed SDK compiler; it did not modify saved 60-minute Custom settings. All recorded completions came from native Tablet interactions, not injected result rows. Existing already-successful story state was preserved as an outcome when ending that prior session. Current-day garden gift was already earned and stayed 1; no second gift was claimed. Evidence stays ignored under artifacts/calm-copy-*; temporary test harness was removed. No new wording-mirror test was added for this reversible UI edit.
+
 # Tablet local Resume Adventure fix - 2026-10-04
 
 Scope: ChildWorld's local pause/resume button and paused presentation only. The old control was disabled whenever connected; its disconnected handler merely changed a flag. The new Resume Adventure constructs RESUME_SESSION and invokes the same extracted applyCommand handler used for received Phone commands: WorldEngine.command, active callback, persistence, video handling and existing state sync. The Tablet is already the session-state authority. No Phone, backend, shared command transition or protocol change was made.

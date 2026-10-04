@@ -208,9 +208,12 @@ export struct ChildWorld {
       else if (['stars', 'number'].includes(this.state.game) && !['movement', 'confirm', 'success', 'feedback'].includes(this.state.phase)) { this.collect() }
       else if (this.state.game === 'garden') { this.garden() }
       else if (this.state.game === 'calm') {
-        Image($rawfile('world-cloud.svg')).width(260).height(230).objectFit(ImageFit.Contain).position({ x: '40%', y: '20%' }).scale({ x: this.breath ? 1.12 : 0.9, y: this.breath ? 1.12 : 0.9 }).animation({ duration: 4000, curve: Curve.EaseInOut })
+        Image($rawfile('world-cloud.svg')).width(260).height(230).objectFit(ImageFit.Contain).position({ x: '40%', y: '20%' })
+          .opacity(this.state.calmTaps % 2 === 0 ? 1 : 0.88).animation({ duration: 900, curve: Curve.EaseInOut })
+          .scale({ x: this.breath ? 1.12 : 0.9, y: this.breath ? 1.12 : 0.9 }).animation({ duration: 4000, curve: Curve.EaseInOut })
           .id('Breathing cloud').accessibilityText('Breathing cloud').onClick(() => this.act('cloud'))
-        Text('Easy, comfortable breaths. No holding.').fontSize(24).fontColor('#47615A').position({ x: '28%', y: '73%' })
+        Text("Pico found a sleepy cloud. Let's help it relax.").fontSize(23).fontColor('#47615A').position({ x: '22%', y: '65%' })
+        Text('Comfortable breaths. No holding. No score.').fontSize(18).fontColor('#47615A').position({ x: '28%', y: '77%' })
       } else if (['copy', 'number'].includes(this.state.game)) {
         Image($rawfile('pico.svg')).width(215).height(245).objectFit(ImageFit.Contain).position({ x: '47%', y: '18%' })
           .rotate({ angle: this.state.phase === 'movement' ? (this.pulse ? 12 : -12) : 0 }).translate({ y: this.pulse && this.state.phase === 'movement' ? -15 : 0 }).animation({ duration: 650 })
@@ -243,7 +246,7 @@ export struct ChildWorld {
   build() {
     if (this.state.active) {
       Column({ space: 10 }) {
-        Row() { Text(worldName(this.state.game)).fontSize(26).fontWeight(FontWeight.Bold).fontColor('#284D4B').layoutWeight(1)
+        Row() { Text(this.state.game === 'calm' ? 'Breathe with the Cloud' : worldName(this.state.game)).fontSize(26).fontWeight(FontWeight.Bold).fontColor('#284D4B').layoutWeight(1)
           Text(this.connected ? 'Parent connected' : 'Parent connection paused').fontSize(15).fontColor('#45695C')
           Text(`${this.state.results.filter((r: WorldResult) => r.completed).length} discoveries`).fontSize(16).fontColor('#45695C').margin({ left: 18 })
         }.width('100%')

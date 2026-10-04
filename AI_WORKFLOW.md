@@ -1,3 +1,9 @@
+# Calm Sky UX consistency - 2026-10-04
+
+Codex read the user's attached small-UX request and inspected the Calm scene/model/demo copy. No cloud-find-home instruction was found. Existing child title Calm Sky, general breathe/tap prompt and generic completion were clarified to Breathe with the Cloud, a sleepy-cloud story, Watch/Breathe/Tap instruction and Nice and calm. A 900ms soft opacity response uses the existing calmTaps counter while retaining the four-second breathing expansion/contraction. No new challenge, score, metric, data field, session architecture, provider or Phone logic was added.
+
+Actual work includes Tablet build/install, SDK-transpiled existing world rules, native cloud tap/Done/Continue and screenshot review, plus Daily Adventure regression. Existing Phone fallback activity restoration interfered with the first navigation attempts; those were not called passes. Test setup then used the unchanged existing relay command endpoint, not a new backend design. Parent settings were preserved. See docs/TESTING.md for actual scope and final results; no human child usability study is claimed.
+
 # Tablet local resume repair - 2026-10-04
 
 Codex followed the narrowly scoped instruction to repair the dead Tablet Resume saved adventure control. The old connected-state disable/local-flag branch was replaced by Resume Adventure in one pause overlay, invoking exactly the same applyCommand → WorldEngine.command(RESUME_SESSION) path as received Phone commands. It saves and publishes the authoritative Tablet state through existing sync. Pause hides Skip/path/feedback/continuation controls; ended sessions do not offer Resume. Phone, backend, shared command engine and protocol were not redesigned.

@@ -12,7 +12,7 @@ Primary gameplay runs on Tablet API 21, using reusable native ArkUI scenes and t
 | Number Move | Four actual blue crystals required, amber rejected; then ten-second character demonstration and Done | counting plus child-confirmed MOVEMENT |
 | Build the Rocket | Circle/triangle/rectangle drag into corresponding target positions; wrong placement retries; three fitted pieces launch rocket | spatial matching, BUILDING |
 | Creative Garden | Choose palette and tap garden positions to place flowers; finish after at least one placement; no correctness judgement | open CREATING |
-| Calm Sky | Slow cloud expansion/contraction and gentle taps, optional finish; no score/accuracy | unscored EXPLORING / CALM |
+| Calm Sky (Breathe with the Cloud) | Watch the cloud, breathe slowly and tap gently; slow expansion/contraction, soft tap fade, optional finish; no score/accuracy | unscored EXPLORING / CALM |
 | Storybook | Native Video from existing reviewed URI or original built-in counting/cloud clip; normal end returns to world, early exit is skipped | WATCHING |
 
 Original graphics are authored vectors/native shapes, not commercial characters or stock game scenes. No Unity/Flutter/web runtime, camera or risky equipment. Lightweight native motion represents consequences, not verified real-world learning or exercise.
